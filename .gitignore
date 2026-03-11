@@ -1,6 +1,6 @@
 # Separate repositories — not part of dts-studio
-dts-stack/
-app-stack/
+/dts-stack/
+/app-stack/
 
 # Memory system internals
 .memory/.venv/
