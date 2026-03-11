@@ -1,0 +1,135 @@
+# DTS Base Object Types — platform-level types shared across all industries
+# These are the foundation types that every Ontology builds upon.
+
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: DataSource
+  namespace: platform
+  description: 数据源连接定义
+spec:
+  properties:
+    - name: source_id
+      type: string
+      required: true
+    - name: source_type
+      type: enum
+      values: [jdbc, api, file, opcua, mqtt, kafka]
+    - name: connection_config
+      type: object
+      classification: confidential
+    - name: status
+      type: enum
+      values: [active, inactive, error]
+    - name: sync_mode
+      type: enum
+      values: [full, cdc, realtime]
+    - name: last_sync_at
+      type: datetime
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: User
+  namespace: platform
+  description: 系统用户 (映射 Keycloak)
+spec:
+  properties:
+    - name: user_id
+      type: string
+      required: true
+    - name: username
+      type: string
+    - name: display_name
+      type: string
+    - name: email
+      type: string
+      classification: internal
+    - name: roles
+      type: array
+      items: string
+    - name: tenant_id
+      type: string
+    - name: status
+      type: enum
+      values: [active, disabled]
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: Tenant
+  namespace: platform
+  description: 租户
+spec:
+  properties:
+    - name: tenant_id
+      type: string
+      required: true
+    - name: tenant_name
+      type: string
+    - name: plan
+      type: enum
+      values: [standard, enterprise, unlimited]
+    - name: config
+      type: object
+    - name: status
+      type: enum
+      values: [active, suspended]
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: AppPack
+  namespace: platform
+  description: 已安装的能力包
+spec:
+  properties:
+    - name: pack_name
+      type: string
+      required: true
+    - name: version
+      type: string
+    - name: vendor
+      type: string
+    - name: status
+      type: enum
+      values: [installing, running, error, uninstalling]
+    - name: installed_at
+      type: datetime
+    - name: capabilities
+      type: array
+      items: string
+      description: 注册的能力列表
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: AuditEvent
+  namespace: platform
+  description: 审计事件 (append-only)
+spec:
+  properties:
+    - name: event_id
+      type: string
+      required: true
+    - name: event_type
+      type: string
+    - name: source
+      type: string
+    - name: user_id
+      type: string
+    - name: tenant_id
+      type: string
+    - name: trace_id
+      type: string
+    - name: timestamp
+      type: datetime
+    - name: data
+      type: object
+    - name: risk_level
+      type: enum
+      values: [low, medium, high]

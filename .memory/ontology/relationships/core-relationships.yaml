@@ -1,0 +1,72 @@
+# DTS Core Relationships — standard relationships between base and decision types
+
+apiVersion: dap/v1
+kind: RelationshipSet
+metadata:
+  namespace: platform
+
+spec:
+  # Platform relationships
+  - from: User
+    to: Tenant
+    type: belongs_to
+    cardinality: many_to_one
+
+  - from: AppPack
+    to: Tenant
+    type: installed_in
+    cardinality: many_to_one
+
+  - from: DataSource
+    to: Tenant
+    type: owned_by
+    cardinality: many_to_one
+
+  # Decision relationships
+  - from: Intent
+    to: User
+    type: created_by
+    cardinality: many_to_one
+
+  - from: ExecutionPlan
+    to: Intent
+    type: fulfills
+    cardinality: one_to_one
+
+  - from: PendingAction
+    to: ExecutionPlan
+    type: part_of
+    cardinality: many_to_one
+
+  - from: PendingAction
+    to: User
+    type: approved_by
+    cardinality: many_to_one
+
+  - from: KnowHow
+    to: User
+    type: contributed_by
+    cardinality: many_to_one
+
+  - from: Persona
+    to: AppPack
+    type: provided_by
+    cardinality: many_to_one
+
+  - from: AuditEvent
+    to: Intent
+    type: records
+    cardinality: many_to_one
+
+  # Cross-layer: Ontology ↔ Data
+  - from: ObjectType
+    to: DataSource
+    type: sourced_from
+    cardinality: many_to_many
+    description: ObjectType 的属性数据来自哪些数据源
+
+  - from: Metric
+    to: ObjectType
+    type: measured_on
+    cardinality: many_to_many
+    description: 指标计算依赖哪些业务对象

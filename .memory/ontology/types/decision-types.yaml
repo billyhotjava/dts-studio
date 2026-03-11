@@ -1,0 +1,183 @@
+# DTS Decision Object Types — core types for AI decision operations
+# These types model the decision-making process itself.
+
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: Intent
+  namespace: decision
+  description: 结构化决策意图 — 用户想要达成的目标
+spec:
+  properties:
+    - name: intent_id
+      type: string
+      required: true
+    - name: raw_input
+      type: text
+      description: 用户原始自然语言输入
+    - name: goals
+      type: array
+      items:
+        type: object
+        properties:
+          type: { type: enum, values: [query, action, conditional_action, analysis] }
+          target: { type: string, description: "Ontology ObjectType or Metric" }
+          filter: { type: object }
+    - name: constraints
+      type: object
+      properties:
+        max_steps: { type: integer }
+        timeout_seconds: { type: integer }
+        require_approval_above: { type: enum, values: [low, medium, high] }
+    - name: source
+      type: enum
+      values: [pilot-webapp, cortex-webapp, admin-webapp, api, scheduled]
+    - name: user_id
+      type: string
+    - name: trace_id
+      type: string
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: ExecutionPlan
+  namespace: decision
+  description: Agent 生成的多步执行计划
+spec:
+  properties:
+    - name: plan_id
+      type: string
+      required: true
+    - name: intent_id
+      type: string
+    - name: steps
+      type: array
+      items:
+        type: object
+        properties:
+          step_number: { type: integer }
+          skill_name: { type: string }
+          input: { type: object }
+          depends_on: { type: array, items: integer }
+          condition: { type: string, description: "Optional conditional expression" }
+          risk_level: { type: enum, values: [low, medium, high] }
+    - name: status
+      type: enum
+      values: [planning, executing, paused, completed, failed]
+    - name: current_step
+      type: integer
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: Persona
+  namespace: decision
+  description: 行业人格 — AI Agent 的领域上下文配置
+spec:
+  properties:
+    - name: persona_name
+      type: string
+      required: true
+    - name: namespace
+      type: string
+      description: 行业命名空间
+    - name: system_prompt
+      type: text
+      description: LLM system prompt 定义 Agent 的行业角色和知识边界
+    - name: preferred_skills
+      type: array
+      items: string
+      description: 该 Persona 优先使用的 Skill 列表
+    - name: scheduled_tasks
+      type: array
+      items:
+        type: object
+        properties:
+          name: { type: string }
+          cron: { type: string }
+          skill: { type: string }
+    - name: ontology_scope
+      type: array
+      items: string
+      description: 该 Persona 关注的 ObjectType 列表
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: PendingAction
+  namespace: decision
+  description: 等待人工审批的动作 (HITL)
+spec:
+  properties:
+    - name: action_id
+      type: string
+      required: true
+    - name: intent_id
+      type: string
+    - name: plan_id
+      type: string
+    - name: step_number
+      type: integer
+    - name: skill_name
+      type: string
+    - name: action_description
+      type: text
+    - name: risk_level
+      type: enum
+      values: [medium, high]
+    - name: risk_explanation
+      type: text
+    - name: affected_objects
+      type: array
+      items: string
+    - name: requested_by
+      type: string
+    - name: approver
+      type: string
+    - name: status
+      type: enum
+      values: [pending, approved, rejected, expired]
+    - name: timeout_at
+      type: datetime
+    - name: decided_at
+      type: datetime
+
+---
+apiVersion: dap/v1
+kind: ObjectType
+metadata:
+  name: KnowHow
+  namespace: decision
+  description: 专家经验资产 — 从对话中提取的可执行规则
+spec:
+  properties:
+    - name: knowhow_id
+      type: string
+      required: true
+    - name: title
+      type: string
+    - name: expert_id
+      type: string
+      description: 贡献经验的专家
+    - name: source_conversation
+      type: string
+      description: 提取来源的对话 ID
+    - name: rules
+      type: array
+      items:
+        type: object
+        properties:
+          condition: { type: string }
+          action: { type: string }
+          confidence: { type: number }
+    - name: generated_skill
+      type: string
+      description: 转化后的 Skill 名称
+    - name: status
+      type: enum
+      values: [draft, testing, active, deprecated]
+    - name: created_at
+      type: datetime
