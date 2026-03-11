@@ -1,0 +1,39 @@
+# Quality Gates (质量门禁)
+
+Scope: all DTS CI/CD pipelines
+
+## PR Gate (every pull request)
+
+- [ ] Lint passes (ruff/checkstyle/golangci-lint/eslint)
+- [ ] Unit tests pass (per-service)
+- [ ] Build succeeds (per-service)
+- [ ] No new critical/high vulnerabilities (dependency scan)
+- [ ] API spec backward-compatible (proto breaking change detection)
+- [ ] Code review approved (minimum 1 reviewer)
+
+## Nightly Gate (daily on develop branch)
+
+- [ ] All PR Gate checks
+- [ ] Integration tests pass (per-service with Testcontainers)
+- [ ] E2E core tests pass (3 critical paths)
+- [ ] AI evaluation regression check (accuracy >= baseline)
+- [ ] Docker image build succeeds for all services
+- [ ] Helm chart lint passes
+
+## Release Gate (before version tag)
+
+- [ ] All Nightly Gate checks
+- [ ] Full E2E suite passes (all 5 critical paths)
+- [ ] AI evaluation full suite passes (all capabilities)
+- [ ] Performance benchmark: API P95 < 200ms, AI P95 < 5s
+- [ ] Offline bundle build succeeds
+- [ ] Offline deployment smoke test passes
+- [ ] Changelog and version bumps reviewed
+- [ ] Security audit: no critical CVEs in dependencies
+
+## Hotfix Gate (emergency fixes)
+
+- [ ] Unit tests pass for changed files
+- [ ] Integration test for affected service
+- [ ] Targeted E2E for affected path
+- [ ] Peer review by senior engineer

@@ -1,0 +1,86 @@
+# Cross-Industry Pattern: Metric → Threshold → Alert → Action
+# Every industry monitors KPIs and responds when thresholds are breached.
+
+pattern:
+  name: metric-threshold-alert-action
+  description: |
+    Universal pattern for KPI monitoring and response.
+    A Metric is continuously computed, compared against Thresholds,
+    breaches generate Alerts, Alerts trigger Actions (manual or automated).
+
+  abstract_types:
+    Metric:
+      description: A computed business indicator
+      properties:
+        - name: metric_id
+          type: string
+        - name: formula
+          type: expression
+        - name: unit
+          type: string
+        - name: frequency
+          type: enum [realtime, hourly, daily, weekly, monthly]
+
+    Threshold:
+      description: Boundary values for a Metric
+      properties:
+        - name: warning_value
+          type: number
+        - name: critical_value
+          type: number
+        - name: direction
+          type: enum [above, below, outside_range]
+
+    Alert:
+      description: Notification when Metric breaches Threshold
+      properties:
+        - name: alert_id
+          type: string
+        - name: severity
+          type: enum [warning, critical]
+        - name: triggered_at
+          type: datetime
+        - name: metric_value
+          type: number
+        - name: acknowledged
+          type: boolean
+
+    Action:
+      description: Response to an Alert
+      properties:
+        - name: action_id
+          type: string
+        - name: type
+          type: enum [automated, manual, hitl_approval]
+        - name: risk_level
+          type: enum [low, medium, high]
+        - name: status
+          type: enum [pending, approved, executed, rejected]
+
+  relationships:
+    - from: Threshold
+      to: Metric
+      type: monitors
+    - from: Alert
+      to: Threshold
+      type: triggered_by
+    - from: Action
+      to: Alert
+      type: responds_to
+
+  industry_mappings:
+    energy:
+      Metric: ASAI / line_loss_rate / transformer_load_rate
+      Threshold: 85% warning, 95% critical (load)
+      Alert: OverloadAlert / ReliabilityDropAlert
+      Action: LoadBalancing / EmergencyShutdown (HITL required)
+    manufacturing:
+      Metric: OEE / scrap_rate / cycle_time
+      Threshold: OEE < 85% warning, < 70% critical
+      Alert: QualityDriftAlert / EquipmentDegradationAlert
+      Action: ProductionHold / MaintenanceRequest
+    research:
+      Metric: first_pass_yield / milestone_on_time_rate
+      Threshold: yield < 90% warning, < 80% critical
+      Alert: QualityAlert / ScheduleDelayAlert
+      Action: NCRInitiation / ScheduleRescoping

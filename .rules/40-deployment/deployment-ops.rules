@@ -1,0 +1,45 @@
+# Deployment & Operations (部署与运维规范)
+
+Scope: all DTS deployment environments
+
+## K8s Standards
+
+- All services deployed as K8s Deployments (stateless) or StatefulSets (stateful middleware).
+- Every service must define: resource requests/limits, readiness probe, liveness probe.
+- ConfigMaps for non-sensitive config. Secrets for credentials (sealed-secrets or external-secrets).
+- Use PodDisruptionBudget for production workloads (minAvailable >= 1).
+- Namespace: `dts-system` for platform services, `dts-packs` for AppPacks.
+
+## Helm Chart Rules
+
+- All services managed via Helm charts under `deploy/helm/`.
+- Values hierarchy: defaults → common.yaml → environment-specific.yaml → user overrides.
+- External middleware connections configurable via values (Law: default internal, support external).
+- Chart version follows service version (semver).
+
+## Image Standards
+
+- Base images: python:3.12-slim / eclipse-temurin:21-jre / gcr.io/distroless/static (Go).
+- Multi-stage builds. Final image must not contain build tools or source code.
+- Image tag = git commit SHA (for traceability). Release tags additionally tagged with semver.
+- All images scanned by Trivy before push. Critical CVEs block release.
+
+## Offline Deployment
+
+- dts-cli builds offline bundle: all images + Helm charts + CRDs + config.
+- Bundle format: single tar.gz, importable via `dts-cli offline import`.
+- Offline bundle must be tested in CI (air-gapped environment simulation).
+- LLM for offline: Ollama/vLLM with bundled model weights (configurable model selection).
+
+## Upgrade Strategy
+
+- Rolling updates for stateless services (zero downtime).
+- Database migrations: forward-only, backward-compatible (no destructive DDL).
+- Rollback: `dts-cli rollback --to <version>` (Helm rollback + DB migration guard).
+- AppPack upgrades independent of platform upgrades (version compatibility in manifest).
+
+## Monitoring Alerts
+
+- Every service must expose Prometheus metrics on /metrics endpoint.
+- Standard alerts: pod restart loop, high error rate (>1%), high latency (P95 > SLA), disk usage > 80%.
+- AI-specific alerts: accuracy drop below baseline, evaluation regression, LLM API error rate.

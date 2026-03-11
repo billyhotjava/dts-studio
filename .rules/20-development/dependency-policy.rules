@@ -1,0 +1,38 @@
+# Dependency Policy (依赖管理策略)
+
+Scope: all DTS projects
+
+## General Principles
+
+- Prefer well-maintained, widely-adopted open-source libraries.
+- All dependencies must be compatible with offline/air-gapped deployment.
+- No SaaS-only dependencies (must work fully self-hosted).
+- License whitelist: Apache 2.0, MIT, BSD, MPL 2.0, ISC, PostgreSQL.
+- License blacklist: AGPL, SSPL, proprietary (unless explicitly approved).
+
+## Python Banned/Restricted
+
+- No LangChain (use LangGraph directly).
+- No pinecone-client (SaaS only).
+- No openai SDK as primary (abstract behind LLM provider interface for multi-model support).
+
+## Java Banned/Restricted
+
+- No Spring WebFlux in business CRUD services (use Spring MVC for simplicity).
+- No Lombok (use Java records and explicit code).
+- No MyBatis (use Spring Data JPA / jOOQ).
+
+## Frontend Banned
+
+- antd, @vanilla-extract/*, styled-components, @iconify/react, apexcharts, date-fns
+- Enforced via ESLint no-restricted-imports rule.
+
+## Go Banned/Restricted
+
+- No CGO dependencies in dts-cli (must cross-compile cleanly).
+
+## Version Pinning
+
+- All dependencies must be version-pinned (lock files committed).
+- Automated vulnerability scanning (dependabot/renovate) on weekly schedule.
+- Critical CVEs must be patched within 48 hours.

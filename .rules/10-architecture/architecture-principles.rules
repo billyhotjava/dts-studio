@@ -1,0 +1,57 @@
+# DTS Architecture Principles (架构原则)
+
+Scope: all DTS projects under `/opt/prod/dts/rdc`
+
+## Three-Language Architecture (三语言架构)
+
+- Python: AI Core only (Agent, Intent, RAG, Skill execution, evaluation, scheduling, observability)
+- Java: Business Platform only (CRUD, RBAC, Keycloak, Ontology storage, governance, workflow, audit)
+- Go: Infrastructure only (K8s Operator, CLI, deployment orchestration)
+- Do NOT mix responsibilities across language boundaries.
+- Python services are enhancement layers — Java services must function independently without them.
+
+## Communication (通信)
+
+- Control plane (synchronous): gRPC between all services.
+- Data plane (asynchronous): Kafka KRaft for CDC, event streams, audit, and Pack data channels.
+- Frontend to backend: REST via dts-gateway (with gRPC-Web translation where needed).
+- All inter-service calls must carry JWT user context for permission verification.
+
+## Storage (存储)
+
+- PostgreSQL: primary relational store (Ontology metadata, business data, permissions).
+- ClickHouse: time-series and analytical queries (MES/SCADA, audit wide tables).
+- Neo4j CE: graph relationships (lineage, impact chains). Abstract via GraphStore interface for NebulaGraph switch.
+- pgvector: vector index (RAG, semantic search). Abstract via VectorStore interface for Milvus switch.
+- MinIO: object storage (files, models, offline bundles).
+- Kafka KRaft: messaging, event streaming, CDC. No ZooKeeper.
+
+## Deployment (部署)
+
+- All-in-K8s: single architecture for online and offline. No degraded mode.
+- All middleware (PG, Kafka, ClickHouse, Neo4j, MinIO) deployed inside K8s by default.
+- Support external instances via Helm values configuration.
+- Online vs offline difference: ONLY LLM endpoint and image registry source.
+- Four scenarios: dev single-node / small offline / mid-size cluster / cloud.
+
+## Authentication (认证)
+
+- Keycloak for identity (OIDC/SAML/PKI).
+- JWT token propagation between services (no mTLS).
+- dts-gateway enforces authentication on ALL incoming requests.
+
+## Observability (可观测性)
+
+- OpenTelemetry SDK in all services (Python/Java/Go).
+- Grafana Tempo for distributed tracing.
+- Prometheus for metrics.
+- Grafana Loki for logs.
+- Grafana for unified dashboards.
+- Single traceId links infrastructure traces and AI execution traces.
+
+## Frontend (前端)
+
+- React 19 + Vite + shadcn/ui + Tailwind CSS.
+- Three separate apps: admin (ops), cortex (analyst), pilot (decision-maker).
+- Additional libraries: Vercel AI SDK, React Flow, @dnd-kit.
+- Each app is a static SPA served by nginx. No SSR/Node runtime required.

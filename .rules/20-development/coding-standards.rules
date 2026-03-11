@@ -1,0 +1,57 @@
+# Coding Standards (编码规范)
+
+Scope: all DTS source code
+
+## General
+
+- All source files use UTF-8 encoding, LF line endings.
+- Maximum line length: 120 characters.
+- All public APIs must have documentation (docstring/javadoc/godoc).
+- No hardcoded secrets, credentials, or environment-specific URLs in source code.
+- Use environment variables or config files for all environment-specific values.
+
+## Python (AI Core)
+
+- Python >= 3.12
+- Formatter: ruff format
+- Linter: ruff check
+- Type hints required on all function signatures.
+- Async-first: use async/await for I/O-bound operations.
+- Dependencies managed via pyproject.toml + uv lock.
+- gRPC service implementations in `services/` directory.
+- Business logic in `core/` directory, framework-agnostic.
+- Tests in `tests/` mirroring source structure.
+
+## Java (Business Platform)
+
+- Java 21 LTS + Spring Boot 3.x
+- Formatter: google-java-format
+- Linter: checkstyle (Google style)
+- Package structure: `com.dts.<service>.<layer>` (controller/service/repository/model/proto)
+- Use records for DTOs and value objects.
+- Repository pattern for all database access.
+- gRPC service definitions in shared proto module.
+- No field injection (@Autowired on fields). Use constructor injection only.
+- Tests: JUnit 5 + Mockito. Integration tests use Testcontainers.
+
+## Go (Infrastructure)
+
+- Go >= 1.22
+- Formatter: gofmt
+- Linter: golangci-lint
+- Follow standard Go project layout (cmd/ internal/ pkg/ api/).
+- Error handling: wrap errors with context using fmt.Errorf("...: %w", err).
+- K8s Operator: use controller-runtime framework.
+- CLI: use cobra + viper.
+- Tests: standard testing package + testify for assertions.
+
+## Frontend (React)
+
+- TypeScript strict mode.
+- Formatter: prettier
+- Linter: eslint (flat config)
+- Component structure: one component per file, named export.
+- State management: Zustand for global, React state for local.
+- Data fetching: TanStack Query v5.
+- Styling: Tailwind CSS utility classes only. No CSS modules, no styled-components.
+- Banned dependencies: antd, @vanilla-extract/*, styled-components, @iconify/react, apexcharts, date-fns.

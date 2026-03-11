@@ -1,0 +1,94 @@
+# Cross-Industry Pattern: Asset → Inspection → Issue → WorkOrder
+# This pattern appears in every industry that manages physical or logical assets.
+
+pattern:
+  name: asset-inspection-issue-workorder
+  description: |
+    Universal pattern for asset lifecycle management.
+    An Asset is periodically Inspected, Inspections may find Issues,
+    Issues trigger WorkOrders for resolution.
+
+  abstract_types:
+    Asset:
+      description: Any managed entity (physical or logical)
+      properties:
+        - name: asset_id
+          type: string
+          required: true
+        - name: status
+          type: enum [active, inactive, decommissioned]
+        - name: location
+          type: string
+        - name: owner
+          type: string
+
+    Inspection:
+      description: Periodic or triggered check of an Asset
+      properties:
+        - name: inspection_id
+          type: string
+        - name: inspector
+          type: string
+        - name: scheduled_date
+          type: datetime
+        - name: completed_date
+          type: datetime
+        - name: result
+          type: enum [pass, fail, conditional]
+
+    Issue:
+      description: Problem discovered during Inspection or operation
+      properties:
+        - name: issue_id
+          type: string
+        - name: severity
+          type: enum [critical, major, minor]
+        - name: description
+          type: text
+        - name: discovered_date
+          type: datetime
+
+    WorkOrder:
+      description: Task to resolve an Issue
+      properties:
+        - name: workorder_id
+          type: string
+        - name: assignee
+          type: string
+        - name: priority
+          type: enum [urgent, high, normal, low]
+        - name: status
+          type: enum [open, in_progress, completed, cancelled]
+        - name: due_date
+          type: datetime
+
+  relationships:
+    - from: Inspection
+      to: Asset
+      type: inspects
+    - from: Issue
+      to: Inspection
+      type: found_in
+    - from: Issue
+      to: Asset
+      type: affects
+    - from: WorkOrder
+      to: Issue
+      type: resolves
+
+  industry_mappings:
+    energy:
+      Asset: ElectricDevice / Substation / GridLine
+      Inspection: RoutineInspection / PatrolCheck
+      Issue: Defect (危急/严重/一般 per DL/T 741)
+      WorkOrder: MaintenanceWorkOrder
+    manufacturing:
+      Asset: Machine / ProductionLine
+      Inspection: QualityInspection
+      Issue: NonConformance (NCR)
+      WorkOrder: MaintenanceOrder / HoldOrder
+    research:
+      Asset: Product / Component
+      Inspection: QualityInspection / TestReport
+      Issue: NonConformance (NCR)
+      WorkOrder: ChangeRequest (ECR/ECO)

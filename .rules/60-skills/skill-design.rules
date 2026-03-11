@@ -1,0 +1,100 @@
+# Skill Design Rules (AI 技能设计规范)
+
+Scope: all DTS AI Skills (platform built-in and AppPack Skills)
+
+## What Is a Skill
+
+A Skill is an executable AI capability registered in dts-agent. It is the atomic unit of AI action.
+Skills are how expert Know-how becomes system capability.
+
+Types:
+- **LLM Skill**: AI-driven reasoning (e.g., anomaly explanation, report generation).
+- **Rule Skill**: Deterministic logic (e.g., threshold alerting, data validation).
+- **Hybrid Skill**: Rule + LLM combination (e.g., SQL generation with guardrails).
+- **Workflow Skill**: Multi-step orchestration with checkpoints (e.g., ETL pipeline, NCR review).
+
+## Skill Interface Contract
+
+Every Skill MUST implement the standard gRPC `SkillService` interface:
+
+```protobuf
+service SkillService {
+  rpc Execute(SkillRequest) returns (stream SkillResponse);
+  rpc Describe(DescribeRequest) returns (SkillDescriptor);
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+}
+```
+
+- `Execute`: runs the skill. Returns streaming response for progress updates.
+- `Describe`: returns skill metadata (name, description, input/output schema, risk_level, required_permissions).
+- `Validate`: validates input before execution (dry-run).
+
+## Skill Registration
+
+- Platform Skills: registered at dts-agent startup via configuration.
+- AppPack Skills: registered by dts-operator when Pack is installed (from pack-manifest.yaml).
+- Every Skill must declare:
+  - `name`: unique identifier (namespace/skill-name format, e.g., `energy/predict-load`).
+  - `description`: human-readable purpose (used by AI for tool selection).
+  - `input_schema`: JSON Schema for input parameters.
+  - `output_schema`: JSON Schema for output.
+  - `risk_level`: low / medium / high.
+  - `required_permissions`: list of permission codes needed to invoke this skill.
+
+## Five Iron Laws Applied to Skills
+
+### Law 1 (Human Override)
+- Every Skill must have a manual alternative documented.
+- Skill failure must NOT block the user from completing the task manually.
+- dts-agent must offer "手动执行" option when Skill fails or times out.
+
+### Law 2 (Security Cannot Be Bypassed)
+- Skill execution MUST verify user permissions via dts-platform before running.
+- Skills cannot elevate permissions or access data beyond the invoking user's scope.
+- AppPack Skills go through the same permission checks as platform Skills.
+
+### Law 3 (Data Security)
+- Skills that read data MUST go through dts-query-service → dts-data-security chain.
+- Skills MUST NOT cache sensitive data beyond the current execution context.
+- Skills MUST NOT log sensitive data fields in their execution traces (use field-level redaction).
+
+### Law 4 (Audit Trail)
+- Every Skill execution MUST emit audit events to Kafka:
+  - `skill.started`: {skill_name, user_id, input_params (redacted), trace_id}
+  - `skill.step`: {step_name, tool_called, data_accessed} (for multi-step skills)
+  - `skill.completed`: {output_summary (redacted), duration, token_cost}
+  - `skill.failed`: {error_type, error_message}
+- dts-observability records the full AI Trace tree for debugging.
+- dts-audit-log records the business-level audit event.
+
+### Law 5 (Capability Before Interface)
+- Skill must be fully testable via gRPC API before any UI integration.
+- Skill must pass evaluation suite before deployment.
+
+## Skill Execution Constraints
+
+- **Timeout**: default 30s for Rule Skills, 120s for LLM Skills, 600s for Workflow Skills. Configurable.
+- **Retry**: at most 1 automatic retry for transient errors. Non-transient errors fail immediately.
+- **Idempotency**: Skills with side effects (write operations) MUST be idempotent.
+- **Concurrency**: Skills must be stateless. Multiple concurrent invocations must not interfere.
+
+## HITL Integration
+
+- Skills with risk_level: high MUST create a PendingAction in dts-workflow before execution.
+- PendingAction includes: action description, risk explanation, affected data, approve/reject buttons.
+- Skill execution pauses until human approves. Timeout: configurable (default 24h), then auto-reject.
+- HITL approval is logged as a separate audit event.
+
+## Skill Evaluation
+
+- Every Skill must have an evaluation suite in dts-ai-eval (minimum 50 cases).
+- Evaluation metrics: accuracy, latency P95, token cost per invocation.
+- Regression gate: new version must not decrease accuracy below baseline.
+- Bad Case from production automatically added to evaluation suite (flywheel).
+
+## Scheduled Skills
+
+- Skills can be registered for periodic execution via dts-scheduler.
+- Cron expression format. Example: `0 6 * * *` (daily at 6am).
+- Scheduled execution runs with the Skill owner's permissions (not system-level).
+- Output delivered via notification (Kafka event → notification service or webhook).

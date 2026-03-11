@@ -1,0 +1,44 @@
+# Industry Pack Template (行业包模板)
+
+Scope: new industry AppPack creation
+
+## Required Components
+
+When creating a new industry AppPack, you MUST define at minimum:
+
+### 1. Business Objects (ObjectTypes)
+- Identify core business entities for this industry.
+- Each object must have: name, description, properties (with types), relationships.
+- Example: Manufacturing → Machine, WorkOrder, Product, QualityInspection.
+
+### 2. Core Metrics
+- 3-6 industry KPIs with formulas, thresholds, and targets.
+- Each metric must map to specific ObjectTypes.
+- Example: OEE (Overall Equipment Effectiveness) = Availability × Performance × Quality.
+
+### 3. Quality Rules
+- Data quality rules specific to this industry's data patterns.
+- Completeness, consistency, timeliness checks.
+
+### 4. Business Actions
+- Operations that AI or users can trigger.
+- Each action must declare risk_level.
+- High-risk actions: always HITL approval.
+
+### 5. Persona
+- Industry expert persona with system prompt.
+- Preferred skills and scheduled tasks.
+
+### 6. Data Source Mappings
+- Common source systems for this industry (ERP type, MES type, SCADA type).
+- Field mapping templates.
+
+### 7. Evaluation Suite
+- 50+ test cases covering typical queries and actions.
+- Industry-specific scenarios.
+
+## Naming Convention
+
+- Pack name: `<industry>-pack` (e.g., `energy-pack`, `manufacturing-pack`)
+- ObjectType names: PascalCase, industry-prefixed if ambiguous.
+- Metric names: snake_case with unit suffix (e.g., `oee_percent`, `defect_rate_ppm`).

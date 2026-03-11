@@ -1,0 +1,39 @@
+# API Design Standards (API 设计规范)
+
+Scope: all DTS inter-service and external APIs
+
+## gRPC (Service-to-Service)
+
+- All proto files in a shared `dts-proto` repository/module.
+- Package naming: `dts.<service>.v1` (e.g., `dts.agent.v1`, `dts.ontology.v1`).
+- Use proto3 syntax exclusively.
+- Every RPC must include `RequestMetadata` field for JWT token and trace context.
+- Error handling: use standard gRPC status codes + custom error details.
+- Versioning: new major versions create new package (v1 → v2). Minor changes backward-compatible.
+- Streaming: use server-side streaming for long-running operations (Agent execution, data export).
+
+## REST (Frontend-to-Backend via Gateway)
+
+- RESTful resource naming: `/api/v1/<resource>` (plural nouns).
+- Standard HTTP methods: GET (read), POST (create), PUT (full update), PATCH (partial update), DELETE.
+- Pagination: `?page=1&size=20` with response envelope `{ data: [], total: N, page: N }`.
+- Filtering: `?filter=field:op:value` (e.g., `?filter=status:eq:active`).
+- Error response: `{ code: "ERR_CODE", message: "human-readable", details: {} }`.
+- All endpoints require Authorization header (JWT). dts-gateway enforces this.
+
+## Event Schema (Kafka)
+
+- Topic naming: `dts.<domain>.<event-type>` (e.g., `dts.ontology.type-created`, `dts.agent.step-completed`).
+- Message format: JSON with CloudEvents envelope.
+- Every event must include: id, source, type, time, subject, data.
+- Schema evolution: add fields only (backward-compatible). Breaking changes create new topic version.
+- Audit events topic: `dts.audit.operations` — consumed exclusively by dts-audit-log.
+
+## API-First Workflow (Law 5)
+
+1. Define proto / OpenAPI spec.
+2. Review and approve spec.
+3. Generate client/server stubs.
+4. Implement server.
+5. Write integration tests against spec.
+6. Then (and only then) build frontend.

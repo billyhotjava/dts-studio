@@ -1,0 +1,24 @@
+# Research Institute Rules (科研院所行业规则)
+
+Scope: research-pack and related AppPacks
+
+## Domain Knowledge
+
+- Core entities: Product (5-phase), BOMNode (3-tier), Component (关键件/重要件), ProductionOrder, QualityInspection, NCR (NonConformance), ChangeRequest (ECR/ECO), TestReport (6 types), Supplier, Material, ProjectMilestone, ResearchTask.
+- Key metrics: first-pass yield (一次交验合格率), production plan completion rate, NCR closure timeliness, milestone on-time delivery rate, supplier quality rating, equipment availability.
+- Data sources: QMS (质量管理系统), PLM (产品全生命周期管理), MES, ERP.
+
+## Compliance Constraints
+
+- NCR (不合格品报告) closure must follow "五步法归零" procedure.
+- Engineering change (ECR/ECO) requires multi-level approval workflow.
+- Test reports for critical components require dual-signature verification.
+- All quality data retention: minimum 10 years (国防科工局要求).
+- AI cannot auto-approve any quality-related action — always HITL.
+
+## Data Security
+
+- Product design data (BOM, test results): TOP-SECRET classification.
+- Supplier evaluation data: CONFIDENTIAL.
+- Project milestone data: INTERNAL minimum.
+- All data access logged with full audit trail (regulatory requirement).

@@ -1,0 +1,42 @@
+# Cross-Industry Pattern: Hierarchy → Aggregation
+# Most industries have hierarchical structures where metrics aggregate upward.
+
+pattern:
+  name: hierarchy-aggregation
+  description: |
+    Universal pattern for hierarchical organization.
+    Entities form a tree structure (org, location, product).
+    Metrics at leaf level aggregate up through the hierarchy.
+
+  abstract_types:
+    HierarchyNode:
+      description: A node in a tree structure
+      properties:
+        - name: node_id
+          type: string
+        - name: name
+          type: string
+        - name: level
+          type: integer
+        - name: parent_id
+          type: string (nullable)
+
+  relationships:
+    - from: HierarchyNode
+      to: HierarchyNode
+      type: parent_of
+    - from: Metric
+      to: HierarchyNode
+      type: measured_at
+      note: Metrics aggregate from leaf to root
+
+  industry_mappings:
+    energy:
+      hierarchy: Region → City → Substation → Device
+      aggregation: ASAI per substation → per city → per region
+    manufacturing:
+      hierarchy: Factory → Workshop → ProductionLine → Workstation
+      aggregation: OEE per workstation → per line → per workshop → per factory
+    research:
+      hierarchy: Organization → Department → Project → Task
+      aggregation: milestone_completion per task → per project → per department

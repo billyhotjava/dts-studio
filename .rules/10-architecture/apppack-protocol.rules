@@ -1,0 +1,50 @@
+# DTS AppPack Protocol (能力包协议规则)
+
+Scope: all AppPack development under `/opt/prod/dts/rdc`
+
+## Pack Manifest Standard
+
+Every AppPack must contain a `pack-manifest.yaml` at root with the following structure:
+
+```yaml
+name: <pack-name>          # unique identifier
+version: <semver>           # semantic versioning
+vendor: <vendor-name>       # publisher
+requires:
+  dts-core: ">=x.y.z"      # minimum platform version
+
+capabilities:
+  ontology:                 # schema definitions → dts-ontology-store
+  skills:                   # AI skills (gRPC endpoints) → dts-agent
+  connectors:               # data source adapters → dts-data-connector
+  frontend:                 # UI modules per webapp (cortex/pilot) → webapp loaders
+  workflows:                # approval flow templates → dts-workflow
+  persona:                  # industry persona (prompt + preferred skills + scheduled tasks) → dts-agent
+  metrics:                  # metric definitions → dts-ontology-store
+  quality_rules:            # data quality rules → dts-data-quality
+  actions:                  # business actions with risk levels → dts-agent
+  evaluations:              # evaluation datasets → dts-ai-eval
+```
+
+## Pack Lifecycle (managed by dts-operator)
+
+1. Install: dts-operator pulls image → deploys Pod → reads manifest → registers all capabilities to respective services → status: Running.
+2. Upgrade: dts-operator performs rolling update → re-registers capabilities → validates health.
+3. Uninstall: check dependencies → deregister all capabilities → remove Pod → optionally retain data.
+
+## Pack Security Rules
+
+- All Pack API calls MUST go through dts-gateway. No direct service access.
+- Pack Skills are subject to the same user permission checks as platform Skills.
+- Pack Actions with risk_level: high automatically trigger HITL approval via dts-workflow.
+- All Pack operations are recorded in dts-audit-log. No exemptions.
+- Pack cannot register system-level permissions or modify platform RBAC rules.
+- Pack data ingestion goes through dts-data-connector; raw database access is forbidden.
+
+## Pack Development Guidelines
+
+- Control plane: implement gRPC interfaces defined in platform proto files.
+- Data plane: publish to designated Kafka topics (optional, for data-heavy Packs).
+- Frontend: export ES modules loadable by webapp Pack loaders.
+- Evaluation: provide at minimum 50 test cases in evaluations dataset.
+- Persona: must include system_prompt and at least one preferred_skill.

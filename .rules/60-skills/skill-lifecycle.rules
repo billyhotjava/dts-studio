@@ -1,0 +1,65 @@
+# Skill Lifecycle (技能生命周期管理)
+
+Scope: all DTS Skills
+
+## Lifecycle States
+
+```
+Draft → Testing → Active → Deprecated → Retired
+```
+
+- **Draft**: Skill defined but not yet registered. Development and local testing.
+- **Testing**: Registered in test environment. Running evaluation suites. Not visible to production users.
+- **Active**: Passed evaluation gate. Available for production use by authorized users.
+- **Deprecated**: Marked for removal. Still functional but hidden from new invocations. Migration path documented.
+- **Retired**: Fully removed. Historical audit records preserved.
+
+## Know-how Creation Flow (Expert → Skill)
+
+This is the core product value: experts create Skills through AI conversation.
+
+```
+Expert dialogue with AI
+  → AI extracts rules/logic from conversation
+  → AI generates Skill draft (code + schema + evaluation cases)
+  → Expert reviews and refines via natural language
+  → Expert confirms → Skill enters Testing state
+  → Evaluation suite passes → Skill enters Active state
+  → Published as part of capability pack (optional marketplace listing)
+```
+
+### Rules for Know-how to Skill Conversion
+- AI-generated Skill code must be reviewed by expert before activation.
+- AI must explain each extracted rule back to the expert for confirmation.
+- Expert can iterate: "不对，应该是温度超过85度且持续2小时才告警" → AI updates rule.
+- Final Skill must have: source expert attribution, creation date, confidence score.
+
+## Versioning
+
+- Skills follow semver: MAJOR.MINOR.PATCH.
+- MAJOR: breaking input/output schema change.
+- MINOR: new capability, backward-compatible.
+- PATCH: bug fix, performance improvement.
+- Multiple versions can coexist (agent routes to latest compatible version).
+
+## Hot-Loading
+
+- Platform Skills: updated via service deployment (rolling update).
+- AppPack Skills: updated via Pack upgrade (dts-operator handles re-registration).
+- No platform restart required for Skill updates.
+- dts-agent receives Skill registry change event via Kafka and refreshes its tool list.
+
+## Deprecation Process
+
+1. Mark Skill as deprecated with migration guide.
+2. Log warning when deprecated Skill is invoked.
+3. Notify Pack owners / Skill consumers.
+4. Grace period: minimum 30 days before retirement.
+5. Retire: remove from registry, preserve audit records.
+
+## Marketplace (Future)
+
+- Active Skills can be listed in Pack Store for other organizations.
+- Revenue sharing: platform 30% / creator 70% (configurable).
+- Third-party Skills require security review before listing.
+- Rating and usage statistics tracked.

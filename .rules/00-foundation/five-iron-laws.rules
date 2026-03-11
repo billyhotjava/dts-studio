@@ -1,0 +1,45 @@
+# DTS Five Iron Laws (五条不可动摇的原则)
+
+Scope: all DTS projects under `/opt/prod/dts/rdc`
+Priority: HIGHEST - these override any other design or implementation decision
+
+## Law 1: Human Override (人工随时可接管)
+
+- Turning off AI must NOT break the system. All business flows must work without AI.
+- Every AI-driven step must have a manual alternative in the UI.
+- Python AI services are enhancement layers; Java business services must function independently.
+- Frontend must provide non-AI mode: traditional menu navigation, manual forms, manual query.
+- Never design a flow where AI is the only path to complete a task.
+
+## Law 2: Security Cannot Be Bypassed (核心安全不可绕过)
+
+- ALL requests (internal and external) must pass through dts-gateway for authentication.
+- No service-to-service direct calls that bypass JWT verification.
+- AppPacks have NO privileged access; they go through the same gateway and permission checks.
+- dts-platform is the single source of truth for permissions. Every service must verify against it.
+- No backdoor APIs, no debug endpoints in production, no admin-only bypass flags.
+
+## Law 3: Data Security Is DNA (数据安全是基因)
+
+- ALL data output must pass through dts-data-security — including AI RAG retrieval.
+- Data classification (public/internal/confidential/top-secret) must be enforced at query time.
+- AI agents see ONLY the data the current user is authorized to see. No elevation of privilege.
+- Dynamic masking rules apply to AI-generated results the same way they apply to human queries.
+- Vector search results (pgvector/Milvus) must be filtered by user permissions before returning.
+
+## Law 4: Full Audit Trail (全操作可追溯)
+
+- Every operation (human and AI) must produce an audit event to Kafka → dts-audit-log.
+- Audit logs are append-only and immutable. No delete, no update, no truncate.
+- AI Agent execution must log every step: intent parsed, tools called, data accessed, decisions made.
+- dts-observability records AI Trace trees; dts-audit-log records business audit events.
+- Both layers are linked by traceId for end-to-end traceability.
+- Audit data retention policy: minimum 3 years, configurable per tenant.
+
+## Law 5: Capability Before Interface (能力先于界面)
+
+- Every service must have a complete API (gRPC + REST) with tests BEFORE any frontend work.
+- Do not build UI for capabilities that don't have a working backend.
+- API contracts (protobuf / OpenAPI) must be defined and reviewed before implementation.
+- Integration tests must cover the full chain: gateway → service → storage → response.
+- No "demo-only" features. If it's in the product, it must work end-to-end.

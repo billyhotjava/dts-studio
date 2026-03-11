@@ -1,0 +1,36 @@
+# Git Workflow (Git 工作流)
+
+Scope: all DTS repositories
+
+## Branch Strategy
+
+- `main` — production-ready, protected. Only merge via PR.
+- `develop` — integration branch. Feature branches merge here first.
+- `feature/<service>/<description>` — feature work. Example: `feature/dts-agent/intent-routing`
+- `fix/<service>/<description>` — bug fixes.
+- `release/vX.Y.Z` — release preparation.
+
+## Commit Convention
+
+Format: `<type>(<scope>): <description>`
+
+Types: feat, fix, refactor, test, docs, chore, ci, perf
+Scope: service name (dts-agent, dts-platform, dts-operator, etc.)
+
+Examples:
+- `feat(dts-agent): add multi-step reasoning with LangGraph`
+- `fix(dts-data-security): enforce row-level filtering on vector search`
+- `test(dts-ontology-store): add integration tests for type CRUD`
+
+## PR Rules
+
+- Every PR requires at least 1 reviewer approval.
+- All CI checks must pass (lint, build, test).
+- PR description must reference the task ID from worklog.
+- Squash merge to develop. Regular merge to main.
+- No force push to main or develop.
+
+## Monorepo vs Multi-repo
+
+- Decision deferred to implementation planning phase.
+- Regardless of repo structure, each service maintains independent build and test.

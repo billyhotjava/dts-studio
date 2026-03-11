@@ -1,0 +1,27 @@
+# Manufacturing Industry Rules (制造业行业规则)
+
+Scope: manufacturing-pack and related AppPacks
+
+## Domain Knowledge
+
+- Core entities: Machine, ProductionLine, WorkOrder, Product, QualityInspection, Material, Inventory, Maintenance, Shift, Operator.
+- Key metrics: OEE (Overall Equipment Effectiveness), cycle time, scrap rate, MTBF (Mean Time Between Failures), MTTR (Mean Time To Repair), inventory turnover.
+- Data sources: MES, SCADA/PLC (OPC-UA), ERP, WMS (仓储管理), QMS.
+
+## Data Characteristics
+
+- SCADA/PLC data: high-frequency time-series (sub-second intervals), stored in ClickHouse.
+- OPC-UA integration via dts-data-connector OPC-UA adapter.
+- Data volume: single production line can generate 10M+ records/day.
+
+## Safety Constraints
+
+- Machine start/stop commands are risk_level: high → mandatory HITL approval.
+- Quality hold/release decisions require QA manager approval.
+- AI-driven production scheduling changes are ADVISORY — production manager confirms.
+
+## Data Security
+
+- Production process parameters: CONFIDENTIAL (trade secrets).
+- Quality inspection raw data: INTERNAL.
+- Inventory levels: CONFIDENTIAL (competitive intelligence).

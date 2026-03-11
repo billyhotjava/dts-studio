@@ -1,0 +1,49 @@
+# DTS Service Boundaries (服务边界规则)
+
+Scope: all DTS projects under `/opt/prod/dts/rdc`
+
+## Python Layer (10 services — AI Core, all degradable)
+
+1. dts-agent: Agent runtime (LangGraph), multi-step reasoning, tool calling, Persona loading.
+2. dts-intent-engine: Natural language → structured Intent, routing to Agent/Skill.
+3. dts-ontology-engine: Semantic reasoning, vector indexing, NL→Ontology mapping.
+4. dts-data-connector: Multi-source data ingestion, CDC, format conversion.
+5. dts-data-quality: AI data quality detection, anomaly discovery, rule engine.
+6. dts-query-ai: NL2SQL, query suggestions, intelligent optimization.
+7. dts-ai-eval: Evaluation suites, regression gates, Bad Case flywheel, accuracy tracking.
+8. dts-observability: AI Trace trees, Agent chain tracing, cost statistics, ops dashboards.
+9. dts-scheduler: Task scheduling DAG, scheduled Skills, backfill, SLA monitoring.
+10. dts-perception (P2 reserved): Multi-modal input (voice/vision → structured Intent).
+
+## Java Layer (10 services — Business Platform, must work independently)
+
+1. dts-platform: Users/roles/permissions/tenants/menus/system config/Keycloak integration.
+2. dts-gateway: API gateway, enforced authentication, rate limiting, gRPC-Web translation.
+3. dts-ontology-store: Ontology CRUD (types/instances/relations/metrics/rules/actions).
+4. dts-query-service: SQL query execution, data source routing (no AI).
+5. dts-governance: Metadata management, data lineage (Neo4j), classification.
+6. dts-asset: Data asset catalog, search, sharing, access requests.
+7. dts-data-security: Dynamic masking, row/column permissions, data watermarking. DATA EXIT CHECKPOINT.
+8. dts-workflow: Approval engine (HITL, data access requests, change approvals).
+9. dts-audit-log: Audit logs (append-only, Kafka consumer, immutable).
+10. dts-data-service: Data API publishing, Token/quota management, data push/subscribe.
+
+## Go Layer (2 services — Infrastructure)
+
+1. dts-operator: K8s Operator, component lifecycle, AppPack deployment, Pack Store.
+2. dts-cli: CLI install/upgrade/backup/offline-bundle/Pack management.
+
+## Frontend (3 apps)
+
+1. dts-admin-webapp: System administrators and ops.
+2. dts-cortex-webapp: Technical analysts (Ontology, data engineering, governance).
+3. dts-pilot-webapp: Decision makers (AI conversation, dashboards, reports).
+
+## Boundary Rules
+
+- No service may directly access another service's database. All cross-service data access goes through gRPC APIs.
+- dts-data-security is a mandatory checkpoint for ALL data egress — no exceptions, including AI queries.
+- dts-gateway is the ONLY entry point for external requests (frontend, AppPacks, external APIs).
+- dts-audit-log receives events from ALL services via Kafka — no service is exempt.
+- Ontology management belongs to cortex (technical analysts), NOT admin.
+- AppPack capabilities are registered by dts-operator during Pack install, not by the Pack itself.

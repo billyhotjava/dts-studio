@@ -1,0 +1,12 @@
+# rdc worklog organization rules
+
+Scope: `/opt/prod/dts/rdc`
+
+1. 新增任务规划、设计记录、执行拆分，默认写入 `/opt/prod/dts/rdc/worklog/`。
+2. `app-stack` 相关任务写入 `/opt/prod/dts/rdc/worklog/app-stack/`。
+3. `dts-stack` 相关任务写入 `/opt/prod/dts/rdc/worklog/dts-stack/`。
+4. `app-stack` 内部如果任务直接面向 `metro-stack` 或 `prs-stack`，必须继续拆到各自子目录。
+5. sprint 目录命名规范为 `sprint-<序号>-<简短目标描述>`。
+6. 每个 sprint 目录至少包含一个 `README.md` 和若干可执行任务文件。
+7. 任务文件应聚焦单一目标，写清楚前置条件、执行步骤、验证方式和完成结果。
+8. 未经明确要求，不再把这类根级协同任务写入 `app-stack/docs/plans` 或 `dts-stack/docs/plans`。

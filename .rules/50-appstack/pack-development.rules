@@ -1,0 +1,55 @@
+# AppPack Development Guide (能力包开发规范)
+
+Scope: all AppPack developers (internal and third-party)
+
+## Pack Project Structure
+
+```
+<pack-name>/
+├── pack-manifest.yaml          # Required: capability declarations
+├── ontology/                   # Ontology schema YAML files
+│   └── *.yaml
+├── skills/                     # AI Skill implementations (Python gRPC)
+│   ├── pyproject.toml
+│   └── src/
+├── connectors/                 # Data connectors (if any)
+├── frontend/                   # Frontend modules
+│   ├── cortex/                 # Modules for cortex webapp
+│   └── pilot/                  # Modules for pilot webapp
+├── workflows/                  # Workflow template YAML files
+├── prompts/                    # Persona system prompts
+├── eval/                       # Evaluation datasets (JSONL)
+├── schemas/                    # JSON Schema for inputs/outputs
+├── builds/                     # Dockerfile
+├── deploy/                     # Helm subchart
+└── tests/                      # Pack integration tests
+```
+
+## Development Rules
+
+- Pack Skill endpoints must implement the standard `SkillService` proto interface.
+- All Skill inputs/outputs must have JSON Schema definitions in `schemas/`.
+- Persona must include: system_prompt, preferred_skills (>= 1), and description.
+- Ontology definitions must follow the platform's ObjectType schema specification.
+- Actions with side effects must declare risk_level (low/medium/high).
+- high risk actions automatically trigger HITL approval — this is NOT optional.
+
+## Data Access
+
+- Pack MUST NOT directly access any database.
+- Data read: call dts-query-service via gRPC (goes through dts-data-security).
+- Data write: call dts-data-service or emit Kafka events to designated topics.
+- File storage: use MinIO via platform S3 API.
+
+## Testing Requirements
+
+- Minimum 50 evaluation cases in eval/ directory.
+- Integration test: install → register → invoke skill → verify result → uninstall.
+- Frontend modules: basic render test.
+
+## Publishing
+
+- Pack versioned with semver.
+- Published as OCI image (Helm subchart + app container).
+- Listed in Pack Store (managed by dts-operator).
+- Third-party Packs require security review before store listing.

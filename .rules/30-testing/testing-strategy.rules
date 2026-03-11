@@ -1,0 +1,54 @@
+# Testing Strategy (测试策略)
+
+Scope: all DTS projects
+
+## Test Pyramid
+
+```
+        /  E2E  \           ← Playwright (3 webapps) + Business E2E (5 critical paths)
+       / Integration \      ← API tests per service, cross-service chain tests
+      /    Unit Tests   \   ← Per-service, fast, isolated
+     /   AI Evaluation    \ ← Evaluation suites, accuracy tracking, regression gates
+```
+
+## Unit Tests
+
+- Every service must have unit tests covering core business logic.
+- Python: pytest + pytest-asyncio. Minimum 80% coverage on core/ directory.
+- Java: JUnit 5 + Mockito. Minimum 80% coverage on service/repository layers.
+- Go: standard testing + testify. Minimum 80% coverage on internal/ packages.
+- Frontend: Vitest + Testing Library. Test user interactions, not implementation details.
+- Unit tests must NOT depend on external services (DB, Kafka, etc.). Use mocks/fakes.
+
+## Integration Tests
+
+- Test service API contracts (gRPC + REST).
+- Python: pytest + grpcio-testing or httpx.
+- Java: Spring Boot Test + Testcontainers (PG, Kafka, Redis).
+- Go: integration test with test fixtures.
+- Each service must have integration tests that cover: happy path, auth failure, permission denied, invalid input.
+
+## E2E Tests
+
+- Playwright for frontend E2E across all 3 webapps.
+- 5 critical business paths (from product v2.4.1):
+  1. Data ingestion → metadata sync → data visibility
+  2. AI modeling recommendation → HITL approval → execution → result verification
+  3. NL query → chart generation → dashboard → screen publish
+  4. Auth login → RBAC permission → AI conversation → approval flow
+  5. Quality rule → alert → fix action → AI review
+
+## AI Evaluation
+
+- Managed by dts-ai-eval service.
+- Every AI capability (NL2SQL, intent routing, ontology mapping) must have an evaluation suite.
+- Minimum 50 test cases per capability.
+- Metrics tracked: accuracy, latency P95, token cost, hallucination rate.
+- Bad Case flywheel: failed cases automatically collected → reviewed → added to test suite.
+- Regression gate: new deployment must not decrease accuracy below baseline.
+
+## AppPack Testing
+
+- Every Pack must include evaluation dataset (minimum 50 cases) for its Skills.
+- Pack integration test: install → capabilities registered → skill callable → uninstall → clean.
+- Pack frontend modules must have basic smoke tests.

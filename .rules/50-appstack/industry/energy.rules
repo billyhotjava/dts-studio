@@ -1,0 +1,22 @@
+# Energy Industry Rules (电力/能源行业规则)
+
+Scope: energy-pack and related AppPacks
+
+## Domain Knowledge
+
+- Core entities: ElectricDevice, Substation, GridLine, PowerCustomer, Defect, MaintenanceWorkOrder, SafetyTicket, PowerIncident, RenewableStation.
+- Key metrics: ASAI (供电可靠率 >=99.9%), line loss rate (<=5.5%), transformer load rate, defect clearance timeliness, SAIFI, renewable absorption rate (>=90%).
+- Data sources: SCADA systems, PMS (生产管理系统), OMS (调度管理系统), GIS.
+
+## Safety Constraints
+
+- All actions affecting live electrical equipment are risk_level: high → mandatory HITL approval.
+- Safety ticket (安全作业票) creation and approval must follow national grid safety regulations.
+- Defect severity classification (危急/严重/一般) must follow DL/T 741 standard.
+- AI recommendations for load balancing or switching operations are ADVISORY only — human operator must confirm.
+
+## Data Security
+
+- Grid topology data classified as CONFIDENTIAL minimum.
+- Customer electricity usage data classified as CONFIDENTIAL.
+- Real-time SCADA data: row-level filtering by regional authority.

@@ -1,0 +1,44 @@
+# DTS Product Philosophy (产品理念规则)
+
+Scope: all DTS projects under `/opt/prod/dts/rdc`
+
+## Core Identity
+
+DTS is an AI-driven Enterprise Decision Operating System.
+Core formula: Ontology (data foundation) + Intent (understanding) + Agent (execution).
+Not a data platform. Not a BI tool. Not a chatbot wrapper.
+
+## Know-how as Asset
+
+- The product's ultimate value is turning expert tacit knowledge into executable capability packs.
+- One expert's experience × AI extraction × system scale = 500x output.
+- AI is an amplifier, not an inventor. It cannot create industry experience from nothing.
+- The platform must enable domain experts to create capability packs through natural conversation with AI, NOT through coding.
+
+## AI Positioning
+
+- AI is the primary execution engine, not an optional enhancement.
+- Default path: AI-driven. Fallback path: manual operation (Law 1).
+- AI does NOT replace experts. AI maximizes expert value.
+- AI Agent must be the main actor; Java services are tools the Agent calls.
+- The system must support AI-to-AI communication (Agent Protocol) for future cross-organization collaboration.
+
+## Competitive Moat
+
+- Industry Know-how accumulation: each customer deepens the knowledge flywheel.
+- Knowledge lock-in: switching away means losing core competitive advantage, not just data.
+- Five Iron Laws: the trust foundation that makes customers willing to let AI drive decisions.
+- Offline deployment + data sovereignty: unmatched in government/defense/critical infrastructure.
+
+## Market Strategy Alignment
+
+- 5-day Proof of Value (POV): real customer data, real results, then sign.
+- Capability Before Interface (Law 5): never demo features that don't work end-to-end.
+- Investment protection: DTS sits on top of existing systems (ERP/MES/CRM), does not replace them.
+- Four revenue layers: platform fee + capability pack subscription + knowledge output sharing + professional services.
+
+## Multi-modal Future (P2)
+
+- Architecture must accommodate future multi-modal inputs (voice, vision, video).
+- dts-perception service is reserved for this purpose.
+- dts-intent-engine receives structured Intents, NOT raw text — enabling new modalities without downstream changes.

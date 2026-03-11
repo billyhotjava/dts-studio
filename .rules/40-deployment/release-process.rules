@@ -1,0 +1,44 @@
+# Release Process (发布流程)
+
+Scope: all DTS releases
+
+## Version Scheme
+
+- Semantic versioning: MAJOR.MINOR.PATCH
+- MAJOR: breaking API changes or architecture shifts
+- MINOR: new features, backward-compatible
+- PATCH: bug fixes, security patches
+
+## Release Checklist
+
+1. Create `release/vX.Y.Z` branch from develop.
+2. Update version in: release-version.conf, Helm Chart.yaml, package.json, pyproject.toml.
+3. Generate changelog from commit history.
+4. Run Release Gate (see quality-gates.rules).
+5. Build offline bundle and verify in air-gapped test environment.
+6. Tag release on main branch.
+7. Build and push all images with semver tag.
+8. Publish Helm chart to chart repository.
+9. Publish release notes.
+
+## Changelog Format
+
+```markdown
+## [vX.Y.Z] - YYYY-MM-DD
+
+### Added
+- feat(service): description
+
+### Fixed
+- fix(service): description
+
+### Changed
+- refactor(service): description
+```
+
+## Emergency Hotfix
+
+1. Branch from release tag: `fix/vX.Y.Z-hotfix-description`.
+2. Fix + Hotfix Gate.
+3. Tag as vX.Y.(Z+1).
+4. Cherry-pick to develop.

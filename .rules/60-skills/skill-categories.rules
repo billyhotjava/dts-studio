@@ -1,0 +1,69 @@
+# Skill Categories (技能分类体系)
+
+Scope: all DTS platform Skills and AppPack Skills
+
+## Category Taxonomy
+
+Skills are organized into categories that map to platform capabilities.
+Each category has a namespace prefix for unique identification.
+
+### Platform Skills (built-in, shipped with dts-stack)
+
+#### data/ — Data Operations
+- `data/schema-lookup`: Look up table/column metadata from Ontology.
+- `data/execute-query`: Execute SQL query (goes through dts-data-security).
+- `data/preview-data`: Preview first N rows of a data source.
+- `data/profile-data`: Generate data profiling statistics (null rate, distribution, outliers).
+- `data/import-csv`: Import CSV/Excel into Ontology instance.
+- `data/export-data`: Export query results to CSV/Excel/JSON.
+
+#### ontology/ — Ontology Operations
+- `ontology/search`: Semantic search across Ontology types and instances.
+- `ontology/suggest-type`: AI suggests ObjectType definition from sample data.
+- `ontology/map-source`: AI suggests field mapping between data source and ObjectType.
+- `ontology/lineage-query`: Query data lineage graph (via Neo4j).
+
+#### query/ — Intelligent Query
+- `query/nl2sql`: Natural language to SQL translation.
+- `query/explain-result`: Explain query results in natural language.
+- `query/suggest-chart`: Suggest appropriate chart type for given data.
+- `query/generate-chart`: Generate chart configuration from data + intent.
+
+#### governance/ — Data Governance
+- `governance/classify-column`: AI auto-classify column sensitivity level.
+- `governance/detect-anomaly`: Detect data quality anomalies.
+- `governance/suggest-rule`: Suggest quality rules based on data patterns.
+- `governance/catalog-search`: Search data asset catalog with natural language.
+
+#### report/ — Reporting
+- `report/generate`: Generate report from template + data.
+- `report/summarize`: Summarize dataset or dashboard in natural language.
+- `report/schedule`: Schedule periodic report generation.
+
+#### action/ — Business Actions
+- `action/navigate`: Navigate user to a specific page/view.
+- `action/create-workflow`: Create approval workflow instance.
+- `action/notify`: Send notification to user/group.
+
+### AppPack Skills (industry-specific, registered via Pack manifest)
+
+#### <industry>/ — Industry Namespace
+- Each AppPack registers Skills under its industry namespace.
+- Example: `energy/predict-load`, `energy/detect-defect`, `research/initiate-ncr-review`.
+- Namespace prevents collision between Packs.
+
+## Skill Discovery
+
+- dts-agent discovers available Skills at startup and on Pack install/uninstall events.
+- Agent uses Skill `description` + `input_schema` for LLM tool selection (Function Calling).
+- Skills filtered by user permissions before presenting to LLM (user cannot invoke unauthorized Skills).
+
+## Adding New Skills
+
+1. Define Skill in appropriate category namespace.
+2. Implement `SkillService` gRPC interface.
+3. Write input/output JSON Schema.
+4. Create evaluation suite (50+ cases).
+5. Register in dts-agent configuration (platform) or pack-manifest.yaml (AppPack).
+6. Pass evaluation regression gate.
+7. Deploy.
