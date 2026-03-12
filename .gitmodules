@@ -1,0 +1,6 @@
+[submodule "dts-stack"]
+	path = dts-stack
+	url = git@github.com:billyhotjava/dts-stack.git
+[submodule "app-stack"]
+	path = app-stack
+	url = git@github.com:billyhotjava/app-stack.git
