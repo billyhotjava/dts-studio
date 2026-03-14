@@ -43,14 +43,21 @@ public class AgentChatService {
     /**
      * Send a message in a chat session. Creates the session if it does not exist.
      *
-     * @param sessionId the session identifier (may be {@code null} for a new session)
-     * @param userId    the user identifier
-     * @param message   the user's message
+     * @param sessionId    the session identifier (may be {@code null} for a new session)
+     * @param userId       the user identifier
+     * @param message      the user's message
+     * @param datasourceId optional data source identifier from the request; overrides
+     *                     the session's persisted value when non-null
      * @return the agent's response text
      */
     @Transactional
-    public String sendMessage(String sessionId, String userId, String message) {
+    public String sendMessage(String sessionId, String userId, String message, Long datasourceId) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
+
+        // If the request carries a datasourceId, update the session so it persists
+        if (datasourceId != null) {
+            session.setDataSourceId(datasourceId);
+        }
 
         // Persist user message
         AiChatMessage userMsg = new AiChatMessage();
@@ -61,9 +68,12 @@ public class AgentChatService {
         // Build history from persisted messages (excluding the one we just added)
         List<Map<String, Object>> history = buildHistory(session);
 
+        // Resolve effective dataSourceId: request value takes precedence over session value
+        Long effectiveDataSourceId = datasourceId != null ? datasourceId : session.getDataSourceId();
+
         // Execute agent
         String response = agentExecutionService.executeChat(
-                session.getSessionId(), userId, message, history, session.getDataSourceId());
+                session.getSessionId(), userId, message, history, effectiveDataSourceId);
 
         // Persist assistant message
         AiChatMessage assistantMsg = new AiChatMessage();
@@ -87,19 +97,20 @@ public class AgentChatService {
     /**
      * Send a message with streaming response.
      *
-     * @param sessionId the session identifier
-     * @param userId    the user identifier
-     * @param message   the user's message
-     * @param output    the output stream for SSE events
+     * @param sessionId    the session identifier
+     * @param userId       the user identifier
+     * @param message      the user's message
+     * @param datasourceId optional data source identifier from the request
+     * @param output       the output stream for SSE events
      */
     @Transactional
     public void sendMessageStream(String sessionId, String userId, String message,
-                                  OutputStream output) {
+                                  Long datasourceId, OutputStream output) {
         // For streaming, we delegate to the synchronous path and stream the result.
         // Full SSE streaming with ReAct requires deeper integration; this provides
         // a working baseline that sends the complete response as a single SSE event.
         try {
-            String response = sendMessage(sessionId, userId, message);
+            String response = sendMessage(sessionId, userId, message, datasourceId);
 
             // Send the response as SSE
             String sseData = "data: " + escapeForSse(response) + "\n\n";

@@ -2,10 +2,13 @@ package com.yuzhi.dts.copilot.analytics.service;
 
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsField;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsNl2SqlEvalCase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsSynonym;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsTable;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsFieldRepository;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsNl2SqlEvalCaseRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsSynonymRepository;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsTableRepository;
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -13,6 +16,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class Nl2SqlSemanticRecallService {
+
+    private static final Logger log = LoggerFactory.getLogger(Nl2SqlSemanticRecallService.class);
 
     private static final Map<String, String> BUILTIN_SYNONYMS = Map.ofEntries(
             Map.entry("产量", "output_qty"),
@@ -33,17 +41,45 @@ public class Nl2SqlSemanticRecallService {
             Map.entry("告警", "alarm_count"),
             Map.entry("停机", "downtime_minutes"));
 
+    /** Merged synonym map: DB entries override built-in ones with the same term. */
+    private final Map<String, String> mergedSynonyms = new ConcurrentHashMap<>();
+
     private final AnalyticsTableRepository tableRepository;
     private final AnalyticsFieldRepository fieldRepository;
     private final AnalyticsNl2SqlEvalCaseRepository evalCaseRepository;
+    private final AnalyticsSynonymRepository synonymRepository;
 
     public Nl2SqlSemanticRecallService(
             AnalyticsTableRepository tableRepository,
             AnalyticsFieldRepository fieldRepository,
-            AnalyticsNl2SqlEvalCaseRepository evalCaseRepository) {
+            AnalyticsNl2SqlEvalCaseRepository evalCaseRepository,
+            AnalyticsSynonymRepository synonymRepository) {
         this.tableRepository = tableRepository;
         this.fieldRepository = fieldRepository;
         this.evalCaseRepository = evalCaseRepository;
+        this.synonymRepository = synonymRepository;
+    }
+
+    @PostConstruct
+    void loadSynonyms() {
+        refreshSynonymCache();
+    }
+
+    /** Reload synonym cache from DB, merging with built-in synonyms. */
+    public void refreshSynonymCache() {
+        Map<String, String> fresh = new LinkedHashMap<>(BUILTIN_SYNONYMS);
+        try {
+            List<AnalyticsSynonym> dbSynonyms = synonymRepository.findAll();
+            for (AnalyticsSynonym s : dbSynonyms) {
+                fresh.put(s.getTerm(), s.getColumnName());
+            }
+            log.info("Synonym cache refreshed: {} built-in + {} from DB = {} total",
+                    BUILTIN_SYNONYMS.size(), dbSynonyms.size(), fresh.size());
+        } catch (Exception e) {
+            log.warn("Failed to load synonyms from DB, using built-in only", e);
+        }
+        mergedSynonyms.clear();
+        mergedSynonyms.putAll(fresh);
     }
 
     public SemanticRecallResult recall(
@@ -158,9 +194,10 @@ public class Nl2SqlSemanticRecallService {
     private List<SynonymHit> recallSynonyms(String prompt) {
         String normalized = prompt == null ? "" : prompt.toLowerCase(Locale.ROOT);
         List<SynonymHit> hits = new ArrayList<>();
-        for (Map.Entry<String, String> entry : BUILTIN_SYNONYMS.entrySet()) {
+        for (Map.Entry<String, String> entry : mergedSynonyms.entrySet()) {
             if (normalized.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
-                hits.add(new SynonymHit(entry.getKey(), entry.getValue(), "builtin"));
+                String source = BUILTIN_SYNONYMS.containsKey(entry.getKey()) ? "builtin" : "db";
+                hits.add(new SynonymHit(entry.getKey(), entry.getValue(), source));
             }
         }
         return hits;

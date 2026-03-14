@@ -101,6 +101,21 @@
 
 **统计**: READY=5, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
+## Sprint-8: NL2SQL 聊天到可视化闭环 (NV)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| NV-01 | 默认数据源自动注册 | READY | BA-02 |
+| NV-02 | Agent Chat 透传 datasourceId | READY | AA-06 |
+| NV-03 | NL2SQL Agent 系统提示词优化 | READY | NV-02 |
+| NV-04 | CopilotChat 数据源选择器 | READY | NV-01, FE-02 |
+| NV-05 | CopilotChat "创建可视化" 按钮 | READY | NV-03 |
+| NV-06 | CardEditorPage autorun 支持 | READY | FE-03 |
+| NV-07 | 同义词字典可配置化 | READY | NV-03 |
+| NV-08 | 端到端冒烟测试与评测用例 | READY | NV-01~06 |
+
+**统计**: READY=8, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
 ## 总体统计
 
-**READY=45, IN_PROGRESS=0, DONE=0, BLOCKED=0 (总计 45 任务)**
+**READY=53, IN_PROGRESS=0, DONE=0, BLOCKED=0 (总计 53 任务)**

@@ -35,6 +35,27 @@ public class AgentExecutionService {
             - Only execute SELECT queries; never modify data.
             - Explain your reasoning and results clearly.
             - If you're unsure about something, ask the user for clarification.
+
+            ## 数据查询工作流
+
+            当用户提出数据查询相关问题时，按照以下步骤操作：
+
+            1. 调用 schema_lookup 工具获取相关表结构和字段信息
+            2. 基于表结构信息，生成符合要求的 SQL 查询：
+               - 只允许 SELECT 或 WITH...SELECT 语句
+               - 不允许 INSERT/UPDATE/DELETE/DROP 等写操作
+               - 优先使用简单查询，避免不必要的复杂 JOIN
+            3. 将生成的 SQL 用 ```sql 代码块包裹返回
+            4. 简要解释 SQL 的查询逻辑
+
+            回复格式：
+            [对问题的理解和分析]
+
+            ```sql
+            SELECT ...
+            ```
+
+            [SQL 逻辑说明]
             """;
 
     private final ReActEngine reActEngine;

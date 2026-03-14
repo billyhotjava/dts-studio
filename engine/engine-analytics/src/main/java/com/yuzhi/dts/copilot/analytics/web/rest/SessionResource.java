@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/session")
-@ConditionalOnProperty(prefix = "dts.analytics.platform-auth", name = "enabled", havingValue = "false")
+@ConditionalOnProperty(prefix = "dts.analytics.platform-auth", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class SessionResource {
 
     private final AnalyticsUserRepository userRepository;

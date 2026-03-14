@@ -23,7 +23,9 @@ public class SetupStateService {
 
     @Transactional(readOnly = true)
     public boolean isSetupCompleted() {
-        return true;
+        return settingRepository.findById(SETUP_COMPLETED_KEY)
+                .map(s -> "true".equalsIgnoreCase(s.getSettingValue()))
+                .orElse(false);
     }
 
     public String getOrCreateSetupToken() {

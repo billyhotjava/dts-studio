@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.web.rest;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
@@ -47,7 +48,7 @@ public class AgentChatResource {
         log.info("Chat send: sessionId={}, userId={}", request.sessionId(), request.userId());
 
         String response = agentChatService.sendMessage(
-                request.sessionId(), request.userId(), request.message());
+                request.sessionId(), request.userId(), request.message(), request.datasourceId());
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sessionId", request.sessionId());
@@ -73,7 +74,7 @@ public class AgentChatResource {
         try {
             OutputStream output = response.getOutputStream();
             agentChatService.sendMessageStream(
-                    request.sessionId(), request.userId(), request.message(), output);
+                    request.sessionId(), request.userId(), request.message(), request.datasourceId(), output);
         } catch (Exception e) {
             log.error("Stream chat failed: {}", e.getMessage(), e);
         }
@@ -148,6 +149,7 @@ public class AgentChatResource {
     public record ChatRequest(
             String sessionId,
             String userId,
-            String message
+            String message,
+            @JsonProperty("datasourceId") Long datasourceId
     ) {}
 }

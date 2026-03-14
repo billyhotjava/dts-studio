@@ -34,6 +34,8 @@ public class AnalyticsSecurityConfiguration {
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/health", "/api/info").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/setup", "/api/setup/**").permitAll()
+                .requestMatchers("/api/session", "/api/session/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(analyticsApiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);

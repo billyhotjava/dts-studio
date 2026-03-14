@@ -25,6 +25,18 @@ dts:
   copilot:
     ai:
       base-url: ${COPILOT_AI_BASE_URL:http://localhost:8091}
+  analytics:
+    platform-auth:
+      enabled: ${DTS_ANALYTICS_PLATFORM_AUTH_ENABLED:false}
+    default-databases:
+      - name: "园林业务库"
+        engine: postgresql
+        host: ${BIZ_DB_HOST:localhost}
+        port: ${BIZ_DB_PORT:5432}
+        db: ${BIZ_DB_NAME:garden}
+        user: ${BIZ_DB_USER:readonly}
+        password: ${BIZ_DB_PASSWORD:}
+        auto-sync-metadata: true
 
 copilot:
   admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}
