@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   copilot-ollama:
-    image: ${IMAGE_OLLAMA:-ollama/ollama:0.6.2}
+    image: ${IMAGE_OLLAMA:-ollama/ollama:0.18.0}
     container_name: dts-copilot-ollama
     ports:
       - "11434:11434"
