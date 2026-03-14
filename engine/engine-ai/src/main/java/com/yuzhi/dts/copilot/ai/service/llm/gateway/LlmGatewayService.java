@@ -129,14 +129,32 @@ public class LlmGatewayService {
 
     /**
      * Returns ordered list of provider states: default first, then by priority.
+     * 如果数据库中无任何配置，通过 resolveEffectiveProvider 降级到本地文件或内置默认值。
      */
     private List<ProviderState> getOrderedProviders() {
         refreshProviderStates();
         List<AiProviderConfig> configs = configService.getEnabledProviders();
-        return configs.stream()
+        List<ProviderState> states = configs.stream()
                 .map(c -> providerStates.get(c.getId()))
                 .filter(s -> s != null)
                 .collect(Collectors.toList());
+
+        // 降级：无数据库配置时，使用 resolveEffectiveProvider 的结果
+        if (states.isEmpty()) {
+            AiProviderConfig fallback = configService.resolveEffectiveProvider();
+            Long fallbackId = fallback.getId() != null ? fallback.getId() : -1L;
+            ProviderState fallbackState = providerStates.computeIfAbsent(fallbackId, id -> {
+                OpenAiCompatibleClient client = new OpenAiCompatibleClient(
+                        fallback.getBaseUrl(),
+                        fallback.getApiKey(),
+                        fallback.getTimeoutSeconds() != null ? fallback.getTimeoutSeconds() : 60
+                );
+                return new ProviderState(fallbackId, fallback.getName(), client);
+            });
+            states = List.of(fallbackState);
+        }
+
+        return states;
     }
 
     /**
@@ -149,13 +167,14 @@ public class LlmGatewayService {
                 OpenAiCompatibleClient client = new OpenAiCompatibleClient(
                         config.getBaseUrl(),
                         config.getApiKey(),
-                        config.getTimeoutSeconds() != null ? config.getTimeoutSeconds() : 120
+                        config.getTimeoutSeconds() != null ? config.getTimeoutSeconds() : 60
                 );
                 return new ProviderState(config.getId(), config.getName(), client);
             });
         }
-        // Remove states for providers that are no longer configured
+        // Remove states for providers that are no longer configured (keep fallback id=-1)
         List<Long> activeIds = configs.stream().map(AiProviderConfig::getId).collect(Collectors.toList());
+        activeIds.add(-1L);
         providerStates.keySet().removeIf(id -> !activeIds.contains(id));
     }
 }

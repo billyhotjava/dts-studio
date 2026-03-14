@@ -34,3 +34,20 @@ dts:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       default-model: ${OLLAMA_DEFAULT_MODEL:qwen2.5-coder:7b}
       timeout-seconds: 60
+    ai:
+      # AI 配置文件降级路径（数据库无配置时读取此文件）
+      config-path: ${DTS_AI_CONFIG_PATH:/opt/dts/upload/ai-copilot-config.json}
+
+copilot:
+  admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}
+
+# AI 配置文件格式示例（放到 config-path 指向的位置）:
+# {
+#   "provider": "ollama",                            ← 本地: ollama, vllm, lmstudio
+#   "baseUrl": "http://localhost:11434/v1",           ← 公有云: https://api.openai.com/v1
+#   "model": "qwen2.5-coder:7b",                     ← 公有云: gpt-4o, deepseek-chat, qwen-plus
+#   "apiKey": "",                                     ← 本地留空, 公有云填写
+#   "maxTokens": 4096,
+#   "temperature": 0.3,
+#   "timeout": 60
+# }

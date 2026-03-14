@@ -5,11 +5,17 @@ package com.yuzhi.dts.copilot.ai.service.config;
  */
 public enum ProviderTemplate {
 
-    OLLAMA("Ollama", "http://localhost:11434", null, "llama3.1", 0.7, 4096, 120),
-    OPENAI("OpenAI", "https://api.openai.com", null, "gpt-4o", 0.7, 4096, 120),
-    DEEPSEEK("DeepSeek", "https://api.deepseek.com", null, "deepseek-chat", 0.7, 4096, 120),
-    QWEN("Qwen", "https://dashscope.aliyuncs.com/compatible-mode", null, "qwen-plus", 0.7, 4096, 120),
-    ZHIPU("ZhiPu", "https://open.bigmodel.cn/api/paas", null, "glm-4", 0.7, 4096, 120);
+    // 本地部署
+    OLLAMA("Ollama", "http://localhost:11434/v1", null, "qwen2.5-coder:7b", 0.3, 4096, 60, true),
+    VLLM("vLLM", "http://localhost:8000/v1", null, "default", 0.3, 4096, 60, true),
+    LMSTUDIO("LM Studio", "http://localhost:1234/v1", null, "default", 0.3, 4096, 60, true),
+
+    // 公有云
+    OPENAI("OpenAI", "https://api.openai.com/v1", null, "gpt-4o", 0.3, 4096, 60, false),
+    AZURE_OPENAI("Azure OpenAI", "https://{resource}.openai.azure.com/openai/deployments/{deployment}", null, "gpt-4o", 0.3, 4096, 60, false),
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1", null, "deepseek-chat", 0.3, 4096, 60, false),
+    QWEN("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1", null, "qwen-plus", 0.3, 4096, 60, false),
+    ZHIPU("智谱GLM", "https://open.bigmodel.cn/api/paas/v4", null, "glm-4-flash", 0.3, 4096, 60, false);
 
     private final String displayName;
     private final String defaultBaseUrl;
@@ -18,10 +24,11 @@ public enum ProviderTemplate {
     private final double defaultTemperature;
     private final int defaultMaxTokens;
     private final int defaultTimeoutSeconds;
+    private final boolean local;
 
     ProviderTemplate(String displayName, String defaultBaseUrl, String defaultApiKey,
                      String defaultModel, double defaultTemperature,
-                     int defaultMaxTokens, int defaultTimeoutSeconds) {
+                     int defaultMaxTokens, int defaultTimeoutSeconds, boolean local) {
         this.displayName = displayName;
         this.defaultBaseUrl = defaultBaseUrl;
         this.defaultApiKey = defaultApiKey;
@@ -29,6 +36,7 @@ public enum ProviderTemplate {
         this.defaultTemperature = defaultTemperature;
         this.defaultMaxTokens = defaultMaxTokens;
         this.defaultTimeoutSeconds = defaultTimeoutSeconds;
+        this.local = local;
     }
 
     public String getDisplayName() {
@@ -57,5 +65,46 @@ public enum ProviderTemplate {
 
     public int getDefaultTimeoutSeconds() {
         return defaultTimeoutSeconds;
+    }
+
+    /**
+     * 是否为本地部署的 Provider（不需要 API Key）。
+     */
+    public boolean isLocal() {
+        return local;
+    }
+
+    /**
+     * 根据 baseUrl 判断是否为本地 Provider。
+     * 本地地址包括: localhost, 127.0.0.1, 以及已知的本地 Provider 类型。
+     */
+    public static boolean isLocalUrl(String baseUrl) {
+        if (baseUrl == null) return false;
+        String lower = baseUrl.toLowerCase();
+        return lower.contains("localhost") || lower.contains("127.0.0.1")
+                || lower.contains("0.0.0.0") || lower.contains("host.docker.internal");
+    }
+
+    /**
+     * 判断 Provider 配置是否有效（本地 Provider 不需要 apiKey）。
+     */
+    public static boolean isConfigValid(String providerType, String baseUrl, String apiKey) {
+        if (baseUrl == null || baseUrl.isBlank()) return false;
+        // 本地 Provider 不需要 API Key
+        if (isLocalUrl(baseUrl)) return true;
+        if ("ollama".equalsIgnoreCase(providerType) || "vllm".equalsIgnoreCase(providerType)
+                || "lmstudio".equalsIgnoreCase(providerType) || "local".equalsIgnoreCase(providerType)) {
+            return true;
+        }
+        // 公有云 Provider 需要 API Key
+        return apiKey != null && !apiKey.isBlank();
+    }
+
+    /**
+     * 对 API Key 脱敏，仅显示前 4 位和后 4 位。
+     */
+    public static String maskApiKey(String apiKey) {
+        if (apiKey == null || apiKey.length() <= 8) return "******";
+        return apiKey.substring(0, 4) + "****" + apiKey.substring(apiKey.length() - 4);
     }
 }

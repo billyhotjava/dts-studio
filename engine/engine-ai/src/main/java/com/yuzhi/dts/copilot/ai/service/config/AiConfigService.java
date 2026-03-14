@@ -1,13 +1,20 @@
 package com.yuzhi.dts.copilot.ai.service.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
+import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,8 +25,12 @@ import java.util.Optional;
 public class AiConfigService {
 
     private static final Logger log = LoggerFactory.getLogger(AiConfigService.class);
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private final AiProviderConfigRepository repository;
+
+    @Value("${dts.copilot.ai.config-path:/opt/dts/upload/ai-copilot-config.json}")
+    private String configFilePath;
 
     public AiConfigService(AiProviderConfigRepository repository) {
         this.repository = repository;
@@ -98,6 +109,136 @@ public class AiConfigService {
         config.setEnabled(true);
         config.setIsDefault(false);
         return repository.save(config);
+    }
+
+    /**
+     * 获取有效的默认 Provider 配置，按降级链查找：
+     * 1. 数据库中标记为 default 的配置
+     * 2. 数据库中第一个 enabled 的配置
+     * 3. 本地 JSON 配置文件
+     * 4. 内置 Ollama 默认配置
+     */
+    @Transactional(readOnly = true)
+    public AiProviderConfig resolveEffectiveProvider() {
+        // 1. 数据库 default
+        Optional<AiProviderConfig> defaultProvider = getDefaultProvider();
+        if (defaultProvider.isPresent() && isProviderUsable(defaultProvider.get())) {
+            return defaultProvider.get();
+        }
+
+        // 2. 数据库中第一个 enabled
+        List<AiProviderConfig> enabled = getEnabledProviders();
+        for (AiProviderConfig p : enabled) {
+            if (isProviderUsable(p)) return p;
+        }
+
+        // 3. 本地 JSON 文件
+        AiProviderConfig fromFile = loadFromConfigFile();
+        if (fromFile != null) {
+            log.info("使用本地配置文件: {}", configFilePath);
+            return fromFile;
+        }
+
+        // 4. 内置 Ollama 默认
+        log.warn("未找到任何 AI Provider 配置，使用内置 Ollama 默认配置");
+        AiProviderConfig fallback = new AiProviderConfig();
+        fallback.setName("Ollama (默认)");
+        fallback.setProviderType("OLLAMA");
+        fallback.setBaseUrl(ProviderTemplate.OLLAMA.getDefaultBaseUrl());
+        fallback.setModel(ProviderTemplate.OLLAMA.getDefaultModel());
+        fallback.setTemperature(ProviderTemplate.OLLAMA.getDefaultTemperature());
+        fallback.setMaxTokens(ProviderTemplate.OLLAMA.getDefaultMaxTokens());
+        fallback.setTimeoutSeconds(ProviderTemplate.OLLAMA.getDefaultTimeoutSeconds());
+        fallback.setEnabled(true);
+        fallback.setIsDefault(true);
+        return fallback;
+    }
+
+    /**
+     * 测试 Provider 连通性。
+     */
+    public Map<String, Object> testProvider(Long id) {
+        AiProviderConfig config = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Provider not found: " + id));
+        return testProviderConfig(config);
+    }
+
+    /**
+     * 测试指定配置的连通性（不需要持久化）。
+     */
+    public Map<String, Object> testProviderConfig(AiProviderConfig config) {
+        try {
+            OpenAiCompatibleClient client = new OpenAiCompatibleClient(
+                    config.getBaseUrl(), config.getApiKey(),
+                    config.getTimeoutSeconds() != null ? config.getTimeoutSeconds() : 30);
+            JsonNode models = client.listModels();
+
+            boolean modelFound = false;
+            if (models.has("data") && models.get("data").isArray()) {
+                for (JsonNode m : models.get("data")) {
+                    if (m.has("id") && m.get("id").asText().contains(config.getModel())) {
+                        modelFound = true;
+                        break;
+                    }
+                }
+            }
+
+            return Map.of(
+                    "success", true,
+                    "provider", config.getName(),
+                    "baseUrl", config.getBaseUrl(),
+                    "model", config.getModel(),
+                    "modelAvailable", modelFound,
+                    "modelsCount", models.has("data") ? models.get("data").size() : 0
+            );
+        } catch (Exception e) {
+            log.warn("Provider 连通性测试失败: {} - {}", config.getName(), e.getMessage());
+            return Map.of(
+                    "success", false,
+                    "provider", config.getName(),
+                    "baseUrl", config.getBaseUrl(),
+                    "error", e.getMessage()
+            );
+        }
+    }
+
+    /**
+     * 判断 Provider 配置是否可用。
+     */
+    private boolean isProviderUsable(AiProviderConfig config) {
+        if (!Boolean.TRUE.equals(config.getEnabled())) return false;
+        return ProviderTemplate.isConfigValid(
+                config.getProviderType(), config.getBaseUrl(), config.getApiKey());
+    }
+
+    /**
+     * 从本地 JSON 配置文件加载 Provider 配置。
+     * 文件格式: {"provider":"ollama","baseUrl":"...","model":"...","apiKey":"","maxTokens":4096,"temperature":0.3,"timeout":60}
+     */
+    private AiProviderConfig loadFromConfigFile() {
+        try {
+            Path path = Path.of(configFilePath);
+            if (!Files.exists(path)) return null;
+
+            JsonNode json = mapper.readTree(Files.readString(path));
+            AiProviderConfig config = new AiProviderConfig();
+            config.setName(json.has("provider") ? json.get("provider").asText() : "local-file");
+            config.setProviderType(json.has("provider") ? json.get("provider").asText().toUpperCase() : "OLLAMA");
+            config.setBaseUrl(json.has("baseUrl") ? json.get("baseUrl").asText() : null);
+            config.setModel(json.has("model") ? json.get("model").asText() : null);
+            config.setApiKey(json.has("apiKey") ? json.get("apiKey").asText() : null);
+            config.setMaxTokens(json.has("maxTokens") ? json.get("maxTokens").asInt(4096) : 4096);
+            config.setTemperature(json.has("temperature") ? json.get("temperature").asDouble(0.3) : 0.3);
+            config.setTimeoutSeconds(json.has("timeout") ? json.get("timeout").asInt(60) : 60);
+            config.setEnabled(true);
+            config.setIsDefault(true);
+
+            if (config.getBaseUrl() == null || config.getBaseUrl().isBlank()) return null;
+            return config;
+        } catch (Exception e) {
+            log.warn("读取本地 AI 配置文件失败: {} - {}", configFilePath, e.getMessage());
+            return null;
+        }
     }
 
     private void clearDefaultFlag() {
