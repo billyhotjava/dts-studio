@@ -5,5 +5,8 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
     <include file="config/liquibase/changelog/v1_0_0_001__baseline.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_002__rag_pgvector.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_003__ai_audit.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_004__chat_session.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_005__api_key_extend.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- AA-06: Chat session and message tables                       -->
+    <!-- ============================================================ -->
+
+    <changeSet id="v1.0.0-004-ai-chat-session" author="dts-copilot">
+        <createTable tableName="ai_chat_session">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="session_id" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="user_id" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(256)"/>
+            <column name="data_source_id" type="BIGINT"/>
+            <column name="status" type="VARCHAR(16)" defaultValue="ACTIVE"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-004-ai-chat-session-indexes" author="dts-copilot">
+        <createIndex tableName="ai_chat_session" indexName="idx_ai_chat_session_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="ai_chat_session" indexName="idx_ai_chat_session_updated">
+            <column name="updated_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="v1.0.0-004-ai-chat-message" author="dts-copilot">
+        <createTable tableName="ai_chat_message">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="session_id" type="BIGINT">
+                <constraints nullable="false"
+                             foreignKeyName="fk_chat_message_session"
+                             referencedTableName="ai_chat_session"
+                             referencedColumnNames="id"/>
+            </column>
+            <column name="role" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tool_calls" type="JSONB"/>
+            <column name="tool_call_id" type="VARCHAR(128)"/>
+            <column name="tokens_used" type="INTEGER"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-004-ai-chat-message-indexes" author="dts-copilot">
+        <createIndex tableName="ai_chat_message" indexName="idx_ai_chat_message_session">
+            <column name="session_id"/>
+        </createIndex>
+        <createIndex tableName="ai_chat_message" indexName="idx_ai_chat_message_created">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

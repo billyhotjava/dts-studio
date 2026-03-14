@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- AA-01: Enable pgvector extension and create rag_embedding    -->
+    <!-- ============================================================ -->
+
+    <changeSet id="v1.0.0-002-enable-pgvector" author="dts-copilot">
+        <sql>CREATE EXTENSION IF NOT EXISTS vector;</sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-002-rag-embedding" author="dts-copilot">
+        <createTable tableName="rag_embedding">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="content_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_id" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metadata" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-002-rag-embedding-vector-column" author="dts-copilot">
+        <sql>ALTER TABLE rag_embedding ADD COLUMN embedding vector(1024);</sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-002-rag-embedding-tsvector" author="dts-copilot">
+        <sql>
+            ALTER TABLE rag_embedding ADD COLUMN tsv tsvector
+                GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-002-rag-embedding-hnsw-index" author="dts-copilot">
+        <sql>
+            CREATE INDEX idx_rag_embedding_hnsw ON rag_embedding
+                USING hnsw (embedding vector_cosine_ops)
+                WITH (m = 16, ef_construction = 64);
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-002-rag-embedding-gin-index" author="dts-copilot">
+        <sql>
+            CREATE INDEX idx_rag_embedding_tsv ON rag_embedding USING GIN (tsv);
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-002-rag-embedding-source-index" author="dts-copilot">
+        <createIndex tableName="rag_embedding" indexName="idx_rag_embedding_source">
+            <column name="content_type"/>
+            <column name="source_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
