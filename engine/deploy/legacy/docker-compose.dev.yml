@@ -1,0 +1,9 @@
+# Development mode: only infrastructure services
+# Java apps run in IDE, webapp via pnpm dev
+services:
+  copilot-ai:
+    profiles: ["full"]
+  copilot-analytics:
+    profiles: ["full"]
+  copilot-proxy:
+    profiles: ["proxy"]

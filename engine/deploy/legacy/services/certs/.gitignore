@@ -1,0 +1,8 @@
+*.key
+*.crt
+*.p12
+*.jks
+*.csr
+*.srl
+*.cnf
+!.gitignore

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- SC-02: copilot_ai schema baseline                            -->
+    <!-- ============================================================ -->
+
+    <changeSet id="v1.0.0-001-ai-provider-config" author="dts-copilot">
+        <createTable tableName="ai_provider_config">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="provider_name" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="base_url" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="api_key" type="VARCHAR(512)"/>
+            <column name="model" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_default" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="max_tokens" type="INTEGER" defaultValueNumeric="4096"/>
+            <column name="temperature" type="DECIMAL(3,2)" defaultValueNumeric="0.7"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-api-key" author="dts-copilot">
+        <createTable tableName="api_key">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="key_hash" type="VARCHAR(128)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="key_prefix" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)" defaultValue="ACTIVE"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="expires_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-data-source" author="dts-copilot">
+        <createTable tableName="data_source">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="db_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="jdbc_url" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(128)"/>
+            <column name="password" type="VARCHAR(512)"/>
+            <column name="status" type="VARCHAR(16)" defaultValue="ACTIVE"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

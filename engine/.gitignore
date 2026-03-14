@@ -1,0 +1,37 @@
+# Build output
+target/
+*.jar
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env.local
+.env.production
+
+# Certificates (generated)
+services/certs/*.key
+services/certs/*.crt
+services/certs/*.p12
+services/certs/*.jks
+!services/certs/gen-certs.sh
+!services/certs/.gitignore
+
+# Docker volumes
+copilot-pg-data/
+copilot-ollama-data/
+
+# Node
+node_modules/
+dist/
+.pnpm-store/

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- SC-03: copilot_analytics schema baseline                     -->
+    <!-- ============================================================ -->
+
+    <changeSet id="v1.0.0-001-analytics-user" author="dts-copilot">
+        <createTable tableName="analytics_user">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="first_name" type="VARCHAR(255)"/>
+            <column name="last_name" type="VARCHAR(255)"/>
+            <column name="is_superuser" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-session" author="dts-copilot">
+        <createTable tableName="analytics_session">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_session_user" references="analytics_user(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="last_seen_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-database" author="dts-copilot">
+        <createTable tableName="analytics_database">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="engine" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-card" author="dts-copilot">
+        <createTable tableName="analytics_card">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="description" type="TEXT"/>
+            <column name="database_id" type="BIGINT">
+                <constraints foreignKeyName="fk_card_database" references="analytics_database(id)"/>
+            </column>
+            <column name="dataset_query" type="JSONB"/>
+            <column name="visualization_settings" type="JSONB"/>
+            <column name="display" type="VARCHAR(32)" defaultValue="table"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_card_created_by" references="analytics_user(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-dashboard" author="dts-copilot">
+        <createTable tableName="analytics_dashboard">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_dashboard_created_by" references="analytics_user(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-dashboard-card" author="dts-copilot">
+        <createTable tableName="analytics_dashboard_card">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="dashboard_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_dashcard_dashboard" references="analytics_dashboard(id)"/>
+            </column>
+            <column name="card_id" type="BIGINT">
+                <constraints foreignKeyName="fk_dashcard_card" references="analytics_card(id)"/>
+            </column>
+            <column name="row" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="col" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="size_x" type="INTEGER" defaultValueNumeric="4"/>
+            <column name="size_y" type="INTEGER" defaultValueNumeric="4"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-collection" author="dts-copilot">
+        <createTable tableName="analytics_collection">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="parent_id" type="BIGINT">
+                <constraints foreignKeyName="fk_collection_parent" references="analytics_collection(id)"/>
+            </column>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_collection_created_by" references="analytics_user(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-screen" author="dts-copilot">
+        <createTable tableName="analytics_screen">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="config" type="JSONB"/>
+            <column name="status" type="VARCHAR(16)" defaultValue="DRAFT"/>
+            <column name="created_by" type="BIGINT">
+                <constraints foreignKeyName="fk_screen_created_by" references="analytics_user(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-setting" author="dts-copilot">
+        <createTable tableName="analytics_setting">
+            <column name="key" type="VARCHAR(128)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="value" type="TEXT"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="v1.0.0-001-analytics-audit-log" author="dts-copilot">
+        <createTable tableName="analytics_audit_log">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT"/>
+            <column name="action" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

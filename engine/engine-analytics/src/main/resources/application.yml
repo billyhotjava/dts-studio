@@ -1,0 +1,23 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: dts-copilot-analytics
+  datasource:
+    url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DB:copilot}?currentSchema=copilot_analytics
+    username: ${PG_USER:copilot}
+    password: ${PG_PASSWORD:copilot_dev}
+    driver-class-name: org.postgresql.Driver
+  liquibase:
+    change-log: classpath:config/liquibase/master.xml
+    default-schema: copilot_analytics
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
