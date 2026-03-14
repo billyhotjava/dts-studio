@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Client for communicating with copilot-ai REST APIs.
@@ -61,9 +62,12 @@ public class CopilotAiClient {
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getDataSources(String apiKey) {
         try {
-            Map<String, Object> response = restClient.get()
-                    .uri("/api/ai/copilot/datasources")
-                    .header("Authorization", "Bearer " + apiKey)
+            var requestSpec = restClient.get()
+                    .uri("/api/ai/copilot/datasources");
+            if (apiKey != null && !apiKey.isEmpty()) {
+                requestSpec.header("Authorization", "Bearer " + apiKey);
+            }
+            Map<String, Object> response = requestSpec
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
 
@@ -78,13 +82,16 @@ public class CopilotAiClient {
     }
 
     /**
-     * Get a specific data source from copilot-ai.
+     * Get a specific data source from copilot-ai by numeric ID.
      */
     public Optional<Map<String, Object>> getDataSource(Long id, String apiKey) {
         try {
-            Map<String, Object> response = restClient.get()
-                    .uri("/api/ai/copilot/datasources/{id}", id)
-                    .header("Authorization", "Bearer " + apiKey)
+            var requestSpec = restClient.get()
+                    .uri("/api/ai/copilot/datasources/{id}", id);
+            if (apiKey != null && !apiKey.isEmpty()) {
+                requestSpec.header("Authorization", "Bearer " + apiKey);
+            }
+            Map<String, Object> response = requestSpec
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
 
@@ -96,6 +103,68 @@ public class CopilotAiClient {
             return Optional.empty();
         } catch (Exception e) {
             log.error("Failed to get data source {} from copilot-ai: {}", id, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Get a specific data source from copilot-ai by UUID.
+     */
+    public Optional<Map<String, Object>> getDataSource(UUID id, String apiKey) {
+        try {
+            var requestSpec = restClient.get()
+                    .uri("/api/ai/copilot/datasources/{id}", id);
+            if (apiKey != null && !apiKey.isEmpty()) {
+                requestSpec.header("Authorization", "Bearer " + apiKey);
+            }
+            Map<String, Object> response = requestSpec
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+
+            if (response != null && response.containsKey("data")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) response.get("data");
+                return Optional.ofNullable(data);
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            log.error("Failed to get data source {} from copilot-ai: {}", id, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Post to a copilot-ai endpoint and return the response body as a map.
+     */
+    public Optional<Map<String, Object>> post(String path, Map<String, Object> payload) {
+        try {
+            Map<String, Object> response = restClient.post()
+                    .uri(path)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+
+            return Optional.ofNullable(response);
+        } catch (Exception e) {
+            log.error("Failed to POST to copilot-ai {}: {}", path, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Get from a copilot-ai endpoint and return the response body as a map.
+     */
+    public Optional<Map<String, Object>> get(String path) {
+        try {
+            Map<String, Object> response = restClient.get()
+                    .uri(path)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+
+            return Optional.ofNullable(response);
+        } catch (Exception e) {
+            log.error("Failed to GET from copilot-ai {}: {}", path, e.getMessage());
             return Optional.empty();
         }
     }

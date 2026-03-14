@@ -5,32 +5,56 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-
+import java.io.Serializable;
 import java.time.Instant;
 
 @Entity
-@Table(name = "analytics_collection", schema = "copilot_analytics")
-public class AnalyticsCollection {
+@Table(name = "analytics_collection")
+public class AnalyticsCollection implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "entity_id", nullable = false, length = 32, unique = true)
+    private String entityId;
+
+    @Column(name = "name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "text")
     private String description;
+
+    @Column(name = "archived", nullable = false)
+    private boolean archived;
+
+    @Column(name = "color", length = 16)
+    private String color;
+
+    @Column(name = "slug", length = 255)
+    private String slug;
+
+    @Column(name = "namespace", length = 64)
+    private String namespace;
+
+    @Column(name = "location", nullable = false, length = 512)
+    private String location = "/";
 
     @Column(name = "parent_id")
     private Long parentId;
 
-    @Column(name = "created_by")
-    private Long createdBy;
+    @Column(name = "personal_owner_id")
+    private Long personalOwnerId;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
     public Long getId() {
         return id;
@@ -38,6 +62,14 @@ public class AnalyticsCollection {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getEntityId() {
+        return entityId;
+    }
+
+    public void setEntityId(String entityId) {
+        this.entityId = entityId;
     }
 
     public String getName() {
@@ -56,6 +88,46 @@ public class AnalyticsCollection {
         this.description = description;
     }
 
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    public String getSlug() {
+        return slug;
+    }
+
+    public void setSlug(String slug) {
+        this.slug = slug;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
     public Long getParentId() {
         return parentId;
     }
@@ -64,19 +136,34 @@ public class AnalyticsCollection {
         this.parentId = parentId;
     }
 
-    public Long getCreatedBy() {
-        return createdBy;
+    public Long getPersonalOwnerId() {
+        return personalOwnerId;
     }
 
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
+    public void setPersonalOwnerId(Long personalOwnerId) {
+        this.personalOwnerId = personalOwnerId;
     }
 
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
     }
 }
+

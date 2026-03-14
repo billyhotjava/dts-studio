@@ -5,43 +5,55 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-
+import java.io.Serializable;
 import java.time.Instant;
 
 @Entity
-@Table(name = "analytics_card", schema = "copilot_analytics")
-public class AnalyticsCard {
+@Table(name = "analytics_card")
+public class AnalyticsCard implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "name")
+    @Column(name = "entity_id", nullable = false, length = 32, unique = true)
+    private String entityId;
+
+    @Column(name = "name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "database_id")
+    @Column(name = "archived", nullable = false)
+    private boolean archived;
+
+    @Column(name = "collection_id")
+    private Long collectionId;
+
+    @Column(name = "database_id", nullable = false)
     private Long databaseId;
 
-    @Column(name = "dataset_query", columnDefinition = "jsonb")
-    private String datasetQuery;
+    @Column(name = "dataset_query_json", nullable = false, columnDefinition = "text")
+    private String datasetQueryJson;
 
-    @Column(name = "visualization_settings", columnDefinition = "jsonb")
-    private String visualizationSettings;
+    @Column(name = "display", length = 64)
+    private String display;
 
-    @Column(name = "display", length = 32)
-    private String display = "table";
+    @Column(name = "visualization_settings_json", columnDefinition = "text")
+    private String visualizationSettingsJson;
 
-    @Column(name = "created_by")
-    private Long createdBy;
+    @Column(name = "creator_id")
+    private Long creatorId;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
     public Long getId() {
@@ -50,6 +62,14 @@ public class AnalyticsCard {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getEntityId() {
+        return entityId;
+    }
+
+    public void setEntityId(String entityId) {
+        this.entityId = entityId;
     }
 
     public String getName() {
@@ -68,6 +88,22 @@ public class AnalyticsCard {
         this.description = description;
     }
 
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
+    public Long getCollectionId() {
+        return collectionId;
+    }
+
+    public void setCollectionId(Long collectionId) {
+        this.collectionId = collectionId;
+    }
+
     public Long getDatabaseId() {
         return databaseId;
     }
@@ -76,20 +112,12 @@ public class AnalyticsCard {
         this.databaseId = databaseId;
     }
 
-    public String getDatasetQuery() {
-        return datasetQuery;
+    public String getDatasetQueryJson() {
+        return datasetQueryJson;
     }
 
-    public void setDatasetQuery(String datasetQuery) {
-        this.datasetQuery = datasetQuery;
-    }
-
-    public String getVisualizationSettings() {
-        return visualizationSettings;
-    }
-
-    public void setVisualizationSettings(String visualizationSettings) {
-        this.visualizationSettings = visualizationSettings;
+    public void setDatasetQueryJson(String datasetQueryJson) {
+        this.datasetQueryJson = datasetQueryJson;
     }
 
     public String getDisplay() {
@@ -100,27 +128,42 @@ public class AnalyticsCard {
         this.display = display;
     }
 
-    public Long getCreatedBy() {
-        return createdBy;
+    public String getVisualizationSettingsJson() {
+        return visualizationSettingsJson;
     }
 
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
+    public void setVisualizationSettingsJson(String visualizationSettingsJson) {
+        this.visualizationSettingsJson = visualizationSettingsJson;
+    }
+
+    public Long getCreatorId() {
+        return creatorId;
+    }
+
+    public void setCreatorId(Long creatorId) {
+        this.creatorId = creatorId;
     }
 
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public Instant getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
     }
 }
+

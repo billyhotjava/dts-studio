@@ -1,66 +1,60 @@
 package com.yuzhi.dts.copilot.analytics.service;
 
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCollection;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsCollectionRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-
-/**
- * Service for managing analytics collections (folders for organizing cards/dashboards).
- */
 @Service
 @Transactional
 public class CollectionService {
 
-    private static final Logger log = LoggerFactory.getLogger(CollectionService.class);
-
     private final AnalyticsCollectionRepository collectionRepository;
+    private final EntityIdGenerator entityIdGenerator;
 
-    public CollectionService(AnalyticsCollectionRepository collectionRepository) {
+    public CollectionService(AnalyticsCollectionRepository collectionRepository, EntityIdGenerator entityIdGenerator) {
         this.collectionRepository = collectionRepository;
+        this.entityIdGenerator = entityIdGenerator;
     }
 
-    @Transactional(readOnly = true)
-    public List<AnalyticsCollection> findAll() {
-        return collectionRepository.findAll();
+    public AnalyticsCollection ensurePersonalCollection(AnalyticsUser user) {
+        return collectionRepository.findByPersonalOwnerId(user.getId()).orElseGet(() -> {
+            AnalyticsCollection collection = new AnalyticsCollection();
+            collection.setEntityId(entityIdGenerator.newEntityId());
+            collection.setName(buildPersonalCollectionName(user));
+            collection.setSlug(buildSlug(collection.getName()));
+            collection.setColor("#31698A");
+            collection.setLocation("/");
+            collection.setPersonalOwnerId(user.getId());
+            collection.setArchived(false);
+            return collectionRepository.save(collection);
+        });
     }
 
-    @Transactional(readOnly = true)
-    public Optional<AnalyticsCollection> findById(Long id) {
-        return collectionRepository.findById(id);
+    private static String buildPersonalCollectionName(AnalyticsUser user) {
+        String commonName = ("%s %s".formatted(nullToEmpty(user.getFirstName()), nullToEmpty(user.getLastName()))).trim();
+        if (commonName.isBlank()) {
+            commonName = "User";
+        }
+        return commonName + "'s Personal Collection";
     }
 
-    @Transactional(readOnly = true)
-    public List<AnalyticsCollection> findByParentId(Long parentId) {
-        return collectionRepository.findByParentId(parentId);
+    private static String buildSlug(String name) {
+        if (name == null) {
+            return null;
+        }
+        String slug = name.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_");
+        slug = slug.replaceAll("^_+|_+$", "");
+        if (slug.isBlank()) {
+            return null;
+        }
+        return slug;
     }
 
-    public AnalyticsCollection create(AnalyticsCollection collection) {
-        collection.setCreatedAt(Instant.now());
-        AnalyticsCollection saved = collectionRepository.save(collection);
-        log.info("Created analytics collection id={} name={}", saved.getId(), saved.getName());
-        return saved;
-    }
-
-    public AnalyticsCollection update(Long id, AnalyticsCollection updated) {
-        AnalyticsCollection existing = collectionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Collection not found: " + id));
-
-        existing.setName(updated.getName());
-        existing.setDescription(updated.getDescription());
-        existing.setParentId(updated.getParentId());
-
-        return collectionRepository.save(existing);
-    }
-
-    public void delete(Long id) {
-        collectionRepository.deleteById(id);
-        log.info("Deleted analytics collection id={}", id);
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 }
+

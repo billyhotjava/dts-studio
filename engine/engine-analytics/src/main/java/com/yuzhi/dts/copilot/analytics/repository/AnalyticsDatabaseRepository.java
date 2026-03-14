@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AnalyticsDatabaseRepository extends JpaRepository<AnalyticsDatabase, Long> {
-}
+public interface AnalyticsDatabaseRepository extends JpaRepository<AnalyticsDatabase, Long> {}
+

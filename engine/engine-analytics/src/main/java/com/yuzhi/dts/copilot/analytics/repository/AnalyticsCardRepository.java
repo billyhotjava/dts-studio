@@ -1,15 +1,15 @@
 package com.yuzhi.dts.copilot.analytics.repository;
 
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCard;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
 public interface AnalyticsCardRepository extends JpaRepository<AnalyticsCard, Long> {
+    List<AnalyticsCard> findAllByArchivedFalseOrderByIdAsc();
 
-    List<AnalyticsCard> findByDatabaseId(Long databaseId);
+    List<AnalyticsCard> findAllByArchivedTrueOrderByIdAsc();
 
-    List<AnalyticsCard> findByCreatedBy(Long createdBy);
+    List<AnalyticsCard> findAllByArchivedFalseAndCollectionIdOrderByIdAsc(Long collectionId);
+
+    List<AnalyticsCard> findAllByArchivedFalseAndCollectionIdIsNullOrderByIdAsc();
 }

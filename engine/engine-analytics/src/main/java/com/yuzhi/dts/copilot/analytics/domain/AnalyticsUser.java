@@ -5,37 +5,43 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-
+import java.io.Serializable;
 import java.time.Instant;
 
 @Entity
-@Table(name = "analytics_user", schema = "copilot_analytics")
-public class AnalyticsUser {
+@Table(name = "analytics_user")
+public class AnalyticsUser implements Serializable {
 
     @Id
+    @Column(name = "id", nullable = false)
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "email")
+    @Column(name = "email", nullable = false, length = 254, unique = true)
     private String email;
 
-    @Column(name = "first_name")
+    @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
 
-    @Column(name = "last_name")
+    @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
-    @Column(name = "is_superuser")
-    private Boolean isSuperuser = false;
+    @Column(name = "password_hash", nullable = false, length = 100)
+    private String passwordHash;
 
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    @Column(name = "is_superuser", nullable = false)
+    private boolean superuser;
 
-    @Column(name = "created_at")
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
     public Long getId() {
@@ -70,35 +76,49 @@ public class AnalyticsUser {
         this.lastName = lastName;
     }
 
-    public Boolean getIsSuperuser() {
-        return isSuperuser;
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
-    public void setIsSuperuser(Boolean isSuperuser) {
-        this.isSuperuser = isSuperuser;
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
-    public Boolean getIsActive() {
-        return isActive;
+    public boolean isSuperuser() {
+        return superuser;
     }
 
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
+    public void setSuperuser(boolean superuser) {
+        this.superuser = superuser;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public Instant getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
     }
 }

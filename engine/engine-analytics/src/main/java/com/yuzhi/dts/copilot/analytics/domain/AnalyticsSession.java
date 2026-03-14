@@ -3,32 +3,44 @@ package com.yuzhi.dts.copilot.analytics.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-
+import java.io.Serializable;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
-@Table(name = "analytics_session", schema = "copilot_analytics")
-public class AnalyticsSession {
+@Table(name = "analytics_session")
+public class AnalyticsSession implements Serializable {
 
     @Id
-    @Column(name = "id", length = 36)
-    private String id;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
 
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
-    public String getId() {
+    @Column(name = "revoked", nullable = false)
+    private boolean revoked;
+
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -44,8 +56,16 @@ public class AnalyticsSession {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
     }
 
     public Instant getLastSeenAt() {
@@ -54,5 +74,30 @@ public class AnalyticsSession {
 
     public void setLastSeenAt(Instant lastSeenAt) {
         this.lastSeenAt = lastSeenAt;
+    }
+
+    public boolean isRevoked() {
+        return revoked;
+    }
+
+    public void setRevoked(boolean revoked) {
+        this.revoked = revoked;
+    }
+
+    @PrePersist
+    void onCreate() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
     }
 }

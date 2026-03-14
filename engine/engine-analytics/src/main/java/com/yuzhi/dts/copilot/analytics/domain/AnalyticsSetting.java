@@ -3,32 +3,65 @@ package com.yuzhi.dts.copilot.analytics.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.io.Serializable;
+import java.time.Instant;
 
 @Entity
-@Table(name = "analytics_setting", schema = "copilot_analytics")
-public class AnalyticsSetting {
+@Table(name = "analytics_setting")
+public class AnalyticsSetting implements Serializable {
 
     @Id
-    @Column(name = "key", length = 128)
-    private String key;
+    @Column(name = "setting_key", nullable = false, length = 255)
+    private String settingKey;
 
-    @Column(name = "value", columnDefinition = "TEXT")
-    private String value;
+    @Column(name = "setting_value", nullable = false, columnDefinition = "text")
+    private String settingValue;
 
-    public String getKey() {
-        return key;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    public String getSettingKey() {
+        return settingKey;
     }
 
-    public void setKey(String key) {
-        this.key = key;
+    public void setSettingKey(String settingKey) {
+        this.settingKey = settingKey;
     }
 
-    public String getValue() {
-        return value;
+    public String getSettingValue() {
+        return settingValue;
     }
 
-    public void setValue(String value) {
-        this.value = value;
+    public void setSettingValue(String settingValue) {
+        this.settingValue = settingValue;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedAt = Instant.now();
     }
 }
+
