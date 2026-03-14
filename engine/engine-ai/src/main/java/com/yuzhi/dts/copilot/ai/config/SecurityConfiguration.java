@@ -35,6 +35,7 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/health", "/api/info").permitAll()
+                .requestMatchers("/api/ai/config/**", "/api/auth/keys/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)

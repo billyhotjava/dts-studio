@@ -51,6 +51,8 @@
 | sprint-5 | BI 分析引擎抽取 | BA | 7 | READY |
 | sprint-6 | 前端 Webapp 抽取与整合 | FE | 6 | READY |
 | sprint-7 | 园林平台集成与端到端验证 | IN | 5 | READY |
+| sprint-8 | NL2SQL 聊天到可视化闭环 | NV | 8 | READY |
+| sprint-9 | Copilot 系统配置中心 | CS | 6 | IN_PROGRESS |
 
 ## 依赖关系
 
@@ -64,6 +66,10 @@ sprint-4 (认证安全) ←────────┘
 sprint-5 (BI 引擎) ──→ sprint-6 (前端)
                             ↓
                       sprint-7 (集成验证)
+                            ↓
+                      sprint-8 (NL2SQL 闭环)
+                            ↓
+                      sprint-9 (系统配置中心)
 ```
 
 ## 设计文档

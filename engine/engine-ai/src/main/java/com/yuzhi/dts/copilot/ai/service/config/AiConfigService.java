@@ -90,7 +90,7 @@ public class AiConfigService {
 
         existing.setName(updated.getName());
         existing.setBaseUrl(updated.getBaseUrl());
-        existing.setApiKey(updated.getApiKey());
+        existing.setApiKey(mergeApiKey(existing.getApiKey(), updated.getApiKey()));
         existing.setModel(updated.getModel());
         existing.setTemperature(updated.getTemperature());
         existing.setMaxTokens(updated.getMaxTokens());
@@ -266,6 +266,13 @@ public class AiConfigService {
         if (!Boolean.TRUE.equals(config.getEnabled())) return false;
         return ProviderTemplate.isConfigValid(
                 config.getProviderType(), config.getBaseUrl(), config.getApiKey());
+    }
+
+    static String mergeApiKey(String existingApiKey, String requestedApiKey) {
+        if (requestedApiKey == null || requestedApiKey.isBlank()) {
+            return existingApiKey;
+        }
+        return requestedApiKey;
     }
 
     /**

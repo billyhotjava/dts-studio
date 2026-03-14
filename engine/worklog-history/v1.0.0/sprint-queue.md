@@ -116,6 +116,19 @@
 
 **统计**: READY=8, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
+## Sprint-9: Copilot 系统配置中心 (CS)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| CS-01 | AI Provider 安全 DTO 与更新语义 | DONE | AE-03 |
+| CS-02 | Analytics 聚合配置接口（站点设置 + Provider 代理） | DONE | CS-01, BA-03 |
+| CS-03 | Analytics 聚合 API Key 管理接口 | DONE | AK-01, CS-02 |
+| CS-04 | Webapp 配置 API 客户端 | DONE | CS-02, CS-03, FE-03 |
+| CS-05 | Webapp 系统配置页面与导航入口 | DONE | CS-04 |
+| CS-06 | 联调验证与回归测试 | IN_PROGRESS | CS-01~05 |
+
+**统计**: READY=0, IN_PROGRESS=1, DONE=5, BLOCKED=0
+
 ## 总体统计
 
-**READY=53, IN_PROGRESS=0, DONE=0, BLOCKED=0 (总计 53 任务)**
+**READY=53, IN_PROGRESS=1, DONE=5, BLOCKED=0 (总计 59 任务)**
