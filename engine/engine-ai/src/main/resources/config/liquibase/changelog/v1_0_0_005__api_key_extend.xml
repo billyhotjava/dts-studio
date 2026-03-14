@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- AK-01: Extend api_key table with additional columns          -->
+    <!-- ============================================================ -->
+
+    <changeSet id="v1.0.0-005-api-key-extend" author="dts-copilot">
+        <addColumn tableName="api_key">
+            <column name="description" type="TEXT"/>
+            <column name="ip_whitelist" type="TEXT"/>
+            <column name="rate_limit" type="INTEGER" defaultValueNumeric="1000"/>
+            <column name="created_by" type="VARCHAR(128)"/>
+            <column name="last_used_at" type="TIMESTAMP"/>
+            <column name="usage_count" type="BIGINT" defaultValueNumeric="0"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
