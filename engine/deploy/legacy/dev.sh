@@ -95,7 +95,7 @@ start_backend() {
 
   # 编译
   step "编译 Java 模块..."
-  $MVN compile -q -DskipTests 2>&1 || fail "编译失败"
+  $MVN clean compile -q -DskipTests 2>&1 || fail "编译失败"
   ok "编译完成"
 
   # 环境变量
@@ -195,9 +195,9 @@ start_frontend() {
 
   # 启动 Vite dev server
   if command -v pnpm >/dev/null 2>&1; then
-    pnpm dev > "../$LOG_DIR/copilot-webapp.log" 2>&1 &
+    pnpm dev > "$LOG_DIR/copilot-webapp.log" 2>&1 &
   else
-    npm run dev > "../$LOG_DIR/copilot-webapp.log" 2>&1 &
+    npm run dev > "$LOG_DIR/copilot-webapp.log" 2>&1 &
   fi
   save_pid "copilot-webapp" $!
 
