@@ -72,16 +72,20 @@ start_infra() {
     sleep 2
   done
 
-  # 等待 Ollama
-  step "等待 Ollama 就绪..."
-  for i in $(seq 1 20); do
-    if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
-      ok "Ollama 就绪"
-      break
-    fi
-    [[ $i -eq 20 ]] && warn "Ollama 未就绪（不影响启动，AI 功能降级）"
-    sleep 2
-  done
+  # Ollama 仅在 LLM_PROVIDER=ollama 时检查
+  if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
+    step "等待 Ollama 就绪..."
+    for i in $(seq 1 20); do
+      if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
+        ok "Ollama 就绪"
+        break
+      fi
+      [[ $i -eq 20 ]] && warn "Ollama 未就绪（AI 功能将不可用）"
+      sleep 2
+    done
+  else
+    info "LLM 使用公有云 (${LLM_PROVIDER:-deepseek})，跳过 Ollama"
+  fi
 }
 
 # ── 后端 ──────────────────────────────────────────────────

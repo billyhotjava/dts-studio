@@ -21,6 +21,7 @@ services:
   copilot-ollama:
     image: ${IMAGE_OLLAMA:-ollama/ollama:0.18.0}
     container_name: dts-copilot-ollama
+    profiles: ["ollama"]
     ports:
       - "11434:11434"
     volumes:
@@ -46,7 +47,10 @@ services:
       PG_DB: ${PG_DB:-copilot}
       PG_USER: ${PG_USER:-copilot}
       PG_PASSWORD: ${PG_PASSWORD:-copilot_dev}
-      OLLAMA_BASE_URL: http://copilot-ollama:11434
+      LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       COPILOT_ADMIN_SECRET: ${COPILOT_ADMIN_SECRET:-change-me-in-production}
     ports:
       - "${COPILOT_AI_PORT:-8091}:8091"

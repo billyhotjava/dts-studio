@@ -114,10 +114,15 @@ ok "镜像构建完成"
 
 # ── 5. 启动服务 ───────────────────────────────────────────
 step "启动所有服务..."
+COMPOSE_PROFILES=""
+if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
+  COMPOSE_PROFILES="ollama"
+fi
+
 if [[ "$NO_TLS" == true ]]; then
-  docker compose up -d copilot-postgres copilot-ollama copilot-ai copilot-analytics
+  COMPOSE_PROFILES="${COMPOSE_PROFILES}" docker compose up -d copilot-postgres copilot-ai copilot-analytics ${LLM_PROVIDER:+copilot-ollama}
 else
-  docker compose up -d
+  COMPOSE_PROFILES="${COMPOSE_PROFILES}" docker compose --profile "${COMPOSE_PROFILES:-default}" up -d
 fi
 ok "容器已启动"
 
@@ -152,15 +157,16 @@ for i in $(seq 1 20); do
   sleep 2
 done
 
-wait_for "Ollama"            "http://localhost:11434/api/tags" 60
+if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
+  wait_for "Ollama" "http://localhost:11434/api/tags" 60
+fi
 wait_for "copilot-ai"        "http://localhost:8091/actuator/health" 90
 wait_for "copilot-analytics"  "http://localhost:8092/api/health" 90
 
-# ── 7. 拉取 LLM 模型 ─────────────────────────────────────
-if [[ "$PULL_MODEL" == true ]]; then
+# ── 7. 拉取 LLM 模型（仅 Ollama 模式）────────────────────
+if [[ "$PULL_MODEL" == true && "${LLM_PROVIDER:-}" == "ollama" ]]; then
   step "拉取默认 LLM 模型..."
   MODEL="${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b}"
-  # 检查是否已有模型
   if docker exec dts-copilot-ollama ollama list 2>/dev/null | grep -q "${MODEL%%:*}"; then
     ok "模型 $MODEL 已存在"
   else
@@ -168,6 +174,8 @@ if [[ "$PULL_MODEL" == true ]]; then
     docker exec dts-copilot-ollama ollama pull "$MODEL"
     ok "模型拉取完成"
   fi
+elif [[ "$PULL_MODEL" == true ]]; then
+  info "当前使用公有云 LLM (${LLM_PROVIDER:-deepseek})，无需拉取模型"
 fi
 
 # ── 8. 打印访问信息 ───────────────────────────────────────

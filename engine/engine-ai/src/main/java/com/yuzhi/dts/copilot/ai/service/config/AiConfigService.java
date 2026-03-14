@@ -32,6 +32,27 @@ public class AiConfigService {
     @Value("${dts.copilot.ai.config-path:/opt/dts/upload/ai-copilot-config.json}")
     private String configFilePath;
 
+    @Value("${dts.copilot.llm.provider:deepseek}")
+    private String envLlmProvider;
+
+    @Value("${dts.copilot.llm.base-url:https://api.deepseek.com/v1}")
+    private String envLlmBaseUrl;
+
+    @Value("${dts.copilot.llm.model:deepseek-chat}")
+    private String envLlmModel;
+
+    @Value("${dts.copilot.llm.api-key:}")
+    private String envLlmApiKey;
+
+    @Value("${dts.copilot.llm.max-tokens:4096}")
+    private int envLlmMaxTokens;
+
+    @Value("${dts.copilot.llm.temperature:0.3}")
+    private double envLlmTemperature;
+
+    @Value("${dts.copilot.llm.timeout-seconds:60}")
+    private int envLlmTimeout;
+
     public AiConfigService(AiProviderConfigRepository repository) {
         this.repository = repository;
     }
@@ -115,8 +136,9 @@ public class AiConfigService {
      * 获取有效的默认 Provider 配置，按降级链查找：
      * 1. 数据库中标记为 default 的配置
      * 2. 数据库中第一个 enabled 的配置
-     * 3. 本地 JSON 配置文件
-     * 4. 内置 Ollama 默认配置
+     * 3. 环境变量 LLM_* 配置（默认公有云）
+     * 4. 本地 JSON 配置文件
+     * 5. 内置 Ollama 兜底
      */
     @Transactional(readOnly = true)
     public AiProviderConfig resolveEffectiveProvider() {
@@ -132,14 +154,21 @@ public class AiConfigService {
             if (isProviderUsable(p)) return p;
         }
 
-        // 3. 本地 JSON 文件
+        // 3. 环境变量 LLM_* 配置
+        AiProviderConfig envConfig = loadFromEnvConfig();
+        if (envConfig != null) {
+            log.info("使用环境变量 LLM 配置: provider={}, model={}", envLlmProvider, envLlmModel);
+            return envConfig;
+        }
+
+        // 4. 本地 JSON 文件
         AiProviderConfig fromFile = loadFromConfigFile();
         if (fromFile != null) {
             log.info("使用本地配置文件: {}", configFilePath);
             return fromFile;
         }
 
-        // 4. 内置 Ollama 默认
+        // 5. 内置 Ollama 兜底
         log.warn("未找到任何 AI Provider 配置，使用内置 Ollama 默认配置");
         AiProviderConfig fallback = new AiProviderConfig();
         fallback.setName("Ollama (默认)");
@@ -152,6 +181,34 @@ public class AiConfigService {
         fallback.setEnabled(true);
         fallback.setIsDefault(true);
         return fallback;
+    }
+
+    /**
+     * 从环境变量 LLM_* 加载 Provider 配置。
+     * 当 LLM_BASE_URL 和 LLM_MODEL 有效时返回配置，否则返回 null。
+     */
+    private AiProviderConfig loadFromEnvConfig() {
+        if (envLlmBaseUrl == null || envLlmBaseUrl.isBlank()) return null;
+        if (envLlmModel == null || envLlmModel.isBlank()) return null;
+        // 公有云 Provider 必须有 API Key
+        if (!ProviderTemplate.isLocalUrl(envLlmBaseUrl)
+                && (envLlmApiKey == null || envLlmApiKey.isBlank())) {
+            log.debug("环境变量 LLM 配置缺少 API Key，跳过（provider={}）", envLlmProvider);
+            return null;
+        }
+
+        AiProviderConfig config = new AiProviderConfig();
+        config.setName(envLlmProvider + " (环境变量)");
+        config.setProviderType(envLlmProvider.toUpperCase());
+        config.setBaseUrl(envLlmBaseUrl);
+        config.setModel(envLlmModel);
+        config.setApiKey(envLlmApiKey);
+        config.setMaxTokens(envLlmMaxTokens);
+        config.setTemperature(envLlmTemperature);
+        config.setTimeoutSeconds(envLlmTimeout);
+        config.setEnabled(true);
+        config.setIsDefault(true);
+        return config;
     }
 
     /**
