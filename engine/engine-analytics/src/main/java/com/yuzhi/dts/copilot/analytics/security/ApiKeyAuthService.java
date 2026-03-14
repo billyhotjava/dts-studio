@@ -57,22 +57,21 @@ public class ApiKeyAuthService {
         String userName = String.valueOf(userInfo.getOrDefault("userName", userId));
 
         // Auto-provision AnalyticsUser on first login
-        AnalyticsUser analyticsUser = userRepository.findByEmail(userId)
+        AnalyticsUser analyticsUser = userRepository.findByEmailIgnoreCase(userId)
                 .orElseGet(() -> {
                     log.info("Auto-provisioning analytics user for: {}", userId);
                     AnalyticsUser newUser = new AnalyticsUser();
                     newUser.setEmail(userId);
                     newUser.setFirstName(userName);
                     newUser.setLastName("");
-                    newUser.setIsSuperuser(false);
-                    newUser.setIsActive(true);
-                    newUser.setCreatedAt(Instant.now());
-                    newUser.setUpdatedAt(Instant.now());
+                    newUser.setPasswordHash("api-key-auth");
+                    newUser.setSuperuser(false);
+                    newUser.setActive(true);
+                    // createdAt/updatedAt handled by @PrePersist
                     return userRepository.save(newUser);
                 });
 
-        // Update last seen
-        analyticsUser.setUpdatedAt(Instant.now());
+        // Touch to update last-seen timestamp via @PreUpdate
         userRepository.save(analyticsUser);
 
         return Optional.of(new AuthenticatedUser(analyticsUser, rawKey));
