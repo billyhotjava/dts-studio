@@ -35,3 +35,7 @@ copilot-ollama-data/
 node_modules/
 dist/
 .pnpm-store/
+
+# Dev runtime
+.dev-logs/
+.dev-pids/
