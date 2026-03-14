@@ -1,6 +1,6 @@
 services:
   copilot-postgres:
-    image: pgvector/pgvector:pg16
+    image: ${IMAGE_POSTGRES:-pgvector/pgvector:pg17}
     container_name: dts-copilot-postgres
     environment:
       POSTGRES_DB: ${PG_DB:-copilot}
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   copilot-ollama:
-    image: ollama/ollama:latest
+    image: ${IMAGE_OLLAMA:-ollama/ollama:0.6.2}
     container_name: dts-copilot-ollama
     ports:
       - "11434:11434"
@@ -33,9 +33,12 @@ services:
     restart: unless-stopped
 
   copilot-ai:
+    image: ${IMAGE_COPILOT_AI:-dts-copilot-ai:latest}
     build:
       context: ./dts-copilot-ai
       dockerfile: Dockerfile
+      args:
+        IMAGE_JRE: ${IMAGE_JRE:-eclipse-temurin:21-jre-alpine}
     container_name: dts-copilot-ai
     environment:
       PG_HOST: copilot-postgres
@@ -59,9 +62,12 @@ services:
     restart: unless-stopped
 
   copilot-analytics:
+    image: ${IMAGE_COPILOT_ANALYTICS:-dts-copilot-analytics:latest}
     build:
       context: ./dts-copilot-analytics
       dockerfile: Dockerfile
+      args:
+        IMAGE_JRE: ${IMAGE_JRE:-eclipse-temurin:21-jre-alpine}
     container_name: dts-copilot-analytics
     environment:
       PG_HOST: copilot-postgres
@@ -86,7 +92,7 @@ services:
     restart: unless-stopped
 
   copilot-proxy:
-    image: traefik:v3.3
+    image: ${IMAGE_TRAEFIK:-traefik:v3.5.2}
     container_name: dts-copilot-proxy
     ports:
       - "${TLS_PORT:-443}:443"

@@ -1,4 +1,5 @@
-FROM eclipse-temurin:21-jre-alpine
+ARG IMAGE_JRE=eclipse-temurin:21-jre-alpine
+FROM ${IMAGE_JRE}
 WORKDIR /app
 COPY target/*.jar app.jar
 EXPOSE 8091

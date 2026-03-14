@@ -7,6 +7,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# ── 加载镜像版本 ──────────────────────────────────────────
+if [[ -f imgversion.conf ]]; then
+  set -a
+  source imgversion.conf
+  set +a
+fi
+
 # ── 参数解析 ──────────────────────────────────────────────
 SKIP_BUILD=false
 NO_TLS=false

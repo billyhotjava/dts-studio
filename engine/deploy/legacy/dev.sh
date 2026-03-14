@@ -18,6 +18,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# ── 加载镜像版本 ──────────────────────────────────────────
+if [[ -f imgversion.conf ]]; then
+  set -a
+  source imgversion.conf
+  set +a
+fi
+
 # ── 颜色 ──────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
