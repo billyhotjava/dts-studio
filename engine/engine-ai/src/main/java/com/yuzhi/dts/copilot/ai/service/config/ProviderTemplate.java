@@ -1,21 +1,35 @@
 package com.yuzhi.dts.copilot.ai.service.config;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+
 /**
  * Built-in provider templates with sensible defaults.
  */
 public enum ProviderTemplate {
 
     // 本地部署
-    OLLAMA("Ollama", "http://localhost:11434/v1", null, "qwen2.5-coder:7b", 0.3, 4096, 60, true),
-    VLLM("vLLM", "http://localhost:8000/v1", null, "default", 0.3, 4096, 60, true),
-    LMSTUDIO("LM Studio", "http://localhost:1234/v1", null, "default", 0.3, 4096, 60, true),
+    OLLAMA("Ollama", "http://localhost:11434/v1", null, "qwen2.5-coder:7b", 0.3, 4096, 60, true, "LOCAL", false, 10),
+    VLLM("vLLM", "http://localhost:8000/v1", null, "default", 0.3, 4096, 60, true, "LOCAL", false, 20),
+    LMSTUDIO("LM Studio", "http://localhost:1234/v1", null, "default", 0.3, 4096, 60, true, "LOCAL", false, 30),
 
-    // 公有云
-    OPENAI("OpenAI", "https://api.openai.com/v1", null, "gpt-4o", 0.3, 4096, 60, false),
-    AZURE_OPENAI("Azure OpenAI", "https://{resource}.openai.azure.com/openai/deployments/{deployment}", null, "gpt-4o", 0.3, 4096, 60, false),
-    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1", null, "deepseek-chat", 0.3, 4096, 60, false),
-    QWEN("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1", null, "qwen-plus", 0.3, 4096, 60, false),
-    ZHIPU("智谱GLM", "https://open.bigmodel.cn/api/paas/v4", null, "glm-4-flash", 0.3, 4096, 60, false);
+    // 国际主流
+    OPENAI("OpenAI", "https://api.openai.com/v1", null, "gpt-4o", 0.3, 4096, 60, false, "INTERNATIONAL", false, 110),
+    AZURE_OPENAI("Azure OpenAI", "https://{resource}.openai.azure.com/openai/deployments/{deployment}", null, "gpt-4o", 0.3, 4096, 60, false, "INTERNATIONAL", false, 120),
+    ANTHROPIC("Anthropic Claude", "https://api.anthropic.com/v1/", null, "claude-sonnet-4-5", 0.3, 4096, 60, false, "INTERNATIONAL", false, 130),
+    GEMINI("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/", null, "gemini-2.5-flash", 0.3, 4096, 60, false, "INTERNATIONAL", false, 140),
+    GROQ("Groq", "https://api.groq.com/openai/v1", null, "llama-3.3-70b-versatile", 0.3, 4096, 60, false, "INTERNATIONAL", false, 150),
+    MISTRAL("Mistral", "https://api.mistral.ai/v1", null, "mistral-small-latest", 0.3, 4096, 60, false, "INTERNATIONAL", false, 160),
+
+    // 中国主流
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com/v1", null, "deepseek-chat", 0.3, 4096, 60, false, "CHINA", true, 210),
+    QWEN("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1", null, "qwen-plus", 0.3, 4096, 60, false, "CHINA", false, 220),
+    ZHIPU("智谱 GLM", "https://open.bigmodel.cn/api/paas/v4", null, "glm-4-flash", 0.3, 4096, 60, false, "CHINA", false, 230),
+    MOONSHOT("Moonshot Kimi", "https://api.moonshot.cn/v1", null, "moonshot-v1-8k", 0.3, 4096, 60, false, "CHINA", false, 240),
+    BAIDU_QIANFAN("百度千帆", "https://qianfan.baidubce.com/v2", null, "ernie-4.5-8k-preview", 0.3, 4096, 60, false, "CHINA", false, 250),
+    DOUBAO("火山方舟 / 豆包", "https://ark.cn-beijing.volces.com/api/v3", null, "doubao-seed-1-6-flash-250828", 0.3, 4096, 60, false, "CHINA", false, 260),
+    SILICONFLOW("硅基流动", "https://api.siliconflow.cn/v1", null, "deepseek-ai/DeepSeek-V3", 0.3, 4096, 60, false, "CHINA", false, 270);
 
     private final String displayName;
     private final String defaultBaseUrl;
@@ -25,10 +39,14 @@ public enum ProviderTemplate {
     private final int defaultMaxTokens;
     private final int defaultTimeoutSeconds;
     private final boolean local;
+    private final String region;
+    private final boolean recommended;
+    private final int sortOrder;
 
     ProviderTemplate(String displayName, String defaultBaseUrl, String defaultApiKey,
                      String defaultModel, double defaultTemperature,
-                     int defaultMaxTokens, int defaultTimeoutSeconds, boolean local) {
+                     int defaultMaxTokens, int defaultTimeoutSeconds, boolean local,
+                     String region, boolean recommended, int sortOrder) {
         this.displayName = displayName;
         this.defaultBaseUrl = defaultBaseUrl;
         this.defaultApiKey = defaultApiKey;
@@ -37,6 +55,9 @@ public enum ProviderTemplate {
         this.defaultMaxTokens = defaultMaxTokens;
         this.defaultTimeoutSeconds = defaultTimeoutSeconds;
         this.local = local;
+        this.region = region;
+        this.recommended = recommended;
+        this.sortOrder = sortOrder;
     }
 
     public String getDisplayName() {
@@ -72,6 +93,28 @@ public enum ProviderTemplate {
      */
     public boolean isLocal() {
         return local;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public boolean isRecommended() {
+        return recommended;
+    }
+
+    public int getSortOrder() {
+        return sortOrder;
+    }
+
+    public boolean requiresApiKey() {
+        return !local;
+    }
+
+    public static List<ProviderTemplate> orderedValues() {
+        return Arrays.stream(values())
+                .sorted(Comparator.comparingInt(ProviderTemplate::getSortOrder))
+                .toList();
     }
 
     /**

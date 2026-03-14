@@ -10,6 +10,8 @@
 - Manage site-level settings through `dts-copilot-analytics`
 - Manage LLM provider settings through `dts-copilot-analytics` server-side proxying to `dts-copilot-ai`
 - Manage copilot client API keys through `dts-copilot-analytics` server-side proxying to `dts-copilot-ai`
+- Replace the free-text `Provider Type` field with a grouped dropdown backed by the provider template catalog
+- Default new provider creation to a recommended standard template, while keeping a `Custom` option for manual entry
 
 ## Constraints
 
@@ -29,6 +31,13 @@
   - Site settings
   - LLM provider settings
   - Copilot API key management
+- Render `Provider Type` as a grouped dropdown:
+  - International
+  - China
+  - Local deployment
+  - Custom
+- When creating a new provider, apply the recommended template defaults automatically
+- When editing an existing provider, allow template switching without forcing an API key overwrite
 
 ### Analytics Service
 
@@ -42,6 +51,11 @@
 - Keep persistence in `ai_provider_config` and `api_key`
 - Harden provider responses so list/get endpoints do not return full API keys
 - Support update semantics where blank API key input means “keep existing”
+- Expand `ProviderTemplate` with frontend-facing metadata:
+  - grouping
+  - ordering
+  - recommended marker
+  - standard provider type code
 
 ## Data Flow
 
@@ -60,6 +74,14 @@
 5. Browser submits create/update form with manual API key input
 6. Analytics forwards request to AI service
 7. AI service stores the API key but only returns masked state
+
+### Provider Template Catalog
+
+1. Browser calls `GET /api/admin/copilot/providers/templates`
+2. Analytics proxies the template catalog from AI service
+3. Browser groups templates by region/category
+4. Browser chooses the recommended template as the default when opening a new provider form
+5. Browser maps a selected provider type to the matching standard template
 
 ### Copilot API Keys
 
@@ -100,6 +122,7 @@
 
 - settings API normalization helpers
 - provider form behavior for create/update
+- provider type dropdown grouping and template application
+- recommended template default selection for new provider creation
 - API key one-time reveal behavior
 - page render and admin navigation visibility
-

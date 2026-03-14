@@ -126,9 +126,12 @@
 | CS-04 | Webapp 配置 API 客户端 | DONE | CS-02, CS-03, FE-03 |
 | CS-05 | Webapp 系统配置页面与导航入口 | DONE | CS-04 |
 | CS-06 | 联调验证与回归测试 | IN_PROGRESS | CS-01~05 |
+| CS-07 | Provider 模板目录增强（国际/国内主流 + 推荐模板元数据） | DONE | AE-03, CS-01 |
+| CS-08 | Webapp Provider Type 下拉与推荐模板联动 | DONE | CS-04, CS-05, CS-07 |
+| CS-09 | Provider 模板化交互回归验证 | DONE | CS-07, CS-08 |
 
-**统计**: READY=0, IN_PROGRESS=1, DONE=5, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=1, DONE=8, BLOCKED=0
 
 ## 总体统计
 
-**READY=53, IN_PROGRESS=1, DONE=5, BLOCKED=0 (总计 59 任务)**
+**READY=53, IN_PROGRESS=1, DONE=8, BLOCKED=0 (总计 62 任务)**

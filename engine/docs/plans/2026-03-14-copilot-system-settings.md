@@ -203,3 +203,109 @@ git -C /opt/prod/prs/source/dts-copilot add worklog/v1.0.0/sprint-9/README.md wo
 git -C /opt/prod/prs/source/dts-copilot commit -m "完成Copilot系统配置功能"
 ```
 
+### Task 6: Expand Provider Template Catalog
+
+**Files:**
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/config/ProviderTemplate.java`
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/web/rest/AiConfigResource.java`
+- Test: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/web/rest/dto/ProviderTemplateCatalogTest.java`
+
+**Step 1: Write the failing test**
+
+- Add tests proving:
+  - the template catalog includes international, China, and local providers
+  - at least one template is marked as recommended
+  - template metadata exposes grouping fields needed by the UI
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /opt/prod/prs/source/dts-copilot && mvn -pl dts-copilot-ai -Dtest=ProviderTemplateCatalogTest test`
+Expected: FAIL because the catalog metadata does not exist yet.
+
+**Step 3: Write minimal implementation**
+
+- Expand `ProviderTemplate` with grouped provider metadata and additional mainstream providers
+- Return the extra metadata from `/api/ai/config/providers/templates`
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /opt/prod/prs/source/dts-copilot && mvn -pl dts-copilot-ai -Dtest=ProviderTemplateCatalogTest test`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git -C /opt/prod/prs/source/dts-copilot add dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/config/ProviderTemplate.java dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/web/rest/AiConfigResource.java dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/web/rest/dto/ProviderTemplateCatalogTest.java
+git -C /opt/prod/prs/source/dts-copilot commit -m "增强Provider模板目录"
+```
+
+### Task 7: Add Provider Type Dropdown and Recommended Defaults
+
+**Files:**
+- Modify: `dts-copilot-webapp/src/api/analyticsApi.ts`
+- Modify: `dts-copilot-webapp/src/pages/admin/CopilotSettingsPage.tsx`
+- Modify: `dts-copilot-webapp/src/pages/admin/CopilotSettingsPage.css`
+- Test: `dts-copilot-webapp/tests/providerTemplateSelection.test.ts`
+
+**Step 1: Write the failing test**
+
+- Add tests proving:
+  - new provider forms default to the recommended template
+  - provider type is rendered from grouped dropdown options
+  - switching to `Custom` preserves manual editing
+
+**Step 2: Run test to verify it fails**
+
+Run: `cd /opt/prod/prs/source/dts-copilot/dts-copilot-webapp && node node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild/bin/esbuild tests/providerTemplateSelection.test.ts --bundle --platform=node --format=esm --outfile=/tmp/providerTemplateSelection.test.mjs && node --test /tmp/providerTemplateSelection.test.mjs`
+Expected: FAIL because the dropdown and default-template behavior do not exist.
+
+**Step 3: Write minimal implementation**
+
+- Extend template typing to include grouping and recommendation fields
+- Replace free-text `Provider Type` input with grouped select options
+- Apply the recommended standard template when opening a new provider form
+- Keep `Custom` as a manual override path
+
+**Step 4: Run test to verify it passes**
+
+Run: `cd /opt/prod/prs/source/dts-copilot/dts-copilot-webapp && node node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild/bin/esbuild tests/providerTemplateSelection.test.ts --bundle --platform=node --format=esm --outfile=/tmp/providerTemplateSelection.test.mjs && node --test /tmp/providerTemplateSelection.test.mjs`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git -C /opt/prod/prs/source/dts-copilot add dts-copilot-webapp/src/api/analyticsApi.ts dts-copilot-webapp/src/pages/admin/CopilotSettingsPage.tsx dts-copilot-webapp/src/pages/admin/CopilotSettingsPage.css dts-copilot-webapp/tests/providerTemplateSelection.test.ts
+git -C /opt/prod/prs/source/dts-copilot commit -m "优化Provider类型模板交互"
+```
+
+### Task 8: Verify Provider Template UX End-to-End
+
+**Files:**
+- Modify: `worklog/v1.0.0/sprint-9/README.md`
+- Modify: `worklog/v1.0.0/sprint-queue.md`
+
+**Step 1: Run focused backend test**
+
+Run: `cd /opt/prod/prs/source/dts-copilot && mvn -pl dts-copilot-ai -Dtest=ProviderTemplateCatalogTest test`
+Expected: PASS
+
+**Step 2: Run focused frontend tests**
+
+Run: `cd /opt/prod/prs/source/dts-copilot/dts-copilot-webapp && node node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild/bin/esbuild tests/providerTemplateSelection.test.ts --bundle --platform=node --format=esm --outfile=/tmp/providerTemplateSelection.test.mjs && node --test /tmp/providerTemplateSelection.test.mjs`
+Expected: PASS
+
+**Step 3: Run typecheck and build**
+
+Run: `cd /opt/prod/prs/source/dts-copilot/dts-copilot-webapp && pnpm run typecheck && pnpm run build:modern`
+Expected: PASS
+
+**Step 4: Update sprint status**
+
+- Mark CS-07~09 status in sprint docs
+
+**Step 5: Commit**
+
+```bash
+git -C /opt/prod/prs/source/dts-copilot add worklog/v1.0.0/sprint-9/README.md worklog/v1.0.0/sprint-queue.md
+git -C /opt/prod/prs/source/dts-copilot commit -m "完成Provider模板化优化"
+```

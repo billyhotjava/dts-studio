@@ -125,7 +125,7 @@ public class AiConfigResource {
         if (authCheck != null) {
             return authCheck;
         }
-        List<Map<String, Object>> templates = Arrays.stream(ProviderTemplate.values())
+        List<Map<String, Object>> templates = ProviderTemplate.orderedValues().stream()
                 .map(t -> {
                     Map<String, Object> map = new LinkedHashMap<>();
                     map.put("name", t.name());
@@ -135,6 +135,10 @@ public class AiConfigResource {
                     map.put("defaultTemperature", t.getDefaultTemperature());
                     map.put("defaultMaxTokens", t.getDefaultMaxTokens());
                     map.put("defaultTimeoutSeconds", t.getDefaultTimeoutSeconds());
+                    map.put("region", t.getRegion());
+                    map.put("recommended", t.isRecommended());
+                    map.put("sortOrder", t.getSortOrder());
+                    map.put("requiresApiKey", t.requiresApiKey());
                     return map;
                 })
                 .collect(Collectors.toList());

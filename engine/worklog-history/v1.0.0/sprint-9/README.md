@@ -24,6 +24,9 @@
 | CS-04 | Webapp 配置 API 客户端 | DONE | CS-02, CS-03, FE-03 |
 | CS-05 | Webapp 系统配置页面与导航入口 | DONE | CS-04 |
 | CS-06 | 联调验证与回归测试 | IN_PROGRESS | CS-01~05 |
+| CS-07 | Provider 模板目录增强（国际/国内主流 + 推荐模板元数据） | DONE | AE-03, CS-01 |
+| CS-08 | Webapp Provider Type 下拉与推荐模板联动 | DONE | CS-04, CS-05, CS-07 |
+| CS-09 | Provider 模板化交互回归验证 | DONE | CS-07, CS-08 |
 
 ## 完成标准
 
@@ -33,6 +36,9 @@
 - [ ] Provider API Key 支持手工录入，但列表和详情不回显明文
 - [ ] Copilot API Key 支持创建、轮换、吊销，原始 key 仅展示一次
 - [ ] 非 superuser 用户无法访问管理接口和页面
+- [ ] Provider Type 使用分组下拉框，包含国际主流、中国主流、本地部署和 Custom
+- [ ] 新建 Provider 默认使用推荐的标准预定义模板
+- [ ] 切换 Provider Type 时可一键套用标准模板，但编辑场景保留 API Key 的“留空不修改”语义
 
 ## 依赖关系
 
@@ -45,4 +51,4 @@ CS-01~05 ──→ CS-06 (联调与回归)
 
 ## 优先级说明
 
-本 Sprint 是 `v1.0.0` 面向实际运维落地的关键补齐项。完成后，`dts-copilot` 将具备独立配置 LLM 与管理员密钥的基本可运营能力。
+本 Sprint 是 `v1.0.0` 面向实际运维落地的关键补齐项。完成后，`dts-copilot` 将具备独立配置 LLM 与管理员密钥的基本可运营能力，并提供可直接使用的主流 Provider 标准模板。
