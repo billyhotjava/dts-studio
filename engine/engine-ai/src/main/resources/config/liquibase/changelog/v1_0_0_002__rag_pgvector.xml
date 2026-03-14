@@ -10,7 +10,10 @@
     <!-- ============================================================ -->
 
     <changeSet id="v1.0.0-002-enable-pgvector" author="dts-copilot">
-        <sql>CREATE EXTENSION IF NOT EXISTS vector;</sql>
+        <sql>
+            CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
+            SET search_path TO copilot_ai, public;
+        </sql>
     </changeSet>
 
     <changeSet id="v1.0.0-002-rag-embedding" author="dts-copilot">
