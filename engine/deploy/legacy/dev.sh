@@ -40,9 +40,10 @@ ok()    { echo -e "${GREEN}  ✓ $1${NC}"; }
 info()  { echo -e "${GRAY}  $1${NC}"; }
 
 # ── 进程管理 ──────────────────────────────────────────────
-PID_DIR=".dev-pids"
+ROOT_DIR="$(pwd)"
+PID_DIR="$ROOT_DIR/.dev-pids"
 mkdir -p "$PID_DIR"
-LOG_DIR=".dev-logs"
+LOG_DIR="$ROOT_DIR/.dev-logs"
 mkdir -p "$LOG_DIR"
 
 save_pid()  { echo "$2" > "$PID_DIR/$1.pid"; }
