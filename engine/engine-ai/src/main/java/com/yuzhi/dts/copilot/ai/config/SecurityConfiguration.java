@@ -12,8 +12,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 /**
  * Security configuration for the Copilot AI service.
- * Enforces stateless API-key-based authentication on all endpoints
- * except health/actuator endpoints.
+ * <p>
+ * Spring Security handles CSRF disable + stateless sessions.
+ * Actual auth is enforced at application layer:
+ * - ApiKeyAuthFilter: validates Bearer API key for regular endpoints
+ * - checkAdminSecret: validates X-Admin-Secret for admin endpoints
+ * - Whitelisted paths (actuator, health, config, auth/keys) skip API key check
  */
 @Configuration
 @EnableWebSecurity
@@ -33,10 +37,7 @@ public class SecurityConfiguration {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/api/health", "/api/info").permitAll()
-                .requestMatchers("/api/ai/config/**", "/api/auth/keys/**").permitAll()
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
             )
             .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(userContextFilter, ApiKeyAuthFilter.class);

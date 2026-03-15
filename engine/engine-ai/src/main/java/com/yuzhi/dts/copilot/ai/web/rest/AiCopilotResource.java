@@ -1,7 +1,10 @@
 package com.yuzhi.dts.copilot.ai.web.rest;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.service.copilot.AiCopilotService;
 import com.yuzhi.dts.copilot.ai.service.copilot.Nl2SqlService;
+import com.yuzhi.dts.copilot.ai.service.copilot.ScreenGenerationService;
 import com.yuzhi.dts.copilot.ai.service.llm.gateway.LlmGatewayService;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.ApiResponse;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.CopilotRequest;
@@ -35,13 +38,16 @@ public class AiCopilotResource {
     private final AiCopilotService copilotService;
     private final Nl2SqlService nl2SqlService;
     private final LlmGatewayService llmGatewayService;
+    private final ScreenGenerationService screenGenerationService;
 
     public AiCopilotResource(AiCopilotService copilotService,
                              Nl2SqlService nl2SqlService,
-                             LlmGatewayService llmGatewayService) {
+                             LlmGatewayService llmGatewayService,
+                             ScreenGenerationService screenGenerationService) {
         this.copilotService = copilotService;
         this.nl2SqlService = nl2SqlService;
         this.llmGatewayService = llmGatewayService;
+        this.screenGenerationService = screenGenerationService;
     }
 
     @PostMapping("/complete")
@@ -116,6 +122,51 @@ public class AiCopilotResource {
             log.error("SQL optimize failed", e);
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("Optimize failed: " + e.getMessage()));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @PostMapping("/screen/generate")
+    public ResponseEntity<ApiResponse<ObjectNode>> generateScreen(@RequestBody Map<String, Object> request) {
+        String prompt = (String) request.get("prompt");
+        if (prompt == null || prompt.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("prompt is required"));
+        }
+        int width = request.get("width") instanceof Number n ? n.intValue() : 1920;
+        int height = request.get("height") instanceof Number n ? n.intValue() : 1080;
+        try {
+            ObjectNode result = screenGenerationService.generate(prompt, width, height);
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (IOException e) {
+            log.error("Screen generation failed", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Screen generation failed: " + e.getMessage()));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @PostMapping("/screen/revise")
+    public ResponseEntity<ApiResponse<ObjectNode>> reviseScreen(@RequestBody Map<String, Object> request) {
+        String prompt = (String) request.get("prompt");
+        if (prompt == null || prompt.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("prompt is required"));
+        }
+        JsonNode screenSpec = request.get("screenSpec") instanceof Map<?, ?> m
+                ? new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(m)
+                : com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        List<String> context = request.get("context") instanceof List<?> list
+                ? list.stream().map(Object::toString).toList()
+                : List.of();
+        String mode = request.get("mode") instanceof String s ? s : "apply";
+        try {
+            ObjectNode result = screenGenerationService.revise(prompt, screenSpec, context, mode);
+            return ResponseEntity.ok(ApiResponse.ok(result));
+        } catch (IOException e) {
+            log.error("Screen revision failed", e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Screen revision failed: " + e.getMessage()));
         }
     }
 

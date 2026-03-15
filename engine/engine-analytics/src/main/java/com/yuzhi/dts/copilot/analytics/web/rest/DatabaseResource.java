@@ -97,19 +97,24 @@ public class DatabaseResource {
         }
 
         JsonNode details = request == null ? null : request.details();
+        Long dataSourceId = resolveDataSourceId(details);
         UUID platformId = resolvePlatformDataSourceId(details);
-        if (platformId == null) {
-            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "仅支持从平台导入数据源")));
+        if (dataSourceId == null && platformId == null) {
+            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "仅支持从数据源注册中心导入")));
         }
 
-        PlatformInfraClient.DataSourceDetail platformDetail = platformInfraClient.fetchDataSourceDetail(platformId);
-        if (!StringUtils.hasText(platformDetail.jdbcUrl())) {
-            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "平台数据源缺少 JDBC URL")));
+        PlatformInfraClient.DataSourceDetail sourceDetail = dataSourceId != null
+                ? platformInfraClient.fetchDataSourceDetail(dataSourceId)
+                : platformInfraClient.fetchDataSourceDetail(platformId);
+        if (!StringUtils.hasText(sourceDetail.jdbcUrl())) {
+            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "数据源缺少 JDBC URL")));
         }
-        AnalyticsDatabase db = findByPlatformDataSource(platformId).orElseGet(AnalyticsDatabase::new);
+        AnalyticsDatabase db = dataSourceId != null
+                ? findByDataSource(dataSourceId).orElseGet(AnalyticsDatabase::new)
+                : findByPlatformDataSource(platformId).orElseGet(AnalyticsDatabase::new);
         boolean isNew = db.getId() == null;
 
-        applyPlatformDetail(db, platformId, platformDetail);
+        applyDataSourceDetail(db, dataSourceId, platformId, sourceDetail);
         if (isNew) {
             applyNewDefaults(db);
         } else {
@@ -356,19 +361,25 @@ public class DatabaseResource {
         }
 
         AnalyticsDatabase db = existing.get();
+        Long dataSourceId = resolveDataSourceId(request == null ? null : request.details());
+        if (dataSourceId == null) {
+            dataSourceId = resolveDataSourceId(db.getDetailsJson());
+        }
         UUID platformId = resolvePlatformDataSourceId(request == null ? null : request.details());
-        if (platformId == null) {
+        if (dataSourceId == null && platformId == null) {
             platformId = resolvePlatformDataSourceId(db.getDetailsJson());
         }
-        if (platformId == null) {
-            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "仅支持平台数据源连接")));
+        if (dataSourceId == null && platformId == null) {
+            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "仅支持数据源注册中心连接")));
         }
 
-        PlatformInfraClient.DataSourceDetail platformDetail = platformInfraClient.fetchDataSourceDetail(platformId);
-        if (!StringUtils.hasText(platformDetail.jdbcUrl())) {
-            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "平台数据源缺少 JDBC URL")));
+        PlatformInfraClient.DataSourceDetail sourceDetail = dataSourceId != null
+                ? platformInfraClient.fetchDataSourceDetail(dataSourceId)
+                : platformInfraClient.fetchDataSourceDetail(platformId);
+        if (!StringUtils.hasText(sourceDetail.jdbcUrl())) {
+            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "数据源缺少 JDBC URL")));
         }
-        applyPlatformDetail(db, platformId, platformDetail);
+        applyDataSourceDetail(db, dataSourceId, platformId, sourceDetail);
         if (request.timezone() != null) {
             db.setTimezone(request.timezone());
         }
@@ -440,10 +451,6 @@ public class DatabaseResource {
         JsonNode details = request == null ? null : request.details();
         if (details == null || !details.isObject()) {
             errors.put("details", "value must be a map.");
-        }
-        UUID platformId = resolvePlatformDataSourceId(details);
-        if (platformId == null) {
-            errors.put("details", "仅支持平台数据源连接");
         }
         if (!errors.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("errors", errors));
@@ -524,12 +531,25 @@ public class DatabaseResource {
             .findFirst();
     }
 
-    private void applyPlatformDetail(AnalyticsDatabase db, UUID platformId, PlatformInfraClient.DataSourceDetail detail) {
+    private Optional<AnalyticsDatabase> findByDataSource(Long dataSourceId) {
+        if (dataSourceId == null) {
+            return Optional.empty();
+        }
+        return databaseRepository.findAll().stream()
+                .filter(db -> dataSourceId.equals(resolveDataSourceId(db.getDetailsJson())))
+                .findFirst();
+    }
+
+    private void applyDataSourceDetail(
+            AnalyticsDatabase db,
+            Long dataSourceId,
+            UUID platformId,
+            PlatformInfraClient.DataSourceDetail detail) {
         String name = StringUtils.hasText(detail.name()) ? detail.name() : "platform-" + platformId;
         String engine = resolveEngineFromType(detail.type(), detail.jdbcUrl());
         db.setName(name);
         db.setEngine(engine);
-        db.setDetailsJson(buildPlatformDetailsJson(platformId));
+        db.setDetailsJson(dataSourceId != null ? buildDataSourceDetailsJson(dataSourceId) : buildPlatformDetailsJson(platformId));
         if (StringUtils.hasText(detail.description())) {
             db.setDescription(detail.description());
         }
@@ -563,6 +583,36 @@ public class DatabaseResource {
         return node.toString();
     }
 
+    private String buildDataSourceDetailsJson(Long dataSourceId) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("dataSourceId", dataSourceId);
+        return node.toString();
+    }
+
+    private Long resolveDataSourceId(JsonNode details) {
+        if (details == null || !details.isObject()) {
+            return null;
+        }
+        JsonNode value = details.get("dataSourceId");
+        if (value == null) {
+            value = details.get("datasourceId");
+        }
+        if (value == null) {
+            return null;
+        }
+        if (value.canConvertToLong()) {
+            return value.asLong();
+        }
+        if (value.isTextual()) {
+            try {
+                return Long.parseLong(value.asText().trim());
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private UUID resolvePlatformDataSourceId(JsonNode details) {
         if (details == null || !details.isObject()) {
             return null;
@@ -588,6 +638,18 @@ public class DatabaseResource {
         try {
             JsonNode node = objectMapper.readTree(detailsJson);
             return resolvePlatformDataSourceId(node);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private Long resolveDataSourceId(String detailsJson) {
+        if (!StringUtils.hasText(detailsJson)) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(detailsJson);
+            return resolveDataSourceId(node);
         } catch (Exception ex) {
             return null;
         }

@@ -28,6 +28,16 @@ public class JdbcDetailsResolver {
             throw new IllegalArgumentException("details must be a map");
         }
 
+        Long dataSourceId = resolveDataSourceId(details);
+        if (dataSourceId != null) {
+            PlatformInfraClient.DataSourceDetail detail = platformInfraClient.fetchDataSourceDetail(dataSourceId);
+            String jdbcUrl = normalizePlatformJdbcUrl(detail.jdbcUrl());
+            if (!StringUtils.hasText(jdbcUrl)) {
+                throw new IllegalArgumentException("数据源未配置 JDBC URL");
+            }
+            return new JdbcDetails(jdbcUrl, detail.username(), resolvePlatformPassword(detail.secrets()));
+        }
+
         String platformId = resolvePlatformDataSourceId(details);
         if (platformId != null) {
             UUID id = parsePlatformUuid(platformId);
@@ -53,9 +63,9 @@ public class JdbcDetailsResolver {
         String password = firstText(details, "password");
 
         if (jdbcUrl == null && "postgres".equalsIgnoreCase(engine)) {
-            String host = firstText(details, "host");
+            String host = firstText(details, "host", "hostname", "hostName");
             Integer port = firstInt(details, "port").orElse(5432);
-            String dbName = firstText(details, "dbname", "db", "database");
+            String dbName = firstText(details, "dbname", "db", "database", "dbName", "databaseName");
             if (host == null || dbName == null) {
                 throw new IllegalArgumentException("Postgres database requires details.host and details.dbname");
             }
@@ -63,9 +73,9 @@ public class JdbcDetailsResolver {
         }
 
         if (jdbcUrl == null && "mysql".equalsIgnoreCase(engine)) {
-            String host = firstText(details, "host");
+            String host = firstText(details, "host", "hostname", "hostName");
             Integer port = firstInt(details, "port").orElse(3306);
-            String dbName = firstText(details, "dbname", "db", "database");
+            String dbName = firstText(details, "dbname", "db", "database", "dbName", "databaseName");
             if (host == null || dbName == null) {
                 throw new IllegalArgumentException("MySQL database requires details.host and details.dbname");
             }
@@ -73,7 +83,7 @@ public class JdbcDetailsResolver {
         }
 
         if (jdbcUrl == null && "oracle".equalsIgnoreCase(engine)) {
-            String host = firstText(details, "host");
+            String host = firstText(details, "host", "hostname", "hostName");
             Integer port = firstInt(details, "port").orElse(1521);
             String serviceName = firstText(details, "service-name", "service_name", "serviceName", "service");
             String sid = firstText(details, "sid", "database");
@@ -133,6 +143,27 @@ public class JdbcDetailsResolver {
             }
         }
         return Optional.empty();
+    }
+
+    private Long resolveDataSourceId(JsonNode details) {
+        JsonNode direct = details.get("dataSourceId");
+        if (direct == null) {
+            direct = details.get("datasourceId");
+        }
+        if (direct == null) {
+            return null;
+        }
+        if (direct.canConvertToLong()) {
+            return direct.asLong();
+        }
+        if (direct.isTextual()) {
+            try {
+                return Long.parseLong(direct.asText().trim());
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String resolvePlatformDataSourceId(JsonNode details) {

@@ -29,7 +29,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private static final List<String> WHITELISTED_PATHS = List.of(
         "/actuator/**",
         "/api/health",
-        "/api/info"
+        "/api/info",
+        "/api/ai/config/**",
+        "/api/ai/copilot/datasources/**",
+        "/api/ai/copilot/screen/**",
+        "/api/auth/keys/**",
+        "/internal/**"
     );
 
     private final ApiKeyService apiKeyService;
@@ -39,15 +44,19 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         this.apiKeyService = apiKeyService;
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
+    private boolean isWhitelisted(String path) {
         return WHITELISTED_PATHS.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // Whitelisted paths: skip auth and continue filter chain
+        if (isWhitelisted(request.getRequestURI())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {

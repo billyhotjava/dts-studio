@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.Instant;
 
@@ -38,6 +39,7 @@ public class AiChatMessage {
     private String content;
 
     @Column(name = "tool_calls", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
     private String toolCalls;
 
     @Column(name = "tool_call_id", length = 128)

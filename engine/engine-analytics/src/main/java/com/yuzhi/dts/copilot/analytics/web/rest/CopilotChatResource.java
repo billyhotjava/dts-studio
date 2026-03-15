@@ -1,0 +1,140 @@
+package com.yuzhi.dts.copilot.analytics.web.rest;
+
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
+import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
+import com.yuzhi.dts.copilot.analytics.service.CopilotAgentChatClient;
+import com.yuzhi.dts.copilot.analytics.service.CopilotChatDataSourceResolver;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestClientException;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/copilot/chat")
+public class CopilotChatResource {
+
+    private final AnalyticsSessionService sessionService;
+    private final CopilotAgentChatClient copilotAgentChatClient;
+    private final CopilotChatDataSourceResolver chatDataSourceResolver;
+
+    public CopilotChatResource(
+            AnalyticsSessionService sessionService,
+            CopilotAgentChatClient copilotAgentChatClient,
+            CopilotChatDataSourceResolver chatDataSourceResolver) {
+        this.sessionService = sessionService;
+        this.copilotAgentChatClient = copilotAgentChatClient;
+        this.chatDataSourceResolver = chatDataSourceResolver;
+    }
+
+    @PostMapping(path = "/send", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> sendMessage(@RequestBody ChatSendRequest body, HttpServletRequest request) {
+        AnalyticsUser user = resolveUser(request);
+        if (user == null) {
+            return unauthenticated();
+        }
+        final Long datasourceId;
+        try {
+            datasourceId = chatDataSourceResolver.resolveSelectedDatasourceId(
+                    body == null ? null : body.datasourceId());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
+        return proxy(() -> copilotAgentChatClient.sendMessage(
+                resolveCopilotUserId(user),
+                body == null ? null : body.sessionId(),
+                body == null ? null : body.userMessage(),
+                datasourceId));
+    }
+
+    @GetMapping(path = "/sessions", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> listSessions(
+            @RequestParam(required = false, defaultValue = "50") int limit,
+            HttpServletRequest request) {
+        AnalyticsUser user = resolveUser(request);
+        if (user == null) {
+            return unauthenticated();
+        }
+        int safeLimit = Math.max(limit, 0);
+        return proxy(() -> copilotAgentChatClient.listSessions(resolveCopilotUserId(user), safeLimit));
+    }
+
+    @GetMapping(path = "/{sessionId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getSession(@PathVariable String sessionId, HttpServletRequest request) {
+        AnalyticsUser user = resolveUser(request);
+        if (user == null) {
+            return unauthenticated();
+        }
+        return proxy(() -> copilotAgentChatClient.getSession(resolveCopilotUserId(user), sessionId));
+    }
+
+    @DeleteMapping(path = "/{sessionId}")
+    public ResponseEntity<?> deleteSession(@PathVariable String sessionId, HttpServletRequest request) {
+        AnalyticsUser user = resolveUser(request);
+        if (user == null) {
+            return unauthenticated();
+        }
+        try {
+            copilotAgentChatClient.deleteSession(resolveCopilotUserId(user), sessionId);
+            return ResponseEntity.noContent().build();
+        } catch (RestClientException ex) {
+            return proxyFailure(ex);
+        }
+    }
+
+    private AnalyticsUser resolveUser(HttpServletRequest request) {
+        return sessionService.resolveUser(request).orElse(null);
+    }
+
+    private String resolveCopilotUserId(AnalyticsUser user) {
+        if (StringUtils.hasText(user.getEmail())) {
+            return user.getEmail().trim();
+        }
+        String fullName = ((user.getFirstName() == null ? "" : user.getFirstName()) + " " + (user.getLastName() == null ? "" : user.getLastName())).trim();
+        if (StringUtils.hasText(fullName)) {
+            return fullName;
+        }
+        return String.valueOf(user.getId());
+    }
+
+    private ResponseEntity<?> proxy(ResponseSupplier supplier) {
+        try {
+            return ResponseEntity.ok(supplier.get());
+        } catch (RestClientException ex) {
+            return proxyFailure(ex);
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> proxyFailure(RestClientException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Copilot chat service unavailable");
+        body.put("detail", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
+    }
+
+    private ResponseEntity<String> unauthenticated() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .contentType(MediaType.TEXT_PLAIN)
+                .body("Unauthenticated");
+    }
+
+    public record ChatSendRequest(String sessionId, String userMessage, String datasourceId) {}
+
+    @FunctionalInterface
+    private interface ResponseSupplier {
+        Object get();
+    }
+}

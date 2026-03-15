@@ -104,7 +104,7 @@ start_backend() {
 
   # 环境变量
   export PG_HOST=localhost
-  export PG_PORT=5432
+  export PG_PORT=15432
   export PG_DB=copilot
   export PG_USER=copilot
   export PG_PASSWORD=copilot_dev
@@ -397,7 +397,7 @@ case "$CMD" in
     echo "    前端 (HMR)         http://localhost:3003"
     echo "    copilot-ai         http://localhost:8091"
     echo "    copilot-analytics   http://localhost:8092"
-    echo "    PostgreSQL         localhost:5432 (copilot/copilot_dev)"
+    echo "    PostgreSQL         localhost:15432 (copilot/copilot_dev)"
     echo "    Ollama             http://localhost:11434"
     echo ""
     echo -e "  ${GREEN}常用命令:${NC}"

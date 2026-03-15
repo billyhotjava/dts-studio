@@ -53,6 +53,41 @@ public class PlatformInfraClient {
         }
     }
 
+    public DataSourceDetail fetchDataSourceDetail(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("dataSourceId不能为空");
+        }
+        try {
+            return copilotAiClient.getDataSource(id, "")
+                    .map(this::toDetail)
+                    .orElseThrow(() -> new IllegalStateException("未返回数据源详情"));
+        } catch (IllegalStateException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalStateException("获取数据源失败: " + ex.getMessage(), ex);
+        }
+    }
+
+    public DataSourceSummary createDataSource(CreateDataSourceRequest request) {
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("name", request.name());
+        payload.put("type", request.type());
+        payload.put("jdbcUrl", request.jdbcUrl());
+        payload.put("host", request.host());
+        payload.put("port", request.port());
+        payload.put("database", request.database());
+        payload.put("serviceName", request.serviceName());
+        payload.put("sid", request.sid());
+        payload.put("username", request.username());
+        payload.put("password", request.password());
+        payload.put("description", request.description());
+        Map<String, Object> created = copilotAiClient.createDataSource(payload);
+        if (created.isEmpty()) {
+            throw new IllegalStateException("创建数据源失败");
+        }
+        return toSummary(created);
+    }
+
     private List<DataSourceSummary> toSummaryList(List<Map<String, Object>> rawList) {
         List<DataSourceSummary> result = new ArrayList<>();
         for (Map<String, Object> map : rawList) {
@@ -130,5 +165,19 @@ public class PlatformInfraClient {
         Map<String, Object> secrets,
         String status,
         String lastVerifiedAt
+    ) {}
+
+    public record CreateDataSourceRequest(
+        String name,
+        String type,
+        String jdbcUrl,
+        String host,
+        Integer port,
+        String database,
+        String serviceName,
+        String sid,
+        String username,
+        String password,
+        String description
     ) {}
 }

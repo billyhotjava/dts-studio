@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -61,7 +62,7 @@ public class OpenAiCompatibleClient {
         }
         body.put("stream", false);
 
-        HttpRequest request = buildRequest("/v1/chat/completions", body.toString());
+        HttpRequest request = buildRequest("chat/completions", body.toString());
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
@@ -87,7 +88,7 @@ public class OpenAiCompatibleClient {
         }
         body.put("stream", true);
 
-        HttpRequest request = buildRequest("/v1/chat/completions", body.toString());
+        HttpRequest request = buildRequest("chat/completions", body.toString());
         HttpResponse<java.io.InputStream> response = httpClient.send(request,
                 HttpResponse.BodyHandlers.ofInputStream());
 
@@ -119,7 +120,7 @@ public class OpenAiCompatibleClient {
      */
     public JsonNode listModels() throws IOException, InterruptedException {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/v1/models"))
+                .uri(URI.create(resolveApiUrl("models")))
                 .timeout(Duration.ofSeconds(10))
                 .GET();
         if (apiKey != null && !apiKey.isBlank()) {
@@ -144,7 +145,7 @@ public class OpenAiCompatibleClient {
 
     private HttpRequest buildRequest(String path, String jsonBody) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + path))
+                .uri(URI.create(resolveApiUrl(path)))
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody));
@@ -152,5 +153,22 @@ public class OpenAiCompatibleClient {
             builder.header("Authorization", "Bearer " + apiKey);
         }
         return builder.build();
+    }
+
+    private String resolveApiUrl(String relativePath) {
+        String normalizedPath = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+        if (hasVersionedApiRoot()) {
+            return baseUrl + "/" + normalizedPath;
+        }
+        return baseUrl + "/v1/" + normalizedPath;
+    }
+
+    private boolean hasVersionedApiRoot() {
+        String path = URI.create(baseUrl).getPath();
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        return Arrays.stream(path.split("/"))
+                .anyMatch(segment -> segment.matches("v\\d+([A-Za-z0-9._-]*)?"));
     }
 }

@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnTransformer;
 
 import java.time.Instant;
 
@@ -50,6 +51,7 @@ public class AiAuditLog {
     private Long durationMs;
 
     @Column(name = "metadata", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
     private String metadata;
 
     @Column(name = "created_at")

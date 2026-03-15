@@ -1,5 +1,12 @@
 package com.yuzhi.dts.copilot.analytics.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,12 +14,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Client for communicating with copilot-ai REST APIs.
@@ -22,13 +24,18 @@ import java.util.UUID;
 public class CopilotAiClient {
 
     private static final Logger log = LoggerFactory.getLogger(CopilotAiClient.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final RestClient restClient;
+    private final String adminSecret;
 
-    public CopilotAiClient(@Value("${dts.copilot.ai.base-url:http://localhost:8091}") String baseUrl) {
+    public CopilotAiClient(
+            @Value("${dts.copilot.ai.base-url:http://localhost:8091}") String baseUrl,
+            @Value("${copilot.admin-secret:}") String adminSecret) {
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .build();
+        this.adminSecret = adminSecret;
     }
 
     /**
@@ -63,10 +70,8 @@ public class CopilotAiClient {
     public List<Map<String, Object>> getDataSources(String apiKey) {
         try {
             var requestSpec = restClient.get()
-                    .uri("/api/ai/copilot/datasources");
-            if (apiKey != null && !apiKey.isEmpty()) {
-                requestSpec.header("Authorization", "Bearer " + apiKey);
-            }
+                    .uri("/api/ai/copilot/datasources")
+                    .header("X-Admin-Secret", adminSecret);
             Map<String, Object> response = requestSpec
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
@@ -87,10 +92,8 @@ public class CopilotAiClient {
     public Optional<Map<String, Object>> getDataSource(Long id, String apiKey) {
         try {
             var requestSpec = restClient.get()
-                    .uri("/api/ai/copilot/datasources/{id}", id);
-            if (apiKey != null && !apiKey.isEmpty()) {
-                requestSpec.header("Authorization", "Bearer " + apiKey);
-            }
+                    .uri("/api/ai/copilot/datasources/{id}", id)
+                    .header("X-Admin-Secret", adminSecret);
             Map<String, Object> response = requestSpec
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
@@ -113,10 +116,8 @@ public class CopilotAiClient {
     public Optional<Map<String, Object>> getDataSource(UUID id, String apiKey) {
         try {
             var requestSpec = restClient.get()
-                    .uri("/api/ai/copilot/datasources/{id}", id);
-            if (apiKey != null && !apiKey.isEmpty()) {
-                requestSpec.header("Authorization", "Bearer " + apiKey);
-            }
+                    .uri("/api/ai/copilot/datasources/{id}", id)
+                    .header("X-Admin-Secret", adminSecret);
             Map<String, Object> response = requestSpec
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
@@ -130,6 +131,33 @@ public class CopilotAiClient {
         } catch (Exception e) {
             log.error("Failed to get data source {} from copilot-ai: {}", id, e.getMessage());
             return Optional.empty();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> createDataSource(Map<String, Object> payload) {
+        try {
+            Map<String, Object> response = restClient.post()
+                    .uri("/api/ai/copilot/datasources")
+                    .header("X-Admin-Secret", adminSecret)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+            if (response != null && response.containsKey("data")) {
+                Object data = response.get("data");
+                if (data instanceof Map<?, ?> map) {
+                    return (Map<String, Object>) map;
+                }
+            }
+            return Collections.emptyMap();
+        } catch (RestClientResponseException e) {
+            String message = extractApiErrorMessage(e.getResponseBodyAsString(), "创建数据源失败");
+            log.error("Failed to create data source via copilot-ai: {}", e.getMessage());
+            throw new IllegalStateException(message, e);
+        } catch (Exception e) {
+            log.error("Failed to create data source via copilot-ai: {}", e.getMessage());
+            throw new IllegalStateException("创建数据源失败", e);
         }
     }
 
@@ -167,5 +195,25 @@ public class CopilotAiClient {
             log.error("Failed to GET from copilot-ai {}: {}", path, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    private String extractApiErrorMessage(String bodyText, String fallback) {
+        if (bodyText == null || bodyText.isBlank()) {
+            return fallback;
+        }
+        try {
+            Map<String, Object> payload = OBJECT_MAPPER.readValue(bodyText, new TypeReference<Map<String, Object>>() {});
+            Object error = payload.get("error");
+            if (error instanceof String text && !text.isBlank()) {
+                return text.trim();
+            }
+            Object message = payload.get("message");
+            if (message instanceof String text && !text.isBlank()) {
+                return text.trim();
+            }
+        } catch (Exception ignore) {
+            // ignore malformed upstream payloads and fall back to raw body text
+        }
+        return bodyText.trim();
     }
 }

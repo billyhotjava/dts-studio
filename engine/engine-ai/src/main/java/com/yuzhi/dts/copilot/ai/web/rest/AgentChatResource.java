@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,7 +52,7 @@ public class AgentChatResource {
                 request.sessionId(), request.userId(), request.message(), request.datasourceId());
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("sessionId", request.sessionId());
+        result.put("sessionId", resolveSessionIdForResponse(request.sessionId(), request.userId()));
         result.put("response", response);
         result.put("timestamp", Instant.now().toString());
 
@@ -152,4 +153,14 @@ public class AgentChatResource {
             String message,
             @JsonProperty("datasourceId") Long datasourceId
     ) {}
+
+    private String resolveSessionIdForResponse(String requestedSessionId, String userId) {
+        if (StringUtils.hasText(requestedSessionId)) {
+            return requestedSessionId;
+        }
+        return agentChatService.getSessions(userId).stream()
+                .findFirst()
+                .map(AiChatSession::getSessionId)
+                .orElse(null);
+    }
 }

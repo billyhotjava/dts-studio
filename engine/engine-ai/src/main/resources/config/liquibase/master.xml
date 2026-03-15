@@ -9,4 +9,6 @@
     <include file="config/liquibase/changelog/v1_0_0_003__ai_audit.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_004__chat_session.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_005__api_key_extend.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_006__provider_config_alignment.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_007__data_source_description.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

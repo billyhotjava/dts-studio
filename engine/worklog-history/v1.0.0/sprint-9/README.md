@@ -27,6 +27,8 @@
 | CS-07 | Provider 模板目录增强（国际/国内主流 + 推荐模板元数据） | DONE | AE-03, CS-01 |
 | CS-08 | Webapp Provider Type 下拉与推荐模板联动 | DONE | CS-04, CS-05, CS-07 |
 | CS-09 | Provider 模板化交互回归验证 | DONE | CS-07, CS-08 |
+| CS-10 | 数据源表单收敛与错误透传 | DONE | CS-06 |
+| CS-11 | Copilot 动态数据源绑定 | DONE | CS-10 |
 
 ## 完成标准
 

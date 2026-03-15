@@ -6,13 +6,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.service.safety.SqlSandbox;
 import com.yuzhi.dts.copilot.ai.service.tool.CopilotTool;
+import com.yuzhi.dts.copilot.ai.service.tool.ToolConnectionProvider;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -30,11 +30,11 @@ public class ExecuteQueryTool implements CopilotTool {
     private static final int MAX_ROWS = 100;
 
     private final SqlSandbox sqlSandbox;
-    private final DataSource dataSource;
+    private final ToolConnectionProvider connectionProvider;
 
-    public ExecuteQueryTool(SqlSandbox sqlSandbox, DataSource dataSource) {
+    public ExecuteQueryTool(SqlSandbox sqlSandbox, ToolConnectionProvider connectionProvider) {
         this.sqlSandbox = sqlSandbox;
-        this.dataSource = dataSource;
+        this.connectionProvider = connectionProvider;
     }
 
     @Override
@@ -79,7 +79,7 @@ public class ExecuteQueryTool implements CopilotTool {
             return ToolResult.failure("Query blocked: " + safety.reason());
         }
 
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = connectionProvider.openConnection(context);
              Statement stmt = conn.createStatement()) {
 
             stmt.setMaxRows(MAX_ROWS);
@@ -135,6 +135,8 @@ public class ExecuteQueryTool implements CopilotTool {
                         rowCount, columns);
                 return ToolResult.success(output, rows);
             }
+        } catch (IllegalArgumentException e) {
+            return ToolResult.failure(e.getMessage());
         } catch (Exception e) {
             log.error("Query execution failed: {}", e.getMessage());
             return ToolResult.failure("Query execution error: " + e.getMessage());
