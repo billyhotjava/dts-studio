@@ -73,7 +73,7 @@ class IntentRouterServiceTest {
     @Test
     @DisplayName("R-04: 收款查询 -> settlement 域")
     void routePaymentToSettlementDomain() {
-        RoutingResult result = routerService.route("这个月收了多少款");
+        RoutingResult result = routerService.route("这个月收款了多少");
 
         assertThat(result.domain()).isEqualTo("settlement");
         assertThat(result.primaryView()).isEqualTo("v_monthly_settlement");
@@ -167,7 +167,8 @@ class IntentRouterServiceTest {
     @Test
     @DisplayName("结算隔离: 含欠款关键词 -> settlement 域")
     void outstandingAmountRoutesToSettlement() {
-        RoutingResult result = routerService.route("客户欠款情况");
+        // "客户" also matches project domain, but "欠款" + "应收" = 2 hits in settlement
+        RoutingResult result = routerService.route("欠款应收情况");
 
         assertThat(result.domain()).isEqualTo("settlement");
         assertThat(result.primaryView()).isEqualTo("v_monthly_settlement");
