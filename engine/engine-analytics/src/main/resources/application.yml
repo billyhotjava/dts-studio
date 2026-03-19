@@ -37,6 +37,14 @@ dts:
         user: ${BIZ_DB_USER:readonly}
         password: ${BIZ_DB_PASSWORD:}
         auto-sync-metadata: true
+  elt:
+    enabled: false
+    cron: "0 0 * * * *"
+    batch-size: 1000
+    business-db:
+      url: ${DTS_BIZ_DB_URL:jdbc:mysql://localhost:3306/rs_cloud_flower}
+      username: ${DTS_BIZ_DB_USER:root}
+      password: ${DTS_BIZ_DB_PASS:}
 
 copilot:
   admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}

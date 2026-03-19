@@ -42,4 +42,5 @@
     <include file="config/liquibase/changelog/0035_user_email_to_username.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0036_business_views_metadata.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0037_semantic_extensions.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0038_elt_mart_tables.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

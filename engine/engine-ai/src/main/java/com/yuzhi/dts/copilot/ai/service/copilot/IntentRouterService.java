@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -99,12 +100,17 @@ public class IntentRouterService {
                 .thenComparing(Comparator.comparingDouble(DomainScore::score).reversed()));
 
         DomainScore top = scores.get(0);
+        boolean singleDomainMatched = scores.size() == 1;
         boolean singleGenericHit = top.matchedCount() == 1
                 && top.matchedKeywords().stream().allMatch(GENERIC_KEYWORDS::contains)
                 && top.score() < HIGH_CONFIDENCE_THRESHOLD;
+        boolean hasNonGenericSignal = scores.stream()
+                .flatMap(score -> score.matchedKeywords().stream())
+                .anyMatch(keyword -> !GENERIC_KEYWORDS.contains(keyword));
 
         // Special rule: if settlement domain matched, force settlement isolation
-        if ("settlement".equals(top.rule().getDomain()) && !singleGenericHit) {
+        if ("settlement".equals(top.rule().getDomain())
+                && (!singleGenericHit || singleDomainMatched || hasNonGenericSignal)) {
             return new RoutingResult(
                     "settlement",
                     "v_monthly_settlement",
@@ -115,11 +121,10 @@ public class IntentRouterService {
         }
 
         // Determine effective confidence based on multiple signals
-        boolean singleDomainMatched = scores.size() == 1;
         boolean clearWinner = scores.size() > 1
                 && top.matchedCount() > scores.get(1).matchedCount();
         boolean lowSignal = top.matchedCount() == 1 && top.score() < MEDIUM_CONFIDENCE_THRESHOLD;
-        if (singleGenericHit || (lowSignal && !singleDomainMatched && !clearWinner)) {
+        if ((singleGenericHit || lowSignal) && !singleDomainMatched && !clearWinner && !hasNonGenericSignal) {
             return new RoutingResult(
                     top.rule().getDomain(),
                     top.rule().getPrimaryView(),
@@ -130,7 +135,7 @@ public class IntentRouterService {
         }
 
         // High confidence: only one domain matched, or clear winner with 2+ hits
-        if ((singleDomainMatched && !singleGenericHit) || (clearWinner && top.score() >= MEDIUM_CONFIDENCE_THRESHOLD)) {
+        if (singleDomainMatched || (clearWinner && top.score() >= MEDIUM_CONFIDENCE_THRESHOLD)) {
             return new RoutingResult(
                     top.rule().getDomain(),
                     top.rule().getPrimaryView(),
@@ -141,7 +146,24 @@ public class IntentRouterService {
         }
 
         // Medium confidence: single keyword hit on one domain (still actionable)
-        if ((clearWinner || top.matchedCount() >= 1) && !singleGenericHit) {
+        if (scores.size() > 1 && hasNonGenericSignal) {
+            List<String> combinedSecondary = new ArrayList<>(parseJsonArray(top.rule().getSecondaryViews()));
+            for (int i = 1; i < scores.size(); i++) {
+                String view = scores.get(i).rule().getPrimaryView();
+                if (view != null && !combinedSecondary.contains(view)) {
+                    combinedSecondary.add(view);
+                }
+            }
+            return new RoutingResult(
+                    top.rule().getDomain(),
+                    top.rule().getPrimaryView(),
+                    combinedSecondary,
+                    top.score(),
+                    false
+            );
+        }
+
+        if (clearWinner || top.matchedCount() >= 1) {
             List<String> combinedSecondary = new ArrayList<>(parseJsonArray(top.rule().getSecondaryViews()));
             if (scores.size() > 1) {
                 DomainScore second = scores.get(1);
@@ -204,4 +226,47 @@ public class IntentRouterService {
     }
 
     private record DomainScore(Nl2SqlRoutingRule rule, double score, int matchedCount, List<String> matchedKeywords) {}
+
+    // =====================================================================
+    // EL-05: DataLayer routing extension
+    // =====================================================================
+
+    public enum DataLayer { VIEW, MART }
+
+    public record ExtendedRoutingResult(
+            RoutingResult baseResult,
+            DataLayer dataLayer,
+            String martTable
+    ) {}
+
+    private static final Set<String> MART_KEYWORDS = Set.of(
+            "趋势", "变化", "对比", "环比", "同比",
+            "近3月", "近半年", "近一年", "最近几个月",
+            "月度", "每月", "各月", "按月",
+            "增长", "下降", "波动", "走势"
+    );
+
+    private static final Map<String, String> DOMAIN_TO_MART = Map.of(
+            "project", "mart_project_fulfillment_daily",
+            "flowerbiz", "fact_field_operation_event",
+            "green", "mart_project_fulfillment_daily",
+            "settlement", "mart_project_fulfillment_daily",
+            "task", "mart_project_fulfillment_daily",
+            "curing", "mart_project_fulfillment_daily"
+    );
+
+    public ExtendedRoutingResult routeWithDataLayer(String userQuestion) {
+        RoutingResult base = route(userQuestion);
+        if (base.needsClarification() || base.domain() == null) {
+            return new ExtendedRoutingResult(base, DataLayer.VIEW, null);
+        }
+        boolean hasMartKeyword = userQuestion != null && MART_KEYWORDS.stream().anyMatch(userQuestion::contains);
+        if (hasMartKeyword) {
+            String martTable = DOMAIN_TO_MART.get(base.domain());
+            if (martTable != null) {
+                return new ExtendedRoutingResult(base, DataLayer.MART, martTable);
+            }
+        }
+        return new ExtendedRoutingResult(base, DataLayer.VIEW, null);
+    }
 }
