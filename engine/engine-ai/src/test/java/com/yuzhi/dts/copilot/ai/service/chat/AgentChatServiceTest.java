@@ -17,11 +17,43 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatServiceTest {
+
+    @Test
+    void sendMessageStreamDoesNotPersistAssistantErrorWhenStreamingIsInterrupted() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-1");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        when(sessionRepository.findBySessionId("sess-1")).thenReturn(Optional.of(session));
+        when(agentExecutionService.executeChatStream(eq("sess-1"), eq("alice"), eq("hi"), anyList(), anyLong(), any()))
+                .thenThrow(new RuntimeException(new InterruptedException("stream interrupted")));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        service.sendMessageStream("sess-1", "alice", "hi", 7L, output);
+
+        assertThat(output.toString(StandardCharsets.UTF_8))
+                .contains("event: session")
+                .doesNotContain("event: error");
+        assertThat(session.getMessages()).hasSize(1);
+        assertThat(session.getMessages().get(0).getRole()).isEqualTo("user");
+
+        verify(sessionRepository, never()).save(session);
+        verify(auditService, never()).logChatAction(
+                eq("alice"), eq("sess-1"), eq("CHAT_MESSAGE_ERROR"), eq("hi"), any());
+    }
 
     @Test
     void sendMessageStreamPersistsAssistantErrorWhenStreamingFails() {

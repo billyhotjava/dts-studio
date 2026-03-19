@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: dts-copilot-ai
+  mvc:
+    async:
+      request-timeout: ${COPILOT_STREAM_ASYNC_TIMEOUT:10m}
   datasource:
     url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DB:copilot}?currentSchema=copilot_ai&searchpath=copilot_ai,public
     username: ${PG_USER:copilot}

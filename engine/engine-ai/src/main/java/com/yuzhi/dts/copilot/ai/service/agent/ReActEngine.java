@@ -227,6 +227,9 @@ public class ReActEngine {
                 messages.add(assistantMsg);
                 return finalContent;
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Streaming interrupted", e);
             } catch (Exception e) {
                 log.error("ReAct streaming iteration {} failed: {}", iteration + 1, e.getMessage(), e);
                 return "I encountered an error during processing: " + e.getMessage();

@@ -135,7 +135,11 @@ public class CopilotAgentChatClient {
                     output.flush();
                 }
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new org.springframework.web.client.RestClientException(
+                    "Streaming chat interrupted", e);
+        } catch (IOException e) {
             throw new org.springframework.web.client.RestClientException(
                     "Streaming chat failed: " + e.getMessage(), e);
         }

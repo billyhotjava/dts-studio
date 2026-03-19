@@ -97,6 +97,10 @@ public class CopilotChatResource {
                         buildMartHealthSnapshot(),
                         outputStream);
             } catch (Exception ex) {
+                if (AgentChatInterrupts.isInterrupted(ex)) {
+                    AgentChatInterrupts.restoreInterruptFlag(ex);
+                    return;
+                }
                 String errMsg = ex.getMessage() != null ? ex.getMessage() : "unknown";
                 String errJson = new com.fasterxml.jackson.databind.ObjectMapper()
                         .createObjectNode().put("error", errMsg).toString();
@@ -195,5 +199,24 @@ public class CopilotChatResource {
     @FunctionalInterface
     private interface ResponseSupplier {
         Object get();
+    }
+
+    private static final class AgentChatInterrupts {
+        private static boolean isInterrupted(Throwable throwable) {
+            Throwable current = throwable;
+            while (current != null) {
+                if (current instanceof InterruptedException) {
+                    return true;
+                }
+                current = current.getCause();
+            }
+            return false;
+        }
+
+        private static void restoreInterruptFlag(Throwable throwable) {
+            if (isInterrupted(throwable)) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 }
