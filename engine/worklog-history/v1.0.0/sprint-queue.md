@@ -152,15 +152,27 @@
 
 **统计**: READY=11, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
-## Backlog: 从 Sprint-10 移出的任务
+## Sprint-11: 轻量 ELT 主题层与增量同步 (EL)
 
-以下任务从 Sprint-10 初版移出，视图层验证有效后作为后续迭代候选：
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| EL-01 | 主题层表结构设计 | P0 | READY | BG-02 |
+| EL-02 | 增量同步引擎 | P0 | READY | EL-01 |
+| EL-03 | 项目履约日维度主题表 | P0 | READY | EL-01, EL-02 |
+| EL-04 | 现场业务事件事实表 | P0 | READY | EL-01, EL-02 |
+| EL-05 | 意图路由扩展（视图层 vs 主题层判定） | P1 | READY | EL-03, EL-04 |
+| EL-06 | 主题层预制查询模板补充 | P1 | READY | EL-03, EL-04 |
+| EL-07 | 同步监控与告警 | P2 | READY | EL-02 |
+| EL-08 | IT 集成测试与性能基准 | P2 | READY | EL-01~07 |
+
+**统计**: READY=8, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Backlog
 
 | ID | 任务 | 状态 | 说明 |
 |----|------|------|------|
 | BL-01 | Join Contract 与 Allowed Tables 编译 | DEFERRED | 视图层已替代其核心功能，降为补充手段 |
-| BL-02 | 轻量 ELT 主题层与增量同步 | DEFERRED | 视图层 + 预制模板验证有效后再评估是否需要物化 |
 
 ## 总体统计
 
-**READY=64, IN_PROGRESS=1, DONE=10, BLOCKED=0, DEFERRED=2 (总计 77 任务)**
+**READY=72, IN_PROGRESS=1, DONE=10, BLOCKED=0, DEFERRED=1 (总计 84 任务)**
