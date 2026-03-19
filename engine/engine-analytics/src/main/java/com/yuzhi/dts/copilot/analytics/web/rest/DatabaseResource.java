@@ -469,8 +469,8 @@ public class DatabaseResource {
             config.setPoolName("analytics-validate");
             config.setMaximumPoolSize(1);
             config.setMinimumIdle(0);
-            config.setConnectionTimeout(5_000);
-            config.setValidationTimeout(3_000);
+            config.setConnectionTimeout(15_000);
+            config.setValidationTimeout(5_000);
             config.setInitializationFailTimeout(-1);
 
             try (HikariDataSource dataSource = new HikariDataSource(config);
