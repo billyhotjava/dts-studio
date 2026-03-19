@@ -33,11 +33,12 @@ class EltWatermarkServiceTest {
         EltWatermarkService service = new EltWatermarkService(watermarkRepository);
         Instant watermark = Instant.parse("2026-03-20T10:15:30Z");
 
-        service.markCompleted("mart_project_fulfillment_daily", "batch-001", watermark, 128);
+        service.markCompleted("mart_project_fulfillment_daily", "batch-001", watermark, 128, 345);
 
         assertThat(readField(entity, "syncStatus")).isEqualTo("COMPLETED");
         assertThat(readField(entity, "lastWatermark")).isEqualTo(watermark);
         assertThat(readField(entity, "lastSyncRows")).isEqualTo(128);
+        assertThat(readField(entity, "lastSyncDurationMs")).isEqualTo(345);
         assertThat(readField(entity, "lastSyncTime")).isNotNull();
     }
 

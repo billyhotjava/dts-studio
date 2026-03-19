@@ -2,7 +2,7 @@ package com.yuzhi.dts.copilot.analytics.web.rest;
 
 import com.yuzhi.dts.copilot.analytics.domain.EltSyncWatermark;
 import com.yuzhi.dts.copilot.analytics.repository.EltSyncWatermarkRepository;
-import com.yuzhi.dts.copilot.analytics.service.elt.EltSyncJob;
+import com.yuzhi.dts.copilot.analytics.service.elt.EltSyncService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,12 +33,12 @@ public class EltMonitorResource {
     private static final Logger log = LoggerFactory.getLogger(EltMonitorResource.class);
 
     private final EltSyncWatermarkRepository watermarkRepository;
-    private final List<EltSyncJob> syncJobs;
+    private final EltSyncService eltSyncService;
 
     public EltMonitorResource(EltSyncWatermarkRepository watermarkRepository,
-                              List<EltSyncJob> syncJobs) {
+                              EltSyncService eltSyncService) {
         this.watermarkRepository = watermarkRepository;
-        this.syncJobs = syncJobs;
+        this.eltSyncService = eltSyncService;
     }
 
     public record EltStatusResponse(
@@ -62,10 +62,7 @@ public class EltMonitorResource {
 
     @PostMapping(path = "/trigger/{table}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> triggerSync(@PathVariable String table) {
-        Optional<EltSyncJob> job = syncJobs.stream()
-                .filter(j -> table.equals(j.getTargetTable()))
-                .findFirst();
-        if (job.isEmpty()) {
+        if (!eltSyncService.getRegisteredTables().contains(table)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "No sync job found for table: " + table));
         }
@@ -73,9 +70,7 @@ public class EltMonitorResource {
         String batchId = UUID.randomUUID().toString();
         CompletableFuture.runAsync(() -> {
             try {
-                Optional<EltSyncWatermark> wm = watermarkRepository.findByTargetTable(table);
-                Instant lastWatermark = wm.map(EltSyncWatermark::getLastWatermark).orElse(Instant.EPOCH);
-                job.get().sync(lastWatermark, batchId);
+                eltSyncService.runSync(table);
             } catch (Exception e) {
                 log.error("Triggered sync failed for table {}: {}", table, e.getMessage(), e);
             }

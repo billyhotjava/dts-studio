@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,12 @@ public class AgentChatService {
      */
     @Transactional
     public String sendMessage(String sessionId, String userId, String message, Long datasourceId) {
+        return sendMessage(sessionId, userId, message, datasourceId, Collections.emptyMap());
+    }
+
+    @Transactional
+    public String sendMessage(String sessionId, String userId, String message, Long datasourceId,
+                              Map<String, Boolean> martHealthSnapshot) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
 
         // If the request carries a datasourceId, update the session so it persists
@@ -76,7 +83,7 @@ public class AgentChatService {
 
         // Execute agent
         ChatExecutionResult executionResult = agentExecutionService.executeChat(
-                session.getSessionId(), userId, message, history, effectiveDataSourceId);
+                session.getSessionId(), userId, message, history, effectiveDataSourceId, martHealthSnapshot);
         String response = executionResult.response();
 
         // Persist assistant message
@@ -112,6 +119,12 @@ public class AgentChatService {
      */
     public void sendMessageStream(String sessionId, String userId, String message,
                                   Long datasourceId, OutputStream output) {
+        sendMessageStream(sessionId, userId, message, datasourceId, Collections.emptyMap(), output);
+    }
+
+    public void sendMessageStream(String sessionId, String userId, String message,
+                                  Long datasourceId, Map<String, Boolean> martHealthSnapshot,
+                                  OutputStream output) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
         if (datasourceId != null) {
             session.setDataSourceId(datasourceId);
@@ -140,7 +153,7 @@ public class AgentChatService {
         ChatExecutionResult executionResult;
         try {
             executionResult = agentExecutionService.executeChatStream(
-                    session.getSessionId(), userId, message, history, effectiveDataSourceId, output);
+                    session.getSessionId(), userId, message, history, effectiveDataSourceId, martHealthSnapshot, output);
         } catch (Exception e) {
             log.error("Streaming chat failed: {}", e.getMessage(), e);
             String errorMessage = buildStreamFailureMessage(e);

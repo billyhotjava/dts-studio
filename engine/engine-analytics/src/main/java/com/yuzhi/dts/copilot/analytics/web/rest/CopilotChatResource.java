@@ -4,10 +4,12 @@ import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.CopilotAgentChatClient;
 import com.yuzhi.dts.copilot.analytics.service.CopilotChatDataSourceResolver;
+import com.yuzhi.dts.copilot.analytics.service.elt.EltWatermarkService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,17 +31,24 @@ import java.util.Map;
 @RequestMapping("/api/copilot/chat")
 public class CopilotChatResource {
 
+    private static final List<String> MART_TABLES = List.of(
+            "mart_project_fulfillment_daily",
+            "fact_field_operation_event");
+
     private final AnalyticsSessionService sessionService;
     private final CopilotAgentChatClient copilotAgentChatClient;
     private final CopilotChatDataSourceResolver chatDataSourceResolver;
+    private final ObjectProvider<EltWatermarkService> eltWatermarkServiceProvider;
 
     public CopilotChatResource(
             AnalyticsSessionService sessionService,
             CopilotAgentChatClient copilotAgentChatClient,
-            CopilotChatDataSourceResolver chatDataSourceResolver) {
+            CopilotChatDataSourceResolver chatDataSourceResolver,
+            ObjectProvider<EltWatermarkService> eltWatermarkServiceProvider) {
         this.sessionService = sessionService;
         this.copilotAgentChatClient = copilotAgentChatClient;
         this.chatDataSourceResolver = chatDataSourceResolver;
+        this.eltWatermarkServiceProvider = eltWatermarkServiceProvider;
     }
 
     @PostMapping(path = "/send", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -59,7 +68,8 @@ public class CopilotChatResource {
                 resolveCopilotUserId(user),
                 body == null ? null : body.sessionId(),
                 body == null ? null : body.userMessage(),
-                datasourceId));
+                datasourceId,
+                buildMartHealthSnapshot()));
     }
 
     @PostMapping(path = "/send-stream", consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -84,6 +94,7 @@ public class CopilotChatResource {
                         body == null ? null : body.sessionId(),
                         body == null ? null : body.userMessage(),
                         datasourceId,
+                        buildMartHealthSnapshot(),
                         outputStream);
             } catch (Exception ex) {
                 String errMsg = ex.getMessage() != null ? ex.getMessage() : "unknown";
@@ -165,6 +176,18 @@ public class CopilotChatResource {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .contentType(MediaType.TEXT_PLAIN)
                 .body("Unauthenticated");
+    }
+
+    private Map<String, Boolean> buildMartHealthSnapshot() {
+        EltWatermarkService watermarkService = eltWatermarkServiceProvider.getIfAvailable();
+        if (watermarkService == null) {
+            return Map.of();
+        }
+        Map<String, Boolean> snapshot = new LinkedHashMap<>();
+        for (String table : MART_TABLES) {
+            snapshot.put(table, watermarkService.isHealthy(table));
+        }
+        return snapshot;
     }
 
     public record ChatSendRequest(String sessionId, String userMessage, String datasourceId) {}

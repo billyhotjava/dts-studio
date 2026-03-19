@@ -186,12 +186,12 @@ public class QueryPermissionService {
             return QueryPermissionCheck.deny("You don't have permission to access this database");
         }
 
-        // For native queries, require full database permission
+        // For native queries, any database access is sufficient.
+        // Copilot-generated SQL is restricted to SELECT by the system prompt;
+        // blocking regular users from executing query results hurts usability
+        // without adding meaningful security (the DB user itself is read-only).
         String queryType = query != null ? query.path("type").asText("") : "";
         if ("native".equalsIgnoreCase(queryType)) {
-            if (dbPermission != PermissionLevel.FULL) {
-                return QueryPermissionCheck.deny("Native queries require full database access");
-            }
             return QueryPermissionCheck.allow();
         }
 

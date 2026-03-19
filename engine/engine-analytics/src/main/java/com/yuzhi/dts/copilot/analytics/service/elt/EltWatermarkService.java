@@ -46,13 +46,13 @@ public class EltWatermarkService {
     }
 
     @Transactional
-    public void markCompleted(String targetTable, String batchId, Instant newWatermark, int rowCount) {
+    public void markCompleted(String targetTable, String batchId, Instant newWatermark, int rowCount, int durationMs) {
         EltSyncWatermark watermark = getOrCreate(targetTable);
         watermark.setSyncStatus(STATUS_COMPLETED);
         watermark.setLastWatermark(newWatermark);
         watermark.setLastSyncTime(Instant.now());
         watermark.setLastSyncRows(rowCount);
-        watermark.setLastSyncDurationMs(0);
+        watermark.setLastSyncDurationMs(durationMs);
         watermark.setErrorMessage(null);
         watermarkRepository.save(watermark);
         log.info("Marked {} as COMPLETED, batchId={}, rows={}, watermark={}", targetTable, batchId, rowCount, newWatermark);

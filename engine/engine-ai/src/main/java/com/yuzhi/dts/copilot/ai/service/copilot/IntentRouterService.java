@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Intent routing engine for NL2SQL.
@@ -237,7 +238,9 @@ public class IntentRouterService {
     public record ExtendedRoutingResult(
             RoutingResult baseResult,
             DataLayer dataLayer,
-            String martTable
+            String martTable,
+            boolean fallbackApplied,
+            String fallbackReason
     ) {}
 
     private static final Set<String> MART_KEYWORDS = Set.of(
@@ -257,17 +260,34 @@ public class IntentRouterService {
     );
 
     public ExtendedRoutingResult routeWithDataLayer(String userQuestion) {
+        return routeWithDataLayer(userQuestion, martTable -> true);
+    }
+
+    public ExtendedRoutingResult routeWithDataLayer(String userQuestion, Map<String, Boolean> martHealthSnapshot) {
+        return routeWithDataLayer(userQuestion,
+                martTable -> martHealthSnapshot != null && Boolean.TRUE.equals(martHealthSnapshot.get(martTable)));
+    }
+
+    public ExtendedRoutingResult routeWithDataLayer(String userQuestion, Predicate<String> martAvailability) {
         RoutingResult base = route(userQuestion);
         if (base.needsClarification() || base.domain() == null) {
-            return new ExtendedRoutingResult(base, DataLayer.VIEW, null);
+            return new ExtendedRoutingResult(base, DataLayer.VIEW, null, false, null);
         }
         boolean hasMartKeyword = userQuestion != null && MART_KEYWORDS.stream().anyMatch(userQuestion::contains);
         if (hasMartKeyword) {
             String martTable = DOMAIN_TO_MART.get(base.domain());
             if (martTable != null) {
-                return new ExtendedRoutingResult(base, DataLayer.MART, martTable);
+                if (martAvailability.test(martTable)) {
+                    return new ExtendedRoutingResult(base, DataLayer.MART, martTable, false, null);
+                }
+                return new ExtendedRoutingResult(
+                        base,
+                        DataLayer.VIEW,
+                        null,
+                        true,
+                        "mart unavailable: " + martTable);
             }
         }
-        return new ExtendedRoutingResult(base, DataLayer.VIEW, null);
+        return new ExtendedRoutingResult(base, DataLayer.VIEW, null, false, null);
     }
 }

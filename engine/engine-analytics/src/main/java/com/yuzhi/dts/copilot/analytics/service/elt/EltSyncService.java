@@ -36,12 +36,14 @@ public class EltSyncService {
 
         String batchId = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         Instant lastWatermark = watermarkService.getWatermark(targetTable);
+        long startedAt = System.currentTimeMillis();
 
         watermarkService.markRunning(targetTable, batchId);
         try {
             int rowCount = job.sync(lastWatermark, batchId);
             Instant newWatermark = Instant.now();
-            watermarkService.markCompleted(targetTable, batchId, newWatermark, rowCount);
+            int durationMs = Math.toIntExact(System.currentTimeMillis() - startedAt);
+            watermarkService.markCompleted(targetTable, batchId, newWatermark, rowCount, durationMs);
         } catch (Exception e) {
             watermarkService.markFailed(targetTable, batchId, e.getMessage());
             log.error("ELT sync failed for table={}, batchId={}", targetTable, batchId, e);
@@ -54,5 +56,9 @@ public class EltSyncService {
             runSync(targetTable);
         }
         log.info("Completed ELT sync for all registered jobs");
+    }
+
+    public List<String> getRegisteredTables() {
+        return jobRegistry.keySet().stream().sorted().toList();
     }
 }

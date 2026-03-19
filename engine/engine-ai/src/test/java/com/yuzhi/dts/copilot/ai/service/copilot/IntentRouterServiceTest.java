@@ -6,6 +6,8 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.domain.Nl2SqlRoutingRule;
 import com.yuzhi.dts.copilot.ai.repository.Nl2SqlRoutingRuleRepository;
+import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.DataLayer;
+import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.ExtendedRoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -230,6 +232,30 @@ class IntentRouterServiceTest {
         assertThat(msg).isNotBlank();
         assertThat(msg).contains("项目");
         assertThat(msg).contains("结算");
+    }
+
+    @Test
+    @DisplayName("趋势类问题在主题层可用时走 MART")
+    void routeWithDataLayerUsesMartWhenAvailable() {
+        ExtendedRoutingResult result = routerService.routeWithDataLayer(
+                "最近半年加花趋势",
+                martTable -> true);
+
+        assertThat(result.baseResult().domain()).isEqualTo("flowerbiz");
+        assertThat(result.dataLayer()).isEqualTo(DataLayer.MART);
+        assertThat(result.martTable()).isEqualTo("fact_field_operation_event");
+    }
+
+    @Test
+    @DisplayName("趋势类问题在主题层不可用时回退到 VIEW")
+    void routeWithDataLayerFallsBackToViewWhenMartUnavailable() {
+        ExtendedRoutingResult result = routerService.routeWithDataLayer(
+                "最近半年加花趋势",
+                martTable -> false);
+
+        assertThat(result.baseResult().domain()).isEqualTo("flowerbiz");
+        assertThat(result.dataLayer()).isEqualTo(DataLayer.VIEW);
+        assertThat(result.martTable()).isNull();
     }
 
     // ===================== Helper: build mock rules matching seed data =====================

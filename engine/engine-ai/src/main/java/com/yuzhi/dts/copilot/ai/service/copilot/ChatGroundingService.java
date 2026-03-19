@@ -1,9 +1,12 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.ExtendedRoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.TemplateMatchResult;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -37,17 +40,41 @@ public class ChatGroundingService {
     }
 
     public GroundingContext buildContext(String userQuestion) {
-        TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
-        RoutingResult routing = intentRouterService.route(userQuestion);
+        return buildContext(userQuestion, Collections.emptyMap());
+    }
 
-        // No match — pass through to LLM without grounding context
+    public GroundingContext buildContext(String userQuestion, Map<String, Boolean> martHealthSnapshot) {
+        if (isFriendlyGuidanceInput(userQuestion)) {
+            return new GroundingContext(
+                    true, buildFriendlyGuidanceMessage(),
+                    null, null, List.of(),
+                    null, null, "VIEW", null,
+                    "");
+        }
+        if (isAssistantMetaInput(userQuestion)) {
+            return new GroundingContext(
+                    true, buildAssistantMetaMessage(),
+                    null, null, List.of(),
+                    null, null, "VIEW", null,
+                    "");
+        }
+
+        TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
+        ExtendedRoutingResult extendedRouting = intentRouterService.routeWithDataLayer(
+                userQuestion, martHealthSnapshot == null ? Collections.emptyMap() : martHealthSnapshot);
+        RoutingResult routing = extendedRouting.baseResult();
+
         if ((routing == null || routing.needsClarification()) && !templateMatch.matched()) {
             return new GroundingContext(
-                    false, null, null, null, List.of(), null, null, "");
+                    true,
+                    intentRouterService.generateClarificationMessage(),
+                    null, null, List.of(),
+                    null, null, "VIEW", null,
+                    "");
         }
 
         String domain = resolveDomain(routing, templateMatch);
-        String primaryView = resolvePrimaryView(routing, templateMatch);
+        String primaryView = resolvePrimaryTarget(routing, templateMatch, extendedRouting);
         List<String> secondaryViews = routing != null && routing.secondaryViews() != null
                 ? routing.secondaryViews()
                 : List.of();
@@ -65,6 +92,13 @@ public class ChatGroundingService {
         }
         if (!secondaryViews.isEmpty()) {
             prompt.append("- secondary views: ").append(String.join(", ", secondaryViews)).append("\n");
+        }
+        prompt.append("- data layer: ").append(extendedRouting.dataLayer().name()).append("\n");
+        if (StringUtils.hasText(extendedRouting.martTable())) {
+            prompt.append("- mart table: ").append(extendedRouting.martTable()).append("\n");
+        }
+        if (extendedRouting.fallbackApplied() && StringUtils.hasText(extendedRouting.fallbackReason())) {
+            prompt.append("- fallback: ").append(extendedRouting.fallbackReason()).append("\n");
         }
 
         String semanticDomain = normalizeSemanticDomain(domain);
@@ -89,6 +123,8 @@ public class ChatGroundingService {
                 secondaryViews,
                 templateCode,
                 templateMatch.matched() ? templateMatch.resolvedSql() : null,
+                extendedRouting.dataLayer().name(),
+                extendedRouting.martTable(),
                 prompt.toString().trim());
     }
 
@@ -102,7 +138,15 @@ public class ChatGroundingService {
         return null;
     }
 
-    private String resolvePrimaryView(RoutingResult routing, TemplateMatchResult templateMatch) {
+    private String resolvePrimaryTarget(
+            RoutingResult routing,
+            TemplateMatchResult templateMatch,
+            ExtendedRoutingResult extendedRouting) {
+        if (extendedRouting != null
+                && extendedRouting.dataLayer() == IntentRouterService.DataLayer.MART
+                && StringUtils.hasText(extendedRouting.martTable())) {
+            return extendedRouting.martTable();
+        }
         if (routing != null && StringUtils.hasText(routing.primaryView())) {
             return routing.primaryView();
         }
@@ -182,6 +226,8 @@ public class ChatGroundingService {
             List<String> secondaryViews,
             String templateCode,
             String resolvedSql,
+            String dataLayer,
+            String martTable,
             String promptContext
     ) {}
 }

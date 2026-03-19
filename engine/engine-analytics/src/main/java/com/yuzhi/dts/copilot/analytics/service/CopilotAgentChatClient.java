@@ -43,7 +43,12 @@ public class CopilotAgentChatClient {
         this.adminSecret = adminSecret;
     }
 
-    public Map<String, Object> sendMessage(String userId, String sessionId, String message, Long datasourceId) {
+    public Map<String, Object> sendMessage(
+            String userId,
+            String sessionId,
+            String message,
+            Long datasourceId,
+            Map<String, Boolean> martHealth) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("userId", userId);
         payload.put("message", message);
@@ -52,6 +57,9 @@ public class CopilotAgentChatClient {
         }
         if (datasourceId != null) {
             payload.put("datasourceId", datasourceId);
+        }
+        if (martHealth != null && !martHealth.isEmpty()) {
+            payload.put("martHealth", martHealth);
         }
         return restClient.post()
                 .uri("/internal/agent/chat/send")
@@ -87,7 +95,7 @@ public class CopilotAgentChatClient {
     }
 
     public void sendMessageStream(String userId, String sessionId, String message,
-                                   Long datasourceId, OutputStream output) {
+                                   Long datasourceId, Map<String, Boolean> martHealth, OutputStream output) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("userId", userId);
         payload.put("message", message);
@@ -96,6 +104,9 @@ public class CopilotAgentChatClient {
         }
         if (datasourceId != null) {
             payload.put("datasourceId", datasourceId);
+        }
+        if (martHealth != null && !martHealth.isEmpty()) {
+            payload.put("martHealth", martHealth);
         }
 
         try {

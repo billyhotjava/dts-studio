@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +102,13 @@ public class AgentExecutionService {
      */
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
                                            List<Map<String, Object>> history, Long dataSourceId) {
-        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage);
+        return executeChat(sessionId, userId, userMessage, history, dataSourceId, Collections.emptyMap());
+    }
+
+    public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
+                                           List<Map<String, Object>> history, Long dataSourceId,
+                                           Map<String, Boolean> martHealthSnapshot) {
+        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage, martHealthSnapshot);
         if (groundingContext.needsClarification()) {
             return new ChatExecutionResult(
                     groundingContext.clarificationMessage(),
@@ -238,7 +245,14 @@ public class AgentExecutionService {
     public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
                                                   List<Map<String, Object>> history, Long dataSourceId,
                                                   OutputStream sseOutput) {
-        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage);
+        return executeChatStream(sessionId, userId, userMessage, history, dataSourceId, Collections.emptyMap(), sseOutput);
+    }
+
+    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                 List<Map<String, Object>> history, Long dataSourceId,
+                                                 Map<String, Boolean> martHealthSnapshot,
+                                                 OutputStream sseOutput) {
+        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage, martHealthSnapshot);
         if (groundingContext.needsClarification()) {
             writeTokenAndDone(sseOutput, groundingContext.clarificationMessage(), null);
             return new ChatExecutionResult(groundingContext.clarificationMessage(), null, groundingContext, null);

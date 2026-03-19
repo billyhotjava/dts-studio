@@ -67,7 +67,8 @@ public class InternalAgentChatResource {
                 effectiveSessionId,
                 request.userId(),
                 request.message(),
-                request.datasourceId());
+                request.datasourceId(),
+                request.martHealth());
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sessionId", resolveSessionIdForResponse(request.sessionId(), request.userId()));
@@ -99,7 +100,7 @@ public class InternalAgentChatResource {
 
         return outputStream -> agentChatService.sendMessageStream(
                 sessionId, request.userId(), request.message(),
-                request.datasourceId(), outputStream);
+                request.datasourceId(), request.martHealth(), outputStream);
     }
 
     @GetMapping("/sessions")
@@ -218,7 +219,8 @@ public class InternalAgentChatResource {
             String sessionId,
             String userId,
             String message,
-            @JsonProperty("datasourceId") Long datasourceId
+            @JsonProperty("datasourceId") Long datasourceId,
+            Map<String, Boolean> martHealth
     ) {
         boolean hasRequiredFields() {
             return StringUtils.hasText(userId) && StringUtils.hasText(message);
