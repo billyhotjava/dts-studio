@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,6 +65,87 @@ class OpenAiCompatibleClientTest {
         }
     }
 
+    @Test
+    void streamsReasoningAndContentDeltasSeparately() throws Exception {
+        try (TestHttpServer server = TestHttpServer.sse(exchange -> """
+                data: {"choices":[{"delta":{"reasoning_content":"先判断用户意图"},"finish_reason":null}]}
+
+                data: {"choices":[{"delta":{"content":"最终答案"},"finish_reason":null}]}
+
+                data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """)) {
+            OpenAiCompatibleClient client = new OpenAiCompatibleClient(
+                    server.baseUrl("/v1"),
+                    "test-key",
+                    5);
+            CopyOnWriteArrayList<String> reasoningDeltas = new CopyOnWriteArrayList<>();
+            CopyOnWriteArrayList<String> contentDeltas = new CopyOnWriteArrayList<>();
+
+            OpenAiCompatibleClient.StreamingChatResult result = client.chatCompletionStream(
+                    "deepseek-reasoner",
+                    List.of(Map.of("role", "user", "content", "你好")),
+                    0.3,
+                    128,
+                    null,
+                    new OpenAiCompatibleClient.StreamEventHandler() {
+                        @Override
+                        public void onReasoningDelta(String delta) {
+                            reasoningDeltas.add(delta);
+                        }
+
+                        @Override
+                        public void onContentDelta(String delta) {
+                            contentDeltas.add(delta);
+                        }
+                    });
+
+            assertThat(reasoningDeltas).containsExactly("先判断用户意图");
+            assertThat(contentDeltas).containsExactly("最终答案");
+            assertThat(result.reasoningContent()).isEqualTo("先判断用户意图");
+            assertThat(result.content()).isEqualTo("最终答案");
+            assertThat(result.toolCalls()).isEmpty();
+            assertThat(result.finishReason()).isEqualTo("stop");
+        }
+    }
+
+    @Test
+    void streamsAndAccumulatesToolCallsAcrossChunks() throws Exception {
+        try (TestHttpServer server = TestHttpServer.sse(exchange -> """
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"schema_lookup","arguments":"{\\"table\\":\\"" }}]},"finish_reason":null}]}
+
+                data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"project\\"}"}}]},"finish_reason":null}]}
+
+                data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}
+
+                data: [DONE]
+
+                """)) {
+            OpenAiCompatibleClient client = new OpenAiCompatibleClient(
+                    server.baseUrl("/v1"),
+                    "test-key",
+                    5);
+
+            OpenAiCompatibleClient.StreamingChatResult result = client.chatCompletionStream(
+                    "deepseek-chat",
+                    List.of(Map.of("role", "user", "content", "查表")),
+                    0.3,
+                    128,
+                    List.of(Map.of("type", "function", "function", Map.of("name", "schema_lookup"))),
+                    OpenAiCompatibleClient.StreamEventHandler.noop());
+
+            assertThat(result.toolCalls()).hasSize(1);
+            assertThat(result.toolCalls().getFirst().get("id")).isEqualTo("call_1");
+            assertThat(result.toolCalls().getFirst().get("function"))
+                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                    .containsEntry("name", "schema_lookup")
+                    .containsEntry("arguments", "{\"table\":\"project\"}");
+            assertThat(result.finishReason()).isEqualTo("tool_calls");
+        }
+    }
+
     private interface ResponseHandler {
         String handle(HttpExchange exchange) throws IOException;
     }
@@ -80,6 +162,20 @@ class OpenAiCompatibleClientTest {
             server.createContext("/", exchange -> {
                 byte[] body = handler.handle(exchange).getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, body.length);
+                try (OutputStream output = exchange.getResponseBody()) {
+                    output.write(body);
+                }
+            });
+            server.start();
+            return new TestHttpServer(server);
+        }
+
+        static TestHttpServer sse(ResponseHandler handler) throws IOException {
+            HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            server.createContext("/", exchange -> {
+                byte[] body = handler.handle(exchange).getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
                 exchange.sendResponseHeaders(200, body.length);
                 try (OutputStream output = exchange.getResponseBody()) {
                     output.write(body);

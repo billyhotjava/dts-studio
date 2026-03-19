@@ -37,37 +37,10 @@ public class ChatGroundingService {
     }
 
     public GroundingContext buildContext(String userQuestion) {
-        if (isFriendlyGuidanceInput(userQuestion)) {
-            return new GroundingContext(
-                    true,
-                    buildFriendlyGuidanceMessage(),
-                    null,
-                    null,
-                    List.of(),
-                    null,
-                    null,
-                    ""
-            );
-        }
-
-        if (isAssistantMetaInput(userQuestion)) {
-            return new GroundingContext(
-                    true,
-                    buildAssistantMetaMessage(),
-                    null,
-                    null,
-                    List.of(),
-                    null,
-                    null,
-                    ""
-            );
-        }
-
         TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
         RoutingResult routing = intentRouterService.route(userQuestion);
 
-        // When neither routing nor template matches, pass through to LLM
-        // without grounding context instead of blocking the user.
+        // No match — pass through to LLM without grounding context
         if ((routing == null || routing.needsClarification()) && !templateMatch.matched()) {
             return new GroundingContext(
                     false, null, null, null, List.of(), null, null, "");

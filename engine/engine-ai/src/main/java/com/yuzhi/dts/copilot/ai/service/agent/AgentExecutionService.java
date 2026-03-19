@@ -34,15 +34,17 @@ public class AgentExecutionService {
     private static final Logger log = LoggerFactory.getLogger(AgentExecutionService.class);
 
     private static final String SYSTEM_PROMPT = """
-            You are DTS Copilot, an intelligent data assistant. You help users explore databases, \
-            write SQL queries, and analyze data. You have access to tools that let you query databases \
-            and look up schema information.
+            你是 DTS Copilot，一个智能数据分析助手。你由 DTS 智能平台提供，底层接入了用户配置的大语言模型。
+            当用户问你是谁、什么模型时，回答"我是 DTS Copilot，由 DTS 智能平台提供的数据分析助手"，不要声称自己是其他产品。
 
-            Guidelines:
-            - Always verify table and column names using the schema lookup tool before writing queries.
-            - Only execute SELECT queries; never modify data.
-            - Explain your reasoning and results clearly.
-            - If you're unsure about something, ask the user for clarification.
+            你可以帮助用户探索数据库、编写 SQL 查询和分析数据。你拥有查询数据库和查看表结构的工具。
+
+            使用规范：
+            - 使用 schema_lookup 工具验证表名和字段名后再写查询
+            - 只执行 SELECT 查询，不允许修改数据
+            - 清晰解释你的推理和结果
+            - 如果不确定，向用户请求澄清
+            - 默认使用中文回复
 
             ## 数据查询工作流
 
@@ -104,14 +106,15 @@ public class AgentExecutionService {
             return new ChatExecutionResult(
                     groundingContext.clarificationMessage(),
                     null,
-                    groundingContext
+                    groundingContext,
+                    null
             );
         }
 
         // CS-01: Template fast-path — skip LLM entirely when template matched with SQL
         if (groundingContext.templateCode() != null && groundingContext.resolvedSql() != null) {
             String response = formatTemplateResponse(groundingContext);
-            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext);
+            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext, null);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -119,7 +122,8 @@ public class AgentExecutionService {
             return new ChatExecutionResult(
                     "No AI provider is configured. Please configure a provider in the settings.",
                     null,
-                    groundingContext
+                    groundingContext,
+                    null
             );
         }
 
@@ -154,7 +158,8 @@ public class AgentExecutionService {
         return new ChatExecutionResult(
                 response,
                 resolveGeneratedSql(response, groundingContext),
-                groundingContext
+                groundingContext,
+                null
         );
     }
 
@@ -236,21 +241,21 @@ public class AgentExecutionService {
         GroundingContext groundingContext = chatGroundingService.buildContext(userMessage);
         if (groundingContext.needsClarification()) {
             writeTokenAndDone(sseOutput, groundingContext.clarificationMessage(), null);
-            return new ChatExecutionResult(groundingContext.clarificationMessage(), null, groundingContext);
+            return new ChatExecutionResult(groundingContext.clarificationMessage(), null, groundingContext, null);
         }
 
         // CS-01: Template fast-path (streaming)
         if (groundingContext.templateCode() != null && groundingContext.resolvedSql() != null) {
             String response = formatTemplateResponse(groundingContext);
             writeTokenAndDone(sseOutput, response, groundingContext.resolvedSql());
-            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext);
+            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext, null);
         }
 
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
             String msg = "No AI provider is configured. Please configure a provider in the settings.";
             writeTokenAndDone(sseOutput, msg, null);
-            return new ChatExecutionResult(msg, null, groundingContext);
+            return new ChatExecutionResult(msg, null, groundingContext, null);
         }
 
         OpenAiCompatibleClient client = getOrCreateClient(provider);
@@ -276,7 +281,12 @@ public class AgentExecutionService {
         String sql = resolveGeneratedSql(response, groundingContext);
         writeDoneEvent(sseOutput, sql);
 
-        return new ChatExecutionResult(response, sql, groundingContext);
+        return new ChatExecutionResult(
+                response,
+                sql,
+                groundingContext,
+                extractReasoningFromMessages(messages)
+        );
     }
 
     // ── CS-01: Template response formatting ─────────────────────────────
@@ -347,6 +357,20 @@ public class AgentExecutionService {
     public record ChatExecutionResult(
             String response,
             String generatedSql,
-            GroundingContext groundingContext
+            GroundingContext groundingContext,
+            String reasoningContent
     ) {}
+
+    private String extractReasoningFromMessages(List<Map<String, Object>> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return null;
+        }
+        for (int index = messages.size() - 1; index >= 0; index--) {
+            Object value = messages.get(index).get("reasoning_content");
+            if (value instanceof String text && !text.isBlank()) {
+                return text;
+            }
+        }
+        return null;
+    }
 }

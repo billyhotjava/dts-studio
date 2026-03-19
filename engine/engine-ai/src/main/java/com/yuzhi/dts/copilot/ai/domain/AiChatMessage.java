@@ -51,6 +51,9 @@ public class AiChatMessage {
     @Column(name = "generated_sql", columnDefinition = "TEXT")
     private String generatedSql;
 
+    @Column(name = "reasoning_content", columnDefinition = "TEXT")
+    private String reasoningContent;
+
     @Column(name = "routed_domain", length = 32)
     private String routedDomain;
 
@@ -130,6 +133,14 @@ public class AiChatMessage {
 
     public void setGeneratedSql(String generatedSql) {
         this.generatedSql = generatedSql;
+    }
+
+    public String getReasoningContent() {
+        return reasoningContent;
+    }
+
+    public void setReasoningContent(String reasoningContent) {
+        this.reasoningContent = reasoningContent;
     }
 
     public String getRoutedDomain() {

@@ -145,36 +145,55 @@ public class ReActEngine {
                                    OutputStream sseOutput) {
         List<Map<String, Object>> toolDefinitions = toolRegistry.getToolDefinitions();
         StringBuilder fullResponse = new StringBuilder();
+        StringBuilder fullReasoning = new StringBuilder();
 
         for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
             log.debug("ReAct streaming iteration {}/{}", iteration + 1, MAX_ITERATIONS);
             try {
-                JsonNode response = client.chatCompletion(model, messages, temperature, maxTokens,
-                        toolDefinitions.isEmpty() ? null : toolDefinitions);
+                OpenAiCompatibleClient.StreamingChatResult response = client.chatCompletionStream(
+                        model,
+                        messages,
+                        temperature,
+                        maxTokens,
+                        toolDefinitions.isEmpty() ? null : toolDefinitions,
+                        new OpenAiCompatibleClient.StreamEventHandler() {
+                            @Override
+                            public void onReasoningDelta(String delta) {
+                                fullReasoning.append(delta);
+                                writeSseEvent(sseOutput, "reasoning",
+                                        mapper.createObjectNode().put("content", delta).toString());
+                            }
 
-                JsonNode choices = response.get("choices");
-                if (choices == null || choices.isEmpty()) {
+                            @Override
+                            public void onContentDelta(String delta) {
+                                fullResponse.append(delta);
+                                writeSseEvent(sseOutput, "token",
+                                        mapper.createObjectNode().put("content", delta).toString());
+                            }
+                        });
+
+                if (response == null) {
                     return "I'm sorry, I received an empty response. Please try again.";
                 }
 
-                JsonNode message = choices.get(0).get("message");
-                if (message == null) {
-                    return "I'm sorry, I received an invalid response. Please try again.";
-                }
-
-                JsonNode toolCalls = message.get("tool_calls");
-                if (toolCalls != null && toolCalls.isArray() && !toolCalls.isEmpty()) {
+                if (!response.toolCalls().isEmpty()) {
                     Map<String, Object> assistantMsg = new LinkedHashMap<>();
                     assistantMsg.put("role", "assistant");
-                    assistantMsg.put("content", message.has("content") && !message.get("content").isNull()
-                            ? message.get("content").asText() : null);
-                    assistantMsg.put("tool_calls", mapper.treeToValue(toolCalls, List.class));
+                    assistantMsg.put("content", response.content().isBlank() ? null : response.content());
+                    if (fullReasoning.length() > 0) {
+                        assistantMsg.put("reasoning_content", fullReasoning.toString());
+                    }
+                    assistantMsg.put("tool_calls", response.toolCalls());
                     messages.add(assistantMsg);
 
-                    for (JsonNode toolCall : toolCalls) {
-                        String toolCallId = toolCall.get("id").asText();
-                        String toolName = toolCall.get("function").get("name").asText();
-                        String argumentsStr = toolCall.get("function").get("arguments").asText();
+                    for (Map<String, Object> toolCall : response.toolCalls()) {
+                        String toolCallId = stringValue(toolCall.get("id"));
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> function = toolCall.get("function") instanceof Map<?, ?> rawFunction
+                                ? (Map<String, Object>) rawFunction
+                                : Map.of();
+                        String toolName = stringValue(function.get("name"));
+                        String argumentsStr = stringValue(function.get("arguments"));
 
                         writeSseEvent(sseOutput, "tool",
                                 mapper.createObjectNode().put("tool", toolName).put("status", "running").toString());
@@ -198,11 +217,15 @@ public class ReActEngine {
                     continue;
                 }
 
-                // Final text response — stream as token events
-                String content = message.has("content") && !message.get("content").isNull()
-                        ? message.get("content").asText() : "";
-                streamTextAsTokenEvents(sseOutput, content, fullResponse);
-                return fullResponse.toString();
+                String finalContent = !response.content().isBlank() ? response.content() : fullResponse.toString();
+                Map<String, Object> assistantMsg = new LinkedHashMap<>();
+                assistantMsg.put("role", "assistant");
+                assistantMsg.put("content", finalContent);
+                if (fullReasoning.length() > 0) {
+                    assistantMsg.put("reasoning_content", fullReasoning.toString());
+                }
+                messages.add(assistantMsg);
+                return finalContent;
 
             } catch (Exception e) {
                 log.error("ReAct streaming iteration {} failed: {}", iteration + 1, e.getMessage(), e);
@@ -213,16 +236,6 @@ public class ReActEngine {
         return "I reached the maximum number of reasoning steps.";
     }
 
-    private void streamTextAsTokenEvents(OutputStream out, String text, StringBuilder collector) {
-        int chunkSize = 20;
-        for (int i = 0; i < text.length(); i += chunkSize) {
-            String chunk = text.substring(i, Math.min(i + chunkSize, text.length()));
-            collector.append(chunk);
-            String escaped = mapper.createObjectNode().put("content", chunk).toString();
-            writeSseEvent(out, "token", escaped);
-        }
-    }
-
     private void writeSseEvent(OutputStream out, String event, String data) {
         try {
             out.write(("event: " + event + "\ndata: " + data + "\n\n").getBytes(StandardCharsets.UTF_8));
@@ -230,5 +243,9 @@ public class ReActEngine {
         } catch (IOException e) {
             log.debug("SSE write failed (client disconnected?): {}", e.getMessage());
         }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 }

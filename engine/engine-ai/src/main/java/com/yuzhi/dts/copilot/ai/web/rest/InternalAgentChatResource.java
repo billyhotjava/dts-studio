@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -83,6 +82,12 @@ public class InternalAgentChatResource {
         }
         if (!request.hasRequiredFields()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId and message are required");
+        }
+        if (StringUtils.hasText(request.sessionId())) {
+            ResponseEntity<?> ownershipError = verifySessionOwnership(request.sessionId(), request.userId());
+            if (ownershipError != null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found");
+            }
         }
 
         return outputStream -> agentChatService.sendMessageStream(
@@ -194,6 +199,7 @@ public class InternalAgentChatResource {
         map.put("toolCalls", message.getToolCalls());
         map.put("toolCallId", message.getToolCallId());
         map.put("generatedSql", message.getGeneratedSql());
+        map.put("reasoningContent", message.getReasoningContent());
         map.put("routedDomain", message.getRoutedDomain());
         map.put("targetView", message.getTargetView());
         map.put("templateCode", message.getTemplateCode());

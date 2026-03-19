@@ -10,6 +10,7 @@ import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService.GroundingCo
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.OutputStream;
@@ -83,6 +84,7 @@ public class AgentChatService {
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(response);
         assistantMsg.setGeneratedSql(executionResult.generatedSql());
+        assistantMsg.setReasoningContent(executionResult.reasoningContent());
         applyGroundingMetadata(assistantMsg, executionResult.groundingContext());
         session.addMessage(assistantMsg);
 
@@ -108,7 +110,6 @@ public class AgentChatService {
      * @param datasourceId optional data source identifier from the request
      * @param output       the output stream for SSE events
      */
-    @Transactional
     public void sendMessageStream(String sessionId, String userId, String message,
                                   Long datasourceId, OutputStream output) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
@@ -142,8 +143,10 @@ public class AgentChatService {
                     session.getSessionId(), userId, message, history, effectiveDataSourceId, output);
         } catch (Exception e) {
             log.error("Streaming chat failed: {}", e.getMessage(), e);
+            String errorMessage = buildStreamFailureMessage(e);
+            persistStreamingFailure(session, userId, message, errorMessage);
             try {
-                output.write(("event: error\ndata: {\"error\":\"" + escapeForSse(e.getMessage()) + "\"}\n\n")
+                output.write(("event: error\ndata: {\"error\":\"" + escapeForSse(errorMessage) + "\"}\n\n")
                         .getBytes(StandardCharsets.UTF_8));
                 output.flush();
             } catch (Exception ignored) {}
@@ -155,6 +158,7 @@ public class AgentChatService {
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(executionResult.response());
         assistantMsg.setGeneratedSql(executionResult.generatedSql());
+        assistantMsg.setReasoningContent(executionResult.reasoningContent());
         applyGroundingMetadata(assistantMsg, executionResult.groundingContext());
         session.addMessage(assistantMsg);
 
@@ -250,6 +254,33 @@ public class AgentChatService {
             return "";
         }
         return text.replace("\n", "\\n").replace("\r", "");
+    }
+
+    private void persistStreamingFailure(AiChatSession session, String userId, String userMessage, String errorMessage) {
+        AiChatMessage assistantMsg = new AiChatMessage();
+        assistantMsg.setRole("assistant");
+        assistantMsg.setContent(errorMessage);
+        session.addMessage(assistantMsg);
+
+        if (session.getTitle() == null || session.getTitle().isBlank()) {
+            session.setTitle(generateTitle(userMessage));
+        }
+
+        sessionRepository.save(session);
+        auditService.logChatAction(userId, session.getSessionId(),
+                "CHAT_MESSAGE_ERROR", userMessage, errorMessage);
+    }
+
+    static String buildStreamFailureMessage(Exception exception) {
+        String base = "抱歉，本次回答失败，请稍后重试。";
+        if (exception == null || !StringUtils.hasText(exception.getMessage())) {
+            return base;
+        }
+        String detail = exception.getMessage().trim();
+        if (detail.length() > 200) {
+            detail = detail.substring(0, 197) + "...";
+        }
+        return base + " 原因: " + detail;
     }
 
     private void applyGroundingMetadata(AiChatMessage assistantMsg, GroundingContext groundingContext) {

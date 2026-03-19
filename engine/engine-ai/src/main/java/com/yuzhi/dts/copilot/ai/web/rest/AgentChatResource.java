@@ -141,6 +141,7 @@ public class AgentChatResource {
         map.put("toolCalls", msg.getToolCalls());
         map.put("toolCallId", msg.getToolCallId());
         map.put("generatedSql", msg.getGeneratedSql());
+        map.put("reasoningContent", msg.getReasoningContent());
         map.put("routedDomain", msg.getRoutedDomain());
         map.put("targetView", msg.getTargetView());
         map.put("templateCode", msg.getTemplateCode());

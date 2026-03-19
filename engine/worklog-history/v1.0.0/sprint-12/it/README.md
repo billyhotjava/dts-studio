@@ -17,3 +17,23 @@
 - copilot-ai 运行中（8091）
 - copilot-analytics 运行中（8092）
 - 已登录获取 session cookie
+
+## 可执行 Smoke
+
+当前目录新增了可执行脚本：
+
+```bash
+./test_streaming_guardrails.sh
+```
+
+脚本默认直接验证 `copilot-ai` 内部 SSE 端点，避免依赖 analytics 登录态，覆盖这轮修复后的两条关键保护：
+
+- SSE 基本事件序列：`session -> token* -> done`
+- 流式端点会话归属校验：错误用户使用他人 `sessionId` 时返回 `404`
+
+可选环境变量：
+
+```bash
+AI_BASE_URL=http://127.0.0.1:8091
+COPILOT_ADMIN_SECRET=change-me-in-production
+```
