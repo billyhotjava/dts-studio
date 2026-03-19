@@ -140,6 +140,10 @@ public class AgentChatResource {
         map.put("content", msg.getContent());
         map.put("toolCalls", msg.getToolCalls());
         map.put("toolCallId", msg.getToolCallId());
+        map.put("generatedSql", msg.getGeneratedSql());
+        map.put("routedDomain", msg.getRoutedDomain());
+        map.put("targetView", msg.getTargetView());
+        map.put("templateCode", msg.getTemplateCode());
         map.put("createdAt", msg.getCreatedAt() != null ? msg.getCreatedAt().toString() : null);
         return map;
     }

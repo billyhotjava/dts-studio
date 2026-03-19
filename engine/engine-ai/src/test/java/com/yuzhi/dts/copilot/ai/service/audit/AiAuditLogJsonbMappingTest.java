@@ -134,6 +134,10 @@ class AiAuditLogJsonbMappingTest {
                         tool_calls jsonb,
                         tool_call_id varchar(128),
                         tokens_used integer,
+                        generated_sql text,
+                        routed_domain varchar(32),
+                        target_view varchar(128),
+                        template_code varchar(64),
                         created_at timestamptz
                     )
                     """.formatted(SCHEMA, SCHEMA));
@@ -153,6 +157,10 @@ class AiAuditLogJsonbMappingTest {
             message.setRole("assistant");
             message.setContent("hello");
             message.setToolCalls("[]");
+            message.setGeneratedSql("select 1");
+            message.setRoutedDomain("project");
+            message.setTargetView("v_project_overview");
+            message.setTemplateCode("project_overview_topn");
             chatSession.addMessage(message);
 
             session.persist(chatSession);

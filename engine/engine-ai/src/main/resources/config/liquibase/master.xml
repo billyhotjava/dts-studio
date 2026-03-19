@@ -15,4 +15,5 @@
     <include file="config/liquibase/changelog/v1_0_0_009__nl2sql_routing.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_010__nl2sql_query_template.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_011__mart_query_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_012__chat_message_grounding_metadata.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

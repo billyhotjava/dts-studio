@@ -182,7 +182,7 @@ VALUES
 ('TPL-16', 'curing', NULL,
  '["(没养护|未养护|还没养护).*(摆位)"]',
  '["本月哪些摆位还没做过养护？","未养护的摆位有多少？"]',
- 'SELECT project_name, curing_user_name, total_position_count, covered_position_count, (total_position_count - covered_position_count) as 未养护摆位数, coverage_rate FROM v_curing_coverage WHERE curing_month = :month AND coverage_rate < 1.0 ORDER BY 未养护摆位数 DESC',
+ 'SELECT project_name, curing_user_name, total_position_count, covered_position_count, (total_position_count - covered_position_count) as 未养护摆位数, coverage_rate FROM v_curing_coverage WHERE curing_month = :month AND coverage_rate &lt; 1.0 ORDER BY 未养护摆位数 DESC',
  '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
  'v_curing_coverage', '未养护摆位', 10),
 

@@ -4,7 +4,9 @@ import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.repository.AiChatSessionRepository;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService;
+import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService.ChatExecutionResult;
 import com.yuzhi.dts.copilot.ai.service.audit.AiAuditService;
+import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService.GroundingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -72,13 +74,16 @@ public class AgentChatService {
         Long effectiveDataSourceId = datasourceId != null ? datasourceId : session.getDataSourceId();
 
         // Execute agent
-        String response = agentExecutionService.executeChat(
+        ChatExecutionResult executionResult = agentExecutionService.executeChat(
                 session.getSessionId(), userId, message, history, effectiveDataSourceId);
+        String response = executionResult.response();
 
         // Persist assistant message
         AiChatMessage assistantMsg = new AiChatMessage();
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(response);
+        assistantMsg.setGeneratedSql(executionResult.generatedSql());
+        applyGroundingMetadata(assistantMsg, executionResult.groundingContext());
         session.addMessage(assistantMsg);
 
         // Auto-generate title from first message
@@ -214,5 +219,14 @@ public class AgentChatService {
             return "";
         }
         return text.replace("\n", "\\n").replace("\r", "");
+    }
+
+    private void applyGroundingMetadata(AiChatMessage assistantMsg, GroundingContext groundingContext) {
+        if (assistantMsg == null || groundingContext == null || groundingContext.needsClarification()) {
+            return;
+        }
+        assistantMsg.setRoutedDomain(groundingContext.domain());
+        assistantMsg.setTargetView(groundingContext.primaryView());
+        assistantMsg.setTemplateCode(groundingContext.templateCode());
     }
 }
