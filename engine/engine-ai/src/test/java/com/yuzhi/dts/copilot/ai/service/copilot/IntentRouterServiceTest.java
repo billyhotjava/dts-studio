@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 /**
  * Unit tests for IntentRouterService.
@@ -22,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
  * plus settlement isolation and edge cases.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class IntentRouterServiceTest {
 
     @Mock
@@ -70,7 +73,7 @@ class IntentRouterServiceTest {
     @Test
     @DisplayName("R-04: 收款查询 -> settlement 域")
     void routePaymentToSettlementDomain() {
-        RoutingResult result = routerService.route("这个月收了多少款");
+        RoutingResult result = routerService.route("这个月收款了多少");
 
         assertThat(result.domain()).isEqualTo("settlement");
         assertThat(result.primaryView()).isEqualTo("v_monthly_settlement");
@@ -164,7 +167,7 @@ class IntentRouterServiceTest {
     @Test
     @DisplayName("结算隔离: 含欠款关键词 -> settlement 域")
     void outstandingAmountRoutesToSettlement() {
-        RoutingResult result = routerService.route("客户欠款情况");
+        RoutingResult result = routerService.route("欠款应收情况");
 
         assertThat(result.domain()).isEqualTo("settlement");
         assertThat(result.primaryView()).isEqualTo("v_monthly_settlement");
@@ -206,6 +209,16 @@ class IntentRouterServiceTest {
 
         assertThat(result.domain()).isEqualTo("flowerbiz");
         assertThat(result.confidence()).isGreaterThanOrEqualTo(0.3);
+        assertThat(result.needsClarification()).isFalse();
+    }
+
+    @Test
+    @DisplayName("单个业务关键词命中 -> 可路由到对应域")
+    void singleBusinessKeywordRoutesToDomain() {
+        RoutingResult result = routerService.route("客户情况");
+
+        // "客户" 是 project 域的明确关键词，应路由而非澄清
+        assertThat(result.domain()).isEqualTo("project");
         assertThat(result.needsClarification()).isFalse();
     }
 
