@@ -1,0 +1,75 @@
+{
+  "domain": "project",
+  "description": "项目履约主题域，覆盖项目、客户、合同、摆位、绿植、结算",
+  "objects": [
+    {
+      "name": "项目点",
+      "view": "v_project_overview",
+      "description": "客户现场布置绿植的物理地点，是所有业务操作的归属单位",
+      "keyDimensions": ["project_name", "customer_name", "manager_name", "project_status_name"],
+      "keyMeasures": ["green_count", "total_rent", "position_count"],
+      "commonFilters": ["project_status_name", "settlement_type_name", "contract_end_date"],
+      "defaultTimeField": "project_start_time"
+    },
+    {
+      "name": "在摆绿植",
+      "view": "v_project_green_current",
+      "description": "当前实际在位的绿植清单，每棵植物有独立的摆位、租金和养护人",
+      "keyDimensions": ["project_name", "position_name", "good_name", "curing_user_name"],
+      "keyMeasures": ["good_number", "rent", "cost"],
+      "commonFilters": ["project_name", "curing_user_name", "good_name"],
+      "defaultTimeField": "pose_time"
+    },
+    {
+      "name": "月度结算",
+      "view": "v_monthly_settlement",
+      "description": "每月每项目的应收/已收/未收金额，是财务查询的核心数据源。金额已由Java结算服务计算完成",
+      "keyDimensions": ["project_name", "customer_name", "settlement_month"],
+      "keyMeasures": ["total_rent", "receivable_amount", "received_amount", "outstanding_amount"],
+      "commonFilters": ["settlement_status_name", "settlement_month", "customer_name"],
+      "defaultTimeField": "settlement_month"
+    }
+  ],
+  "synonyms": [
+    {"term": "项目经理", "field": "manager_name", "views": ["v_project_overview"]},
+    {"term": "业务经理", "field": "biz_user_name", "views": ["v_project_overview"]},
+    {"term": "租金", "field": "total_rent", "views": ["v_monthly_settlement"]},
+    {"term": "应收", "field": "receivable_amount", "views": ["v_monthly_settlement"]},
+    {"term": "欠款", "field": "outstanding_amount", "views": ["v_monthly_settlement"]},
+    {"term": "养护人", "field": "curing_user_name", "views": ["v_project_green_current", "v_curing_coverage"]},
+    {"term": "活跃项目", "field": "project_status_name='正常'", "views": ["v_project_overview"]},
+    {"term": "在服项目", "field": "project_status_name='正常'", "views": ["v_project_overview"]},
+    {"term": "固定月租", "field": "settlement_type_name='固定月租'", "views": ["v_project_overview"]},
+    {"term": "按实摆", "field": "settlement_type_name='按实摆结算'", "views": ["v_project_overview"]}
+  ],
+  "fewShots": [
+    {
+      "question": "当前有多少在服项目？",
+      "sql": "SELECT count(*) as 在服项目数 FROM v_project_overview WHERE project_status_name = '正常'"
+    },
+    {
+      "question": "XX项目有多少绿植？",
+      "sql": "SELECT project_name, count(*) as 绿植数, sum(good_number) as 总量 FROM v_project_green_current WHERE project_name LIKE '%XX%' GROUP BY project_name"
+    },
+    {
+      "question": "上个月各项目租金排行",
+      "sql": "SELECT project_name, total_rent FROM v_monthly_settlement WHERE settlement_month = '2026-02' ORDER BY total_rent DESC"
+    },
+    {
+      "question": "哪些合同快到期了？",
+      "sql": "SELECT project_name, customer_name, contract_title, contract_end_date, DATEDIFF(contract_end_date, CURDATE()) as 剩余天数 FROM v_project_overview WHERE contract_status_name = '执行中' AND contract_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY) ORDER BY contract_end_date"
+    },
+    {
+      "question": "XX客户有几个项目？",
+      "sql": "SELECT customer_name, count(*) as 项目数 FROM v_project_overview WHERE customer_name LIKE '%XX%' GROUP BY customer_name"
+    },
+    {
+      "question": "固定月租的项目有哪些？",
+      "sql": "SELECT project_name, customer_name, month_settlement_money FROM v_project_overview WHERE settlement_type_name = '固定月租' AND project_status_name = '正常'"
+    },
+    {
+      "question": "客户欠款排名",
+      "sql": "SELECT customer_name, sum(outstanding_amount) as 累计欠款 FROM v_monthly_settlement WHERE outstanding_amount > 0 GROUP BY customer_name ORDER BY 累计欠款 DESC"
+    }
+  ]
+}

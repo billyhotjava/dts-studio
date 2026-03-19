@@ -856,9 +856,9 @@ public class ScreenCollaborationResource {
         if (last != null) {
             return last;
         }
-        String email = trimToNull(user.getEmail());
-        if (email != null) {
-            return email;
+        String uname = trimToNull(user.getUsername());
+        if (uname != null) {
+            return uname;
         }
         return user.getId() == null ? "unknown" : ("user#" + user.getId());
     }

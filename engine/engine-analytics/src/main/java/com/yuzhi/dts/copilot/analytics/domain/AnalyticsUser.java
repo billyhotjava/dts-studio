@@ -20,8 +20,8 @@ public class AnalyticsUser implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "email", nullable = false, length = 254, unique = true)
-    private String email;
+    @Column(name = "username", nullable = false, length = 254, unique = true)
+    private String username;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
@@ -52,12 +52,12 @@ public class AnalyticsUser implements Serializable {
         this.id = id;
     }
 
-    public String getEmail() {
-        return email;
+    public String getUsername() {
+        return username;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
     public String getFirstName() {

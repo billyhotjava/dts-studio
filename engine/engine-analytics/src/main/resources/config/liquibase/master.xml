@@ -39,4 +39,7 @@
     <include file="config/liquibase/changelog/0032_explore_sessions.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0033_report_factory.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0034_synonym_dictionary.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0035_user_email_to_username.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0036_business_views_metadata.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0037_semantic_extensions.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

@@ -61,7 +61,7 @@ public class SessionResource {
         String username = request == null ? "" : Objects.toString(request.username(), "").trim();
         String password = request == null ? "" : Objects.toString(request.password(), "");
 
-        Optional<AnalyticsUser> user = userRepository.findByEmailIgnoreCase(username);
+        Optional<AnalyticsUser> user = userRepository.findByUsernameIgnoreCase(username);
         if (user.isEmpty() || !passwordEncoder.matches(password, user.get().getPasswordHash())) {
             ResponseEntity.BodyBuilder builder = ResponseEntity.status(401).contentType(MediaType.APPLICATION_JSON);
             for (String cookie : MetabaseCookies.deviceCookieHeaders(deviceId, secure)) {
@@ -103,8 +103,8 @@ public class SessionResource {
 
     @PostMapping(path = "/forgot_password", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
-        String email = request == null ? "" : Objects.toString(request.email(), "").trim();
-        userRepository.findByEmailIgnoreCase(email).ifPresent(user -> {
+        String username = request == null ? "" : Objects.toString(request.username(), "").trim();
+        userRepository.findByUsernameIgnoreCase(username).ifPresent(user -> {
             AnalyticsPasswordResetToken token = new AnalyticsPasswordResetToken();
             token.setToken(UUID.randomUUID().toString());
             token.setUserId(user.getId());
@@ -160,7 +160,7 @@ public class SessionResource {
 
     public record SessionRequest(@JsonProperty("username") String username, @JsonProperty("password") String password) {}
 
-    public record ForgotPasswordRequest(@JsonProperty("email") String email) {}
+    public record ForgotPasswordRequest(@JsonProperty("username") String username) {}
 
     public record PasswordResetTokenValidRequest(@JsonProperty("token") String token) {}
 

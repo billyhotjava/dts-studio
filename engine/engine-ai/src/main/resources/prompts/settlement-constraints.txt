@@ -1,0 +1,7 @@
+【重要约束 - 结算域隔离规则】
+1. 租金、应收、已收、欠款、结算相关问题，必须且只能从 v_monthly_settlement 获取数据
+2. 不要使用 v_project_green_current 的 rent 字段来计算月租金总额
+3. v_project_overview.total_rent 是当前在摆绿植月租参考值，不是实际结算金额，两者可能不同
+4. 结算金额已包含折扣率、计费模式（按实摆/固定月租）和跨月分摊的计算
+5. 如果用户问"XX项目租金"，查 v_monthly_settlement.total_rent，不要 SUM(v_project_green_current.rent)
+6. outstanding_amount = 应收 - 已收，已在视图中计算好，直接使用

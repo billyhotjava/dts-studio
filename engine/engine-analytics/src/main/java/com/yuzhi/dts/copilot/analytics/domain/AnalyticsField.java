@@ -53,6 +53,15 @@ public class AnalyticsField implements Serializable {
     @Column(name = "fingerprint_json", columnDefinition = "text")
     private String fingerprintJson;
 
+    @Column(name = "field_role", length = 16)
+    private String fieldRole;
+
+    @Column(name = "is_filterable")
+    private Boolean isFilterable = false;
+
+    @Column(name = "sample_values", length = 512)
+    private String sampleValues;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -153,6 +162,30 @@ public class AnalyticsField implements Serializable {
 
     public void setFingerprintJson(String fingerprintJson) {
         this.fingerprintJson = fingerprintJson;
+    }
+
+    public String getFieldRole() {
+        return fieldRole;
+    }
+
+    public void setFieldRole(String fieldRole) {
+        this.fieldRole = fieldRole;
+    }
+
+    public Boolean getIsFilterable() {
+        return isFilterable;
+    }
+
+    public void setIsFilterable(Boolean isFilterable) {
+        this.isFilterable = isFilterable;
+    }
+
+    public String getSampleValues() {
+        return sampleValues;
+    }
+
+    public void setSampleValues(String sampleValues) {
+        this.sampleValues = sampleValues;
     }
 
     public Instant getCreatedAt() {

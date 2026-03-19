@@ -100,8 +100,8 @@ public class CopilotChatResource {
     }
 
     private String resolveCopilotUserId(AnalyticsUser user) {
-        if (StringUtils.hasText(user.getEmail())) {
-            return user.getEmail().trim();
+        if (StringUtils.hasText(user.getUsername())) {
+            return user.getUsername().trim();
         }
         String fullName = ((user.getFirstName() == null ? "" : user.getFirstName()) + " " + (user.getLastName() == null ? "" : user.getLastName())).trim();
         if (StringUtils.hasText(fullName)) {

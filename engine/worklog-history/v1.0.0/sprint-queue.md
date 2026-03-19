@@ -134,23 +134,33 @@
 
 **统计**: READY=0, IN_PROGRESS=1, DONE=10, BLOCKED=0
 
-## Sprint-10: 园林业务语义层与双通道 NL2SQL (BG)
+## Sprint-10: 园林业务语义层与 NL2SQL 落地 (BG)
 
-| ID | 任务 | 状态 | 依赖 |
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| BG-01 | 业务域盘点与高频问句清单 | P0 | READY | IN-03, NV-07 |
+| BG-02 | 业务视图层建设 | P0 | READY | BG-01 |
+| BG-03 | 状态码与业务枚举词典 | P0 | READY | BG-01 |
+| BG-04 | 预制查询模板 TOP 20 | P0 | READY | BG-02, BG-03 |
+| BG-05 | 语义模型基线与视图元数据标注 | P1 | READY | BG-02 |
+| BG-06 | 业务语义包（项目履约 + 现场业务） | P1 | READY | BG-05 |
+| BG-07 | 意图路由规则引擎 | P1 | READY | BG-02, BG-03 |
+| BG-08 | 结算域指标直查对齐 | P2 | READY | BG-02 |
+| BG-09 | 查询权限桥接 | P2 | READY | BG-02, BG-07 |
+| BG-10 | IT 集成测试与验收矩阵 | P2 | READY | BG-01~09, BG-11 |
+| BG-11 | Copilot 交互体验增强 | P0 | READY | BG-04, BG-07 |
+
+**统计**: READY=11, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Backlog: 从 Sprint-10 移出的任务
+
+以下任务从 Sprint-10 初版移出，视图层验证有效后作为后续迭代候选：
+
+| ID | 任务 | 状态 | 说明 |
 |----|------|------|------|
-| BG-01 | 业务域盘点与语义源映射 | READY | IN-03, NV-07 |
-| BG-02 | 语义对象/字段/关系模型基线 | READY | BG-01 |
-| BG-03 | 项目履约语义包 | READY | BG-02 |
-| BG-04 | 现场业务语义包 | READY | BG-02 |
-| BG-05 | Join Contract 与 Allowed Tables 编译 | READY | BG-03, BG-04 |
-| BG-06 | 指标口径与 Metric Store 对齐 | READY | BG-03, BG-04 |
-| BG-07 | 意图路由与双通道判定 | READY | BG-05, BG-06 |
-| BG-08 | 直连通道上下文编译与权限桥接 | READY | BG-05, BG-07 |
-| BG-09 | 轻量 ELT 主题层与增量同步 | READY | BG-03, BG-04, BG-06 |
-| BG-10 | IT 集成测试与验收矩阵 | READY | BG-01~09 |
-
-**统计**: READY=10, IN_PROGRESS=0, DONE=0, BLOCKED=0
+| BL-01 | Join Contract 与 Allowed Tables 编译 | DEFERRED | 视图层已替代其核心功能，降为补充手段 |
+| BL-02 | 轻量 ELT 主题层与增量同步 | DEFERRED | 视图层 + 预制模板验证有效后再评估是否需要物化 |
 
 ## 总体统计
 
-**READY=63, IN_PROGRESS=1, DONE=10, BLOCKED=0 (总计 74 任务)**
+**READY=64, IN_PROGRESS=1, DONE=10, BLOCKED=0, DEFERRED=2 (总计 77 任务)**

@@ -643,7 +643,7 @@ public class CardResource {
 
     private Map<String, Object> toCreator(AnalyticsUser user) {
         Map<String, Object> creator = new LinkedHashMap<>();
-        creator.put("email", user.getEmail());
+        creator.put("email", user.getUsername());
         creator.put("first_name", user.getFirstName());
         creator.put("last_login", null);
         creator.put("is_qbnewb", true);

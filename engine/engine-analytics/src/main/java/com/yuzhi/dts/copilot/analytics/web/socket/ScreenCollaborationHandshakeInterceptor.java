@@ -61,8 +61,8 @@ public class ScreenCollaborationHandshakeInterceptor implements HandshakeInterce
         if (!full.isBlank()) {
             return full;
         }
-        if (user.getEmail() != null && !user.getEmail().isBlank()) {
-            return user.getEmail().trim();
+        if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            return user.getUsername().trim();
         }
         if (user.getId() != null) {
             return "用户#" + user.getId();

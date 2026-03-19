@@ -41,6 +41,18 @@ public class AnalyticsTable implements Serializable {
     @Column(name = "visibility_type", nullable = false, length = 32)
     private String visibilityType = "normal";
 
+    @Column(name = "semantic_domain", length = 32)
+    private String semanticDomain;
+
+    @Column(name = "default_time_field", length = 128)
+    private String defaultTimeField;
+
+    @Column(name = "default_sort_field", length = 128)
+    private String defaultSortField;
+
+    @Column(name = "semantic_description", columnDefinition = "text")
+    private String semanticDescription;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -109,6 +121,38 @@ public class AnalyticsTable implements Serializable {
 
     public void setVisibilityType(String visibilityType) {
         this.visibilityType = visibilityType;
+    }
+
+    public String getSemanticDomain() {
+        return semanticDomain;
+    }
+
+    public void setSemanticDomain(String semanticDomain) {
+        this.semanticDomain = semanticDomain;
+    }
+
+    public String getDefaultTimeField() {
+        return defaultTimeField;
+    }
+
+    public void setDefaultTimeField(String defaultTimeField) {
+        this.defaultTimeField = defaultTimeField;
+    }
+
+    public String getDefaultSortField() {
+        return defaultSortField;
+    }
+
+    public void setDefaultSortField(String defaultSortField) {
+        this.defaultSortField = defaultSortField;
+    }
+
+    public String getSemanticDescription() {
+        return semanticDescription;
+    }
+
+    public void setSemanticDescription(String semanticDescription) {
+        this.semanticDescription = semanticDescription;
     }
 
     public Instant getCreatedAt() {

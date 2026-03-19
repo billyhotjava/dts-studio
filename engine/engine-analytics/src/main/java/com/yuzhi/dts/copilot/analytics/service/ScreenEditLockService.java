@@ -172,9 +172,9 @@ public class ScreenEditLockService {
         if (fullName != null) {
             return fullName;
         }
-        String email = trimToNull(user.getEmail());
-        if (email != null) {
-            return email;
+        String username = trimToNull(user.getUsername());
+        if (username != null) {
+            return username;
         }
         return String.valueOf(user.getId());
     }

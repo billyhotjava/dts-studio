@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- BG-07: nl2sql_routing_rule table                             -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-009-nl2sql-routing-rule" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists schemaName="copilot_ai" tableName="nl2sql_routing_rule"/>
+            </not>
+        </preConditions>
+        <createTable schemaName="copilot_ai" tableName="nl2sql_routing_rule">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="domain" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="keywords" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="primary_view" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="secondary_views" type="TEXT"/>
+            <column name="priority" type="INT" defaultValueNumeric="0"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- BG-07: Seed routing rules                                    -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-009-nl2sql-routing-seed" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.nl2sql_routing_rule
+            </sqlCheck>
+        </preConditions>
+
+        <sql>
+INSERT INTO copilot_ai.nl2sql_routing_rule (domain, keywords, primary_view, secondary_views, priority)
+VALUES
+  ('project',    '["项目","在服","项目点","合同","客户","签约","到期","正常","停用"]', 'v_project_overview', '["v_project_green_current"]', 0),
+  ('flowerbiz',  '["加花","换花","减花","调花","报花","坏账","售花","业务单","审批","驳回","审核","备货"]', 'v_flower_biz_detail', '[]', 0),
+  ('green',      '["绿植","摆位","在摆","实摆","花盆","花架","摆放","盆栽"]', 'v_project_green_current', '["v_project_overview"]', 0),
+  ('settlement', '["租金","应收","收款","欠款","结算","未结算","月租","账单","开票","收入","费用"]', 'v_monthly_settlement', '["v_project_overview"]', 0),
+  ('task',       '["任务","待办","待处理","执行","完成率","进行中","日常任务"]', 'v_task_progress', '["v_pendulum_progress"]', 0),
+  ('curing',     '["养护","养护人","巡检","覆盖率","养护记录","维护"]', 'v_curing_coverage', '[]', 0),
+  ('pendulum',   '["初摆","首摆","新项目布置","预算","决算"]', 'v_pendulum_progress', '[]', 0);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

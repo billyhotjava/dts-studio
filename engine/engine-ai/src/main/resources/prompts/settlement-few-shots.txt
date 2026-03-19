@@ -1,0 +1,13 @@
+以下是结算域查询的正确示例：
+
+Q: XX项目上个月租金是多少？
+正确: SELECT project_name, total_rent as 应收租金, received_amount as 已收, outstanding_amount as 未收 FROM v_monthly_settlement WHERE project_name LIKE '%XX%' AND settlement_month = '2026-02'
+错误: SELECT project_name, SUM(rent) FROM v_project_green_current WHERE project_name LIKE '%XX%'
+原因: 租金必须从 v_monthly_settlement 获取，因为结算金额已包含折扣和计费模式计算
+
+Q: 哪些客户有欠款？
+正确: SELECT customer_name, SUM(outstanding_amount) as 累计欠款 FROM v_monthly_settlement WHERE outstanding_amount > 0 GROUP BY customer_name ORDER BY 累计欠款 DESC
+错误: 任何不使用 v_monthly_settlement 的查询
+
+Q: 各项目月租金排行
+正确: SELECT project_name, total_rent FROM v_monthly_settlement WHERE settlement_month = '2026-02' ORDER BY total_rent DESC

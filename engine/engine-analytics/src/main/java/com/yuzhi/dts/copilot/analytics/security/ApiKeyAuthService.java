@@ -57,11 +57,11 @@ public class ApiKeyAuthService {
         String userName = String.valueOf(userInfo.getOrDefault("userName", userId));
 
         // Auto-provision AnalyticsUser on first login
-        AnalyticsUser analyticsUser = userRepository.findByEmailIgnoreCase(userId)
+        AnalyticsUser analyticsUser = userRepository.findByUsernameIgnoreCase(userId)
                 .orElseGet(() -> {
                     log.info("Auto-provisioning analytics user for: {}", userId);
                     AnalyticsUser newUser = new AnalyticsUser();
-                    newUser.setEmail(userId);
+                    newUser.setUsername(userId);
                     newUser.setFirstName(userName);
                     newUser.setLastName("");
                     newUser.setPasswordHash("api-key-auth");

@@ -11,4 +11,7 @@
     <include file="config/liquibase/changelog/v1_0_0_005__api_key_extend.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_006__provider_config_alignment.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_007__data_source_description.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_008__biz_enum_dictionary.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_009__nl2sql_routing.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_010__nl2sql_query_template.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/setup")
 public class SetupResource {
 
-    private static final Pattern BASIC_EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    private static final Pattern BASIC_USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-]{2,50}$");
 
     private final SetupStateService setupStateService;
     private final AnalyticsUserRepository userRepository;
@@ -75,9 +75,9 @@ public class SetupResource {
         }
 
         SetupUser user = request == null ? null : request.user();
-        String email = user == null ? "" : Objects.toString(user.email(), "").trim();
-        if (!BASIC_EMAIL_PATTERN.matcher(email).matches()) {
-            errors.put("email", "value must be a valid email address.");
+        String username = user == null ? "" : Objects.toString(user.username(), "").trim();
+        if (!BASIC_USERNAME_PATTERN.matcher(username).matches()) {
+            errors.put("username", "用户名只能包含字母、数字、下划线和连字符，长度 2-50。");
         }
 
         String firstName = user == null ? "" : Objects.toString(user.firstName(), "").trim();
@@ -104,12 +104,12 @@ public class SetupResource {
             return ResponseEntity.badRequest().body(Map.of("errors", errors));
         }
 
-        if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
-            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("email", "email already in use.")));
+        if (userRepository.findByUsernameIgnoreCase(username).isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("errors", Map.of("username", "用户名已存在。")));
         }
 
         AnalyticsUser admin = new AnalyticsUser();
-        admin.setEmail(email);
+        admin.setUsername(username);
         admin.setFirstName(firstName);
         admin.setLastName(lastName);
         admin.setPasswordHash(passwordEncoder.encode(password));
@@ -231,7 +231,7 @@ public class SetupResource {
     public record SetupPrefs(@JsonProperty("site_name") String siteName, @JsonProperty("allow_tracking") Boolean allowTracking) {}
 
     public record SetupUser(
-            @JsonProperty("email") String email,
+            @JsonProperty("username") String username,
             @JsonProperty("first_name") String firstName,
             @JsonProperty("last_name") String lastName,
             @JsonProperty("password") String password) {}

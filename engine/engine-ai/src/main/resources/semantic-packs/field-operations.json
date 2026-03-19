@@ -1,0 +1,92 @@
+{
+  "domain": "flowerbiz",
+  "description": "现场业务主题域，覆盖报花业务（加花/换花/减花/调花等）、任务管理、养护、初摆",
+  "objects": [
+    {
+      "name": "报花业务",
+      "view": "v_flower_biz_detail",
+      "description": "所有花卉业务单据，是现场运营的核心流水。biz_type_name为中文业务类型，biz_status_name为中文状态",
+      "keyDimensions": ["project_name", "biz_type_name", "biz_status_name", "apply_user_name", "biz_month"],
+      "keyMeasures": ["plant_number", "biz_total_rent", "biz_total_cost"],
+      "commonFilters": ["biz_type_name", "biz_status_name", "project_name", "biz_month"],
+      "defaultTimeField": "apply_time"
+    },
+    {
+      "name": "日常任务",
+      "view": "v_task_progress",
+      "description": "各类型工作任务（销售/内购/实摆变更/支持/初摆），追踪执行进度",
+      "keyDimensions": ["project_name", "task_type_name", "task_status_name", "leading_user_name"],
+      "keyMeasures": ["total_number", "finish_number", "completion_rate", "total_rent"],
+      "commonFilters": ["task_status_name", "task_type_name", "project_name"],
+      "defaultTimeField": "launch_time"
+    },
+    {
+      "name": "养护覆盖",
+      "view": "v_curing_coverage",
+      "description": "各养护人的养护覆盖率统计，按月汇总",
+      "keyDimensions": ["project_name", "curing_user_name", "curing_month"],
+      "keyMeasures": ["curing_count", "total_position_count", "covered_position_count", "coverage_rate"],
+      "commonFilters": ["curing_user_name", "curing_month"],
+      "defaultTimeField": "curing_month"
+    },
+    {
+      "name": "初摆",
+      "view": "v_pendulum_progress",
+      "description": "新项目首次布置的进度追踪，含预算和实际花费",
+      "keyDimensions": ["project_name", "pendulum_status_name", "applicant_name"],
+      "keyMeasures": ["total_budget_cost", "actual_cost", "balance_cost", "year_rent"],
+      "commonFilters": ["pendulum_status_name"],
+      "defaultTimeField": "applicant_date"
+    }
+  ],
+  "synonyms": [
+    {"term": "报花", "field": "所有biz_type_name的统称", "views": ["v_flower_biz_detail"]},
+    {"term": "加花", "field": "biz_type_name='加花'", "views": ["v_flower_biz_detail"]},
+    {"term": "换花", "field": "biz_type_name='换花'", "views": ["v_flower_biz_detail"]},
+    {"term": "减花", "field": "biz_type_name='减花'", "views": ["v_flower_biz_detail"]},
+    {"term": "调花", "field": "biz_type_name='调花'", "views": ["v_flower_biz_detail"]},
+    {"term": "待审批", "field": "biz_status_name='审核中'", "views": ["v_flower_biz_detail"]},
+    {"term": "进行中的任务", "field": "task_status_name='进行中'", "views": ["v_task_progress"]},
+    {"term": "待处理", "field": "task_status_name='进行中'", "views": ["v_task_progress"]},
+    {"term": "养护覆盖率", "field": "coverage_rate", "views": ["v_curing_coverage"]},
+    {"term": "初摆中", "field": "pendulum_status_name='初摆中'", "views": ["v_pendulum_progress"]},
+    {"term": "负责人", "field": "leading_user_name", "views": ["v_task_progress"]},
+    {"term": "发起人", "field": "apply_user_name", "views": ["v_flower_biz_detail"]},
+    {"term": "紧急", "field": "is_urgent='是'", "views": ["v_flower_biz_detail"]},
+    {"term": "费用承担", "field": "bear_cost_type_name", "views": ["v_flower_biz_detail"]}
+  ],
+  "fewShots": [
+    {
+      "question": "本月加花总共多少次？",
+      "sql": "SELECT count(*) as 加花次数 FROM v_flower_biz_detail WHERE biz_type_name = '加花' AND biz_month = '2026-03'"
+    },
+    {
+      "question": "上个月哪个项目换花最多？",
+      "sql": "SELECT project_name, count(*) as 换花次数 FROM v_flower_biz_detail WHERE biz_type_name = '换花' AND biz_month = '2026-02' GROUP BY project_name ORDER BY 换花次数 DESC LIMIT 1"
+    },
+    {
+      "question": "张三发起的报花单有哪些？",
+      "sql": "SELECT biz_code, biz_type_name, project_name, biz_status_name, apply_time FROM v_flower_biz_detail WHERE apply_user_name LIKE '%张三%' ORDER BY apply_time DESC"
+    },
+    {
+      "question": "紧急的换花单目前什么状态？",
+      "sql": "SELECT biz_code, project_name, biz_status_name, apply_time FROM v_flower_biz_detail WHERE biz_type_name = '换花' AND is_urgent = '是' AND biz_status_name NOT IN ('已完成', '作废') ORDER BY apply_time DESC"
+    },
+    {
+      "question": "各类报花业务分布",
+      "sql": "SELECT biz_type_name, count(*) as 单数, sum(plant_number) as 总数量 FROM v_flower_biz_detail WHERE biz_month = '2026-03' AND biz_status_name NOT IN ('作废', '驳回', '草稿') GROUP BY biz_type_name ORDER BY 单数 DESC"
+    },
+    {
+      "question": "进行中的任务有哪些？",
+      "sql": "SELECT task_code, task_title, task_type_name, project_name, leading_user_name, completion_rate FROM v_task_progress WHERE task_status_name = '进行中' ORDER BY launch_time DESC"
+    },
+    {
+      "question": "养护覆盖率低于80%的项目",
+      "sql": "SELECT project_name, curing_user_name, coverage_rate, total_position_count, covered_position_count FROM v_curing_coverage WHERE curing_month = '2026-03' AND coverage_rate < 0.8 ORDER BY coverage_rate"
+    },
+    {
+      "question": "初摆中的任务还有几个？",
+      "sql": "SELECT count(*) as 数量 FROM v_pendulum_progress WHERE pendulum_status_name = '初摆中'"
+    }
+  ]
+}

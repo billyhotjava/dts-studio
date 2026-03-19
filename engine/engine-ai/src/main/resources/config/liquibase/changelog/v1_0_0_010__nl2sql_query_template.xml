@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- BG-04: nl2sql_query_template table                           -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-010-nl2sql-query-template" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists schemaName="copilot_ai" tableName="nl2sql_query_template"/>
+            </not>
+        </preConditions>
+        <createTable schemaName="copilot_ai" tableName="nl2sql_query_template">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="template_code" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="domain" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_hint" type="VARCHAR(32)"/>
+            <column name="intent_patterns" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="question_samples" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sql_template" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parameters" type="TEXT"/>
+            <column name="target_view" type="VARCHAR(128)"/>
+            <column name="description" type="VARCHAR(256)"/>
+            <column name="priority" type="INT" defaultValueNumeric="0"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- BG-04: Seed 20 pre-built query templates                     -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-010-nl2sql-query-template-seed" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.nl2sql_query_template
+            </sqlCheck>
+        </preConditions>
+
+        <sql splitStatements="false">
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority)
+VALUES
+-- TPL-01: 项目在摆绿植数
+('TPL-01', 'project', NULL,
+ '["(项目|XX).*(绿植|花).*(多少|几|数量|总数)"]',
+ '["XX项目目前有多少在摆绿植？","XX项目的绿植数量","查一下XX项目有几盆花"]',
+ 'SELECT project_name, count(*) as 在摆绿植数, sum(good_number) as 绿植总量 FROM v_project_green_current WHERE project_name LIKE CONCAT(''%'', :project_name, ''%'') GROUP BY project_name',
+ '{"project_name":{"type":"string","required":true}}',
+ 'v_project_green_current', '项目在摆绿植数', 10),
+
+-- TPL-02: 在服项目总数
+('TPL-02', 'project', NULL,
+ '["(在服|正常|当前|活跃).*(项目).*(多少|几|总数|数量)"]',
+ '["当前在服项目一共多少个？","有多少正常运营的项目？","活跃项目数"]',
+ 'SELECT project_status_name, count(*) as 项目数 FROM v_project_overview WHERE project_status_name = ''正常'' GROUP BY project_status_name',
+ '{}',
+ 'v_project_overview', '在服项目总数', 10),
+
+-- TPL-03: 合同即将到期
+('TPL-03', 'project', NULL,
+ '["(合同).*(到期|快到期|即将到期|过期)"]',
+ '["哪些合同快到期了？","90天内到期的合同","即将到期的合同有哪些？"]',
+ 'SELECT project_name, customer_name, contract_title, contract_end_date, DATEDIFF(contract_end_date, CURDATE()) as 剩余天数 FROM v_project_overview WHERE contract_status_name = ''执行中'' AND contract_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL :days DAY) ORDER BY contract_end_date ASC',
+ '{"days":{"type":"integer","default":90}}',
+ 'v_project_overview', '合同即将到期', 10),
+
+-- TPL-04: 客户项目查询
+('TPL-04', 'project', NULL,
+ '["(客户|XX).*(有|下面|名下).*(几个|多少|哪些).*(项目)"]',
+ '["XX客户下面有几个项目？","XX客户名下的项目有哪些？"]',
+ 'SELECT customer_name, project_name, project_status_name, green_count, total_rent FROM v_project_overview WHERE customer_name LIKE CONCAT(''%'', :customer_name, ''%'') ORDER BY project_name',
+ '{"customer_name":{"type":"string","required":true}}',
+ 'v_project_overview', '客户项目查询', 10),
+
+-- TPL-05: 项目报花次数统计
+('TPL-05', 'flowerbiz', NULL,
+ '["(项目|XX).*(换花|加花|减花|报花).*(多少|几|次数|次)"]',
+ '["XX项目这个月换花了多少次？","本月XX项目的加花次数"]',
+ 'SELECT project_name, biz_type_name, count(*) as 次数, sum(plant_number) as 总数量 FROM v_flower_biz_detail WHERE project_name LIKE CONCAT(''%'', :project_name, ''%'') AND biz_month = :month GROUP BY project_name, biz_type_name ORDER BY 次数 DESC',
+ '{"project_name":{"type":"string","required":true},"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '项目报花次数统计', 10),
+
+-- TPL-06: 各项目加花排行
+('TPL-06', 'flowerbiz', NULL,
+ '["(项目|各项目).*(加花|换花|报花).*(排行|排名|最多)"]',
+ '["各项目加花次数排行","本月哪个项目加花最多？","报花排行榜"]',
+ 'SELECT project_name, count(*) as 次数, sum(plant_number) as 总数量 FROM v_flower_biz_detail WHERE biz_type_name = :biz_type AND biz_month = :month GROUP BY project_name ORDER BY 次数 DESC LIMIT :top_n',
+ '{"biz_type":{"type":"string","default":"加花"},"month":{"type":"string","default":"CURRENT_MONTH"},"top_n":{"type":"integer","default":10}}',
+ 'v_flower_biz_detail', '各项目加花排行', 10),
+
+-- TPL-07: 报花业务类型分布
+('TPL-07', 'flowerbiz', NULL,
+ '["(本月|这个月|上月).*(报花|业务).*(加花|换花|减花).*(各|分别|分布|各多少)"]',
+ '["本月报花业务中，加花/换花/减花各多少？","这个月各类型报花数量"]',
+ 'SELECT biz_type_name, count(*) as 业务单数, sum(plant_number) as 总数量 FROM v_flower_biz_detail WHERE biz_month = :month AND biz_status_name NOT IN (''作废'', ''驳回'', ''草稿'') GROUP BY biz_type_name ORDER BY 业务单数 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '报花业务类型分布', 10),
+
+-- TPL-08: 待审批报花单
+('TPL-08', 'flowerbiz', NULL,
+ '["(待审批|审核中|未审批).*(报花|业务单)"]',
+ '["有多少待审批的报花单？","审核中的业务单有哪些？"]',
+ 'SELECT biz_code, biz_type_name, project_name, apply_user_name, apply_time FROM v_flower_biz_detail WHERE biz_status_name = ''审核中'' ORDER BY apply_time DESC',
+ '{}',
+ 'v_flower_biz_detail', '待审批报花单', 10),
+
+-- TPL-09: 项目月租金查询
+('TPL-09', 'settlement', 'finance',
+ '["(项目|XX).*(上月|上个月|本月|这个月).*(租金|应收|收入)"]',
+ '["XX项目上个月租金是多少？","本月各项目租金"]',
+ 'SELECT project_name, customer_name, settlement_month, total_rent as 应收租金, received_amount as 已收, outstanding_amount as 未收 FROM v_monthly_settlement WHERE (:project_name IS NULL OR project_name LIKE CONCAT(''%'', :project_name, ''%'')) AND settlement_month = :month',
+ '{"project_name":{"type":"string"},"month":{"type":"string","default":"LAST_MONTH"}}',
+ 'v_monthly_settlement', '项目月租金查询', 10),
+
+-- TPL-10: 未结算项目
+('TPL-10', 'settlement', 'finance',
+ '["(未结算|待结算|没结算).*(项目)"]',
+ '["上月未结算的项目有哪些？","还有哪些项目没结算？"]',
+ 'SELECT project_name, customer_name, settlement_month, total_rent, settlement_status_name FROM v_monthly_settlement WHERE settlement_status_name = ''待结算'' AND settlement_month = :month ORDER BY total_rent DESC',
+ '{"month":{"type":"string","default":"LAST_MONTH"}}',
+ 'v_monthly_settlement', '未结算项目', 10),
+
+-- TPL-11: 客户欠款查询
+('TPL-11', 'settlement', 'finance',
+ '["(客户|XX).*(欠款|未收|应收未收|欠|拖欠)"]',
+ '["XX客户累计欠款多少？","哪些客户还有欠款？"]',
+ 'SELECT customer_name, sum(outstanding_amount) as 累计欠款, count(DISTINCT project_name) as 涉及项目数 FROM v_monthly_settlement WHERE outstanding_amount > 0 AND (:customer_name IS NULL OR customer_name LIKE CONCAT(''%'', :customer_name, ''%'')) GROUP BY customer_name ORDER BY 累计欠款 DESC',
+ '{"customer_name":{"type":"string"}}',
+ 'v_monthly_settlement', '客户欠款查询', 10),
+
+-- TPL-12: 项目租金排名
+('TPL-12', 'settlement', 'finance',
+ '["(项目).*(租金|收入).*(排名|排行)"]',
+ '["上季度各项目租金收入排名","项目租金排行"]',
+ 'SELECT project_name, customer_name, sum(total_rent) as 累计租金 FROM v_monthly_settlement WHERE settlement_month BETWEEN :start_month AND :end_month GROUP BY project_name, customer_name ORDER BY 累计租金 DESC LIMIT :top_n',
+ '{"start_month":{"type":"string","required":true},"end_month":{"type":"string","required":true},"top_n":{"type":"integer","default":10}}',
+ 'v_monthly_settlement', '项目租金排名', 10),
+
+-- TPL-13: 待处理任务
+('TPL-13', 'task', NULL,
+ '["(待处理|待办|进行中|未完成).*(任务)"]',
+ '["今天有多少待处理的任务？","进行中的任务有哪些？"]',
+ 'SELECT task_code, task_title, task_type_name, project_name, leading_user_name, launch_time, completion_rate FROM v_task_progress WHERE task_status_name = ''进行中'' ORDER BY launch_time DESC',
+ '{}',
+ 'v_task_progress', '待处理任务', 10),
+
+-- TPL-14: 初摆任务进度
+('TPL-14', 'pendulum', NULL,
+ '["(初摆).*(任务|进度|进行中|待完成)"]',
+ '["进行中的初摆任务有几个？","初摆进度怎么样？"]',
+ 'SELECT pendulum_code, pendulum_title, pendulum_status_name, project_name, applicant_name, applicant_date, total_budget_cost, actual_cost FROM v_pendulum_progress WHERE pendulum_status_name IN (''初摆中'', ''待审批'') ORDER BY applicant_date DESC',
+ '{}',
+ 'v_pendulum_progress', '初摆任务进度', 10),
+
+-- TPL-15: 养护人负责摆位
+('TPL-15', 'curing', NULL,
+ '["(养护人|XX).*(负责|管理).*(摆位|多少)"]',
+ '["XX养护人负责哪些摆位？","养护人均负责多少摆位？"]',
+ 'SELECT curing_user_name, sum(total_position_count) as 负责摆位总数 FROM v_curing_coverage WHERE curing_month = :month AND (:curing_user IS NULL OR curing_user_name LIKE CONCAT(''%'', :curing_user, ''%'')) GROUP BY curing_user_name ORDER BY 负责摆位总数 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"},"curing_user":{"type":"string"}}',
+ 'v_curing_coverage', '养护人负责摆位', 10),
+
+-- TPL-16: 未养护摆位
+('TPL-16', 'curing', NULL,
+ '["(没养护|未养护|还没养护).*(摆位)"]',
+ '["本月哪些摆位还没做过养护？","未养护的摆位有多少？"]',
+ 'SELECT project_name, curing_user_name, total_position_count, covered_position_count, (total_position_count - covered_position_count) as 未养护摆位数, coverage_rate FROM v_curing_coverage WHERE curing_month = :month AND coverage_rate < 1.0 ORDER BY 未养护摆位数 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_curing_coverage', '未养护摆位', 10),
+
+-- TPL-17: 项目换花率排行
+('TPL-17', 'flowerbiz', NULL,
+ '["(换花率|换花.*(比例|率)|换花最多)"]',
+ '["哪个项目换花率最高？","各项目换花比例排行"]',
+ 'SELECT po.project_name, IFNULL(fb.换花次数, 0) as 换花次数, po.green_count as 在摆绿植数, CASE WHEN po.green_count > 0 THEN ROUND(IFNULL(fb.换花次数, 0) / po.green_count, 2) ELSE 0 END as 换花率 FROM v_project_overview po LEFT JOIN (SELECT project_name, count(*) as 换花次数 FROM v_flower_biz_detail WHERE biz_type_name = ''换花'' AND biz_month = :month GROUP BY project_name) fb ON po.project_name = fb.project_name WHERE po.project_status_name = ''正常'' ORDER BY 换花率 DESC LIMIT :top_n',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"},"top_n":{"type":"integer","default":10}}',
+ 'v_project_overview', '项目换花率排行', 10),
+
+-- TPL-18: 绿植数量变化最大的项目
+('TPL-18', 'flowerbiz', NULL,
+ '["(绿植).*(变化|变动|增减).*(最大|最多)"]',
+ '["哪些项目的绿植数量变化最大？","本月绿植增减变动排行"]',
+ 'SELECT project_name, sum(CASE WHEN biz_type_name = ''加花'' THEN plant_number ELSE 0 END) as 加花数, sum(CASE WHEN biz_type_name = ''减花'' THEN plant_number ELSE 0 END) as 减花数, (sum(CASE WHEN biz_type_name = ''加花'' THEN plant_number ELSE 0 END) - sum(CASE WHEN biz_type_name = ''减花'' THEN plant_number ELSE 0 END)) as 净变化 FROM v_flower_biz_detail WHERE biz_month = :month AND biz_type_name IN (''加花'', ''减花'') AND biz_status_name NOT IN (''作废'', ''驳回'', ''草稿'') GROUP BY project_name ORDER BY abs(净变化) DESC LIMIT :top_n',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"},"top_n":{"type":"integer","default":10}}',
+ 'v_flower_biz_detail', '绿植数量变化最大的项目', 10),
+
+-- TPL-19: 减花回收情况
+('TPL-19', 'flowerbiz', NULL,
+ '["(减花|回收).*(情况|统计|数量)"]',
+ '["XX项目的减花回收情况怎么样？","本月减花统计"]',
+ 'SELECT project_name, count(*) as 减花单数, sum(plant_number) as 减花总量, sum(biz_total_cost) as 涉及成本 FROM v_flower_biz_detail WHERE biz_type_name = ''减花'' AND biz_month = :month AND (:project_name IS NULL OR project_name LIKE CONCAT(''%'', :project_name, ''%'')) GROUP BY project_name ORDER BY 减花总量 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"},"project_name":{"type":"string"}}',
+ 'v_flower_biz_detail', '减花回收情况', 10),
+
+-- TPL-20: 结算方式分布
+('TPL-20', 'project', NULL,
+ '["(结算方式|固定月租).*(哪些|分布|项目)"]',
+ '["哪些项目的结算方式是固定月租？","各结算方式的项目分布"]',
+ 'SELECT settlement_type_name, count(*) as 项目数, sum(total_rent) as 月租金合计 FROM v_project_overview WHERE project_status_name = ''正常'' GROUP BY settlement_type_name',
+ '{}',
+ 'v_project_overview', '结算方式分布', 10);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

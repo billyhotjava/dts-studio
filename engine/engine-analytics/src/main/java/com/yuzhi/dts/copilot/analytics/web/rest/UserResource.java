@@ -92,15 +92,15 @@ public class UserResource {
             return ResponseEntity.status(403).contentType(MediaType.TEXT_PLAIN).body("You don't have permissions to do that.");
         }
 
-        String email = body == null ? null : Optional.ofNullable(body.get("email")).map(JsonNode::asText).map(String::trim).orElse(null);
+        String username = body == null ? null : Optional.ofNullable(body.get("username")).map(JsonNode::asText).map(String::trim).orElse(null);
         String firstName = body == null ? null : Optional.ofNullable(body.get("first_name")).map(JsonNode::asText).map(String::trim).orElse(null);
         String lastName = body == null ? null : Optional.ofNullable(body.get("last_name")).map(JsonNode::asText).map(String::trim).orElse(null);
         String password = body == null ? null : Optional.ofNullable(body.get("password")).map(JsonNode::asText).orElse(null);
         boolean isSuperuser = body != null && Optional.ofNullable(body.get("is_superuser")).map(JsonNode::asBoolean).orElse(false);
 
         Map<String, String> errors = new LinkedHashMap<>();
-        if (email == null || email.isBlank()) {
-            errors.put("email", "value must be a non-blank string.");
+        if (username == null || username.isBlank()) {
+            errors.put("username", "value must be a non-blank string.");
         }
         if (firstName == null || firstName.isBlank()) {
             errors.put("first_name", "value must be a non-blank string.");
@@ -108,8 +108,8 @@ public class UserResource {
         if (lastName == null || lastName.isBlank()) {
             errors.put("last_name", "value must be a non-blank string.");
         }
-        if (email != null && userRepository.findByEmailIgnoreCase(email).isPresent()) {
-            errors.put("email", "email already in use.");
+        if (username != null && userRepository.findByUsernameIgnoreCase(username).isPresent()) {
+            errors.put("username", "用户名已存在。");
         }
         if (!errors.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("errors", errors));
@@ -121,7 +121,7 @@ public class UserResource {
         }
 
         AnalyticsUser created = new AnalyticsUser();
-        created.setEmail(email);
+        created.setUsername(username);
         created.setFirstName(firstName);
         created.setLastName(lastName);
         created.setPasswordHash(passwordEncoder.encode(effectivePassword));
@@ -260,7 +260,7 @@ public class UserResource {
     static Map<String, Object> toMetabaseUser(AnalyticsUser user, GroupService groupService, String locale) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", user.getId());
-        result.put("email", user.getEmail());
+        result.put("email", user.getUsername());
         result.put("first_name", user.getFirstName());
         result.put("last_name", user.getLastName());
         result.put("common_name", "%s %s".formatted(user.getFirstName(), user.getLastName()).trim());

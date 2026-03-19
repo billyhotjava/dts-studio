@@ -156,9 +156,9 @@ public class OidcAuthResource {
         String lastName = firstNonBlank(Objects.toString(claims.get("family_name"), null), "OIDC");
         boolean isSuperuser = hasAdminRole(claims, properties.adminRole());
 
-        AnalyticsUser user = userRepository.findByEmailIgnoreCase(email).orElseGet(AnalyticsUser::new);
+        AnalyticsUser user = userRepository.findByUsernameIgnoreCase(email).orElseGet(AnalyticsUser::new);
         boolean creating = user.getId() == null;
-        user.setEmail(email);
+        user.setUsername(email);
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setActive(true);
