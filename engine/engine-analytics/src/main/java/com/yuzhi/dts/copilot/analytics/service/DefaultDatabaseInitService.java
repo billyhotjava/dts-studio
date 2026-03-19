@@ -1,15 +1,15 @@
 package com.yuzhi.dts.copilot.analytics.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.analytics.config.DefaultDatabaseProperties;
 import com.yuzhi.dts.copilot.analytics.config.DefaultDatabaseProperties.DatabaseEntry;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
-import java.util.LinkedHashMap;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +17,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class DefaultDatabaseInitService implements ApplicationRunner {
@@ -26,16 +27,19 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
     private final DefaultDatabaseProperties properties;
     private final AnalyticsDatabaseRepository databaseRepository;
     private final MetadataSyncService metadataSyncService;
+    private final PlatformInfraClient platformInfraClient;
     private final ObjectMapper objectMapper;
 
     public DefaultDatabaseInitService(
             DefaultDatabaseProperties properties,
             AnalyticsDatabaseRepository databaseRepository,
             MetadataSyncService metadataSyncService,
+            PlatformInfraClient platformInfraClient,
             ObjectMapper objectMapper) {
         this.properties = properties;
         this.databaseRepository = databaseRepository;
         this.metadataSyncService = metadataSyncService;
+        this.platformInfraClient = platformInfraClient;
         this.objectMapper = objectMapper;
     }
 
@@ -49,17 +53,18 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
 
         LOG.info("Checking {} default database(s) for auto-registration", entries.size());
 
-        Set<String> existingNames = databaseRepository.findAll().stream()
-                .map(AnalyticsDatabase::getName)
-                .collect(Collectors.toSet());
+        Map<String, AnalyticsDatabase> existingByName = databaseRepository.findAll().stream()
+                .collect(Collectors.toMap(AnalyticsDatabase::getName, db -> db, (a, b) -> a));
 
         for (DatabaseEntry entry : entries) {
             if (entry.name() == null || entry.name().isBlank()) {
                 LOG.warn("Skipping default database entry with empty name");
                 continue;
             }
-            if (existingNames.contains(entry.name())) {
-                LOG.info("Default database '{}' already exists, skipping", entry.name());
+
+            AnalyticsDatabase existing = existingByName.get(entry.name());
+            if (existing != null) {
+                ensureCopilotDataSourceLinked(existing, entry);
                 continue;
             }
 
@@ -73,7 +78,8 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
 
     @Transactional
     protected void registerDatabase(DatabaseEntry entry) {
-        String detailsJson = buildDetailsJson(entry);
+        Long aiDataSourceId = createCopilotAiDataSource(entry);
+        String detailsJson = buildDetailsJson(aiDataSourceId);
 
         AnalyticsDatabase database = new AnalyticsDatabase();
         database.setName(entry.name());
@@ -85,26 +91,98 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
         database.setOnDemand(false);
 
         database = databaseRepository.save(database);
-        LOG.info("Registered default database '{}' with id={}", entry.name(), database.getId());
+        LOG.info("Registered default database '{}' with id={}, linked to copilot-ai dataSourceId={}",
+                entry.name(), database.getId(), aiDataSourceId);
 
         if (entry.autoSyncMetadata()) {
             triggerMetadataSync(database);
         }
     }
 
-    private String buildDetailsJson(DatabaseEntry entry) {
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("host", entry.host());
-        details.put("port", entry.port());
-        details.put("dbname", entry.db());
-        details.put("user", entry.user());
-        if (entry.password() != null && !entry.password().isBlank()) {
-            details.put("password", entry.password());
+    /**
+     * For existing databases that lack a copilot-ai dataSourceId link,
+     * create the AI datasource and update the details_json.
+     */
+    private void ensureCopilotDataSourceLinked(AnalyticsDatabase database, DatabaseEntry entry) {
+        if (hasDataSourceId(database.getDetailsJson())) {
+            LOG.debug("Default database '{}' (id={}) already linked to copilot-ai datasource, skipping",
+                    database.getName(), database.getId());
+            return;
+        }
+
+        LOG.info("Default database '{}' (id={}) missing copilot-ai datasource link, creating now",
+                database.getName(), database.getId());
+        try {
+            Long aiDataSourceId = createCopilotAiDataSource(entry);
+            database.setDetailsJson(buildDetailsJson(aiDataSourceId));
+            databaseRepository.save(database);
+            LOG.info("Linked default database '{}' (id={}) to copilot-ai dataSourceId={}",
+                    database.getName(), database.getId(), aiDataSourceId);
+        } catch (Exception e) {
+            LOG.error("Failed to link default database '{}' (id={}) to copilot-ai datasource: {}",
+                    database.getName(), database.getId(), e.getMessage(), e);
+        }
+    }
+
+    private Long createCopilotAiDataSource(DatabaseEntry entry) {
+        String engine = mapEngine(entry.engine());
+        String jdbcUrl = buildJdbcUrl(engine, entry);
+
+        PlatformInfraClient.DataSourceSummary created = platformInfraClient.createDataSource(
+                new PlatformInfraClient.CreateDataSourceRequest(
+                        entry.name(),
+                        engine,
+                        jdbcUrl,
+                        entry.host(),
+                        entry.port(),
+                        entry.db(),
+                        null,
+                        null,
+                        entry.user(),
+                        entry.password(),
+                        null));
+
+        Long aiId = parseLong(created.id());
+        if (aiId == null) {
+            throw new IllegalStateException(
+                    "Copilot-ai returned non-numeric datasource id: " + created.id());
+        }
+        return aiId;
+    }
+
+    private String buildJdbcUrl(String engine, DatabaseEntry entry) {
+        return switch (engine) {
+            case "postgres" -> "jdbc:postgresql://%s:%d/%s".formatted(entry.host(), entry.port(), entry.db());
+            case "mysql" -> "jdbc:mysql://%s:%d/%s".formatted(entry.host(), entry.port(), entry.db());
+            default -> "jdbc:%s://%s:%d/%s".formatted(engine, entry.host(), entry.port(), entry.db());
+        };
+    }
+
+    private boolean hasDataSourceId(String detailsJson) {
+        if (!StringUtils.hasText(detailsJson)) {
+            return false;
         }
         try {
-            return objectMapper.writeValueAsString(details);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize database details for " + entry.name(), e);
+            JsonNode details = objectMapper.readTree(detailsJson);
+            JsonNode value = details.get("dataSourceId");
+            return value != null && !value.isNull();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private String buildDetailsJson(Long aiDataSourceId) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("dataSourceId", aiDataSourceId);
+        return node.toString();
+    }
+
+    private static Long parseLong(String value) {
+        if (value == null) return null;
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

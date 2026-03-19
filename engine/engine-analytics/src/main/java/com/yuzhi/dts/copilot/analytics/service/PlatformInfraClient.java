@@ -88,6 +88,26 @@ public class PlatformInfraClient {
         return toSummary(created);
     }
 
+    public DataSourceSummary updateDataSource(Long id, CreateDataSourceRequest request) {
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("name", request.name());
+        payload.put("type", request.type());
+        payload.put("jdbcUrl", request.jdbcUrl());
+        payload.put("host", request.host());
+        payload.put("port", request.port());
+        payload.put("database", request.database());
+        payload.put("serviceName", request.serviceName());
+        payload.put("sid", request.sid());
+        payload.put("username", request.username());
+        payload.put("password", request.password());
+        payload.put("description", request.description());
+        Map<String, Object> updated = copilotAiClient.updateDataSource(id, payload);
+        if (updated.isEmpty()) {
+            throw new IllegalStateException("更新数据源失败");
+        }
+        return toSummary(updated);
+    }
+
     private List<DataSourceSummary> toSummaryList(List<Map<String, Object>> rawList) {
         List<DataSourceSummary> result = new ArrayList<>();
         for (Map<String, Object> map : rawList) {

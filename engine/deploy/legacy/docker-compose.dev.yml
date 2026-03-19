@@ -5,5 +5,7 @@ services:
     profiles: ["full"]
   copilot-analytics:
     profiles: ["full"]
+  copilot-webapp:
+    profiles: ["full"]
   copilot-proxy:
     profiles: ["proxy"]

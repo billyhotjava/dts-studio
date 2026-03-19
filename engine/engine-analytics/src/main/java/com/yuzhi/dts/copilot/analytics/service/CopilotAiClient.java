@@ -161,6 +161,33 @@ public class CopilotAiClient {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> updateDataSource(Long id, Map<String, Object> payload) {
+        try {
+            Map<String, Object> response = restClient.put()
+                    .uri("/api/ai/copilot/datasources/{id}", id)
+                    .header("X-Admin-Secret", adminSecret)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+            if (response != null && response.containsKey("data")) {
+                Object data = response.get("data");
+                if (data instanceof Map<?, ?> map) {
+                    return (Map<String, Object>) map;
+                }
+            }
+            return Collections.emptyMap();
+        } catch (RestClientResponseException e) {
+            String message = extractApiErrorMessage(e.getResponseBodyAsString(), "更新数据源失败");
+            log.error("Failed to update data source {} via copilot-ai: {}", id, e.getMessage());
+            throw new IllegalStateException(message, e);
+        } catch (Exception e) {
+            log.error("Failed to update data source {} via copilot-ai: {}", id, e.getMessage());
+            throw new IllegalStateException("更新数据源失败", e);
+        }
+    }
+
     /**
      * Post to a copilot-ai endpoint and return the response body as a map.
      */

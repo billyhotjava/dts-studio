@@ -11,7 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -64,6 +66,52 @@ public class PlatformIntegrationResource {
                     request.password(),
                     request.description()));
             return ResponseEntity.ok(created);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @GetMapping(path = "/data-sources/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getDataSource(
+            @PathVariable("id") long id,
+            HttpServletRequest servletRequest) {
+        Optional<ResponseEntity<String>> auth = MetabaseAuth.requireSuperuser(sessionService, servletRequest);
+        if (auth.isPresent()) {
+            return auth.get();
+        }
+        try {
+            PlatformInfraClient.DataSourceDetail detail = platformInfraClient.fetchDataSourceDetail(id);
+            return ResponseEntity.ok(detail);
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", ex.getMessage()));
+        }
+    }
+
+    @PutMapping(path = "/data-sources/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateDataSource(
+            @PathVariable("id") long id,
+            @RequestBody CreateDataSourceRequest request,
+            HttpServletRequest servletRequest) {
+        Optional<ResponseEntity<String>> auth = MetabaseAuth.requireSuperuser(sessionService, servletRequest);
+        if (auth.isPresent()) {
+            return auth.get();
+        }
+        try {
+            PlatformInfraClient.DataSourceSummary updated = platformInfraClient.updateDataSource(id, new PlatformInfraClient.CreateDataSourceRequest(
+                    request.name(),
+                    request.type(),
+                    request.jdbcUrl(),
+                    request.host(),
+                    request.port(),
+                    request.database(),
+                    request.serviceName(),
+                    request.sid(),
+                    request.username(),
+                    request.password(),
+                    request.description()));
+            return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
         } catch (IllegalStateException ex) {

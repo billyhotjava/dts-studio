@@ -129,9 +129,28 @@
 | CS-07 | Provider 模板目录增强（国际/国内主流 + 推荐模板元数据） | DONE | AE-03, CS-01 |
 | CS-08 | Webapp Provider Type 下拉与推荐模板联动 | DONE | CS-04, CS-05, CS-07 |
 | CS-09 | Provider 模板化交互回归验证 | DONE | CS-07, CS-08 |
+| CS-10 | 数据源表单收敛与错误透传 | DONE | CS-06 |
+| CS-11 | Copilot 动态数据源绑定 | DONE | CS-10 |
 
-**统计**: READY=0, IN_PROGRESS=1, DONE=8, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=1, DONE=10, BLOCKED=0
+
+## Sprint-10: 园林业务语义层与双通道 NL2SQL (BG)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| BG-01 | 业务域盘点与语义源映射 | READY | IN-03, NV-07 |
+| BG-02 | 语义对象/字段/关系模型基线 | READY | BG-01 |
+| BG-03 | 项目履约语义包 | READY | BG-02 |
+| BG-04 | 现场业务语义包 | READY | BG-02 |
+| BG-05 | Join Contract 与 Allowed Tables 编译 | READY | BG-03, BG-04 |
+| BG-06 | 指标口径与 Metric Store 对齐 | READY | BG-03, BG-04 |
+| BG-07 | 意图路由与双通道判定 | READY | BG-05, BG-06 |
+| BG-08 | 直连通道上下文编译与权限桥接 | READY | BG-05, BG-07 |
+| BG-09 | 轻量 ELT 主题层与增量同步 | READY | BG-03, BG-04, BG-06 |
+| BG-10 | IT 集成测试与验收矩阵 | READY | BG-01~09 |
+
+**统计**: READY=10, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
 ## 总体统计
 
-**READY=53, IN_PROGRESS=1, DONE=8, BLOCKED=0 (总计 62 任务)**
+**READY=63, IN_PROGRESS=1, DONE=10, BLOCKED=0 (总计 74 任务)**
