@@ -1,7 +1,7 @@
 # Sprint-13: ELT 主题层收口与数仓分层整改 (ER)
 
 **前缀**: ER (ELT Remediation)
-**状态**: READY
+**状态**: DONE
 **目标**: 收口 Sprint-11 的 ELT 主题层实现偏差，修复物理表/同步任务/水位状态机不一致问题，并明确当前是否继续维持轻量 `mart/fact` 模型，还是演进到 `dwd/dws/ads` 分层。
 
 ## 背景
@@ -67,23 +67,28 @@ Sprint-11 评审问题
 
 | ID | 任务 | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| ER-01 | ELT 物理表与同步 SQL 对齐 | P0 | READY | EL-01, EL-03, EL-04 |
-| ER-02 | Watermark 模型与状态机收口 | P0 | READY | EL-02, EL-07 |
-| ER-03 | 项目履约主题表同步链修复 | P0 | READY | ER-01, ER-02 |
-| ER-04 | 现场业务事实表同步链修复 | P0 | READY | ER-01, ER-02 |
-| ER-05 | Data-layer 路由接入 Copilot 主链 | P1 | READY | EL-05, ER-03, ER-04 |
-| ER-06 | 主题层健康检查与自动降级 | P1 | READY | ER-02, ER-05 |
-| ER-07 | 监控、手动触发与编排服务统一 | P2 | READY | ER-02, ER-03, ER-04 |
-| ER-08 | IT 验收与性能基线补齐 | P2 | READY | ER-03~ER-07 |
-| ER-09 | 数仓分层策略与落库核验 | P1 | READY | ER-03, ER-04 |
+| ER-01 | ELT 物理表与同步 SQL 对齐 | P0 | DONE | EL-01, EL-03, EL-04 |
+| ER-02 | Watermark 模型与状态机收口 | P0 | DONE | EL-02, EL-07 |
+| ER-03 | 项目履约主题表同步链修复 | P0 | DONE | ER-01, ER-02 |
+| ER-04 | 现场业务事实表同步链修复 | P0 | DONE | ER-01, ER-02 |
+| ER-05 | Data-layer 路由接入 Copilot 主链 | P1 | DONE | EL-05, ER-03, ER-04 |
+| ER-06 | 主题层健康检查与自动降级 | P1 | DONE | ER-02, ER-05 |
+| ER-07 | 监控、手动触发与编排服务统一 | P2 | DONE | ER-02, ER-03, ER-04 |
+| ER-08 | IT 验收与性能基线补齐 | P2 | DONE | ER-03~ER-07 |
+| ER-09 | 数仓分层策略与落库核验 | P1 | DONE | ER-03, ER-04 |
 
 ## 完成标准
 
-- [ ] `mart_project_fulfillment_daily` 与 `fact_field_operation_event` 能真实增量落表
-- [ ] `elt_sync_watermark` 的实体、表结构、状态机一致
-- [ ] 主题层路由真正进入聊天主链，而不是停留在孤立方法
-- [ ] 主题层不可用时，可基于健康状态回退到视图层
-- [ ] 手动触发与定时调度使用同一编排服务
-- [ ] `it/` 目录具备可执行脚本或自动化测试，而不是只有文档
-- [ ] 明确当前是否继续采用 `mart/fact` 轻量模型，还是升级到 `dwd/dws/ads`
+- [x] `mart_project_fulfillment_daily` 与 `fact_field_operation_event` 能真实增量落表
+- [x] `elt_sync_watermark` 的实体、表结构、状态机一致
+- [x] 主题层路由真正进入聊天主链，而不是停留在孤立方法
+- [x] 主题层不可用时，可基于健康状态回退到视图层
+- [x] 手动触发与定时调度使用同一编排服务
+- [x] `it/` 目录具备可执行脚本或自动化测试，而不是只有文档
+- [x] 明确当前是否继续采用 `mart/fact` 轻量模型，还是升级到 `dwd/dws/ads`
 
+## 验证资产
+
+- [test_elt_guardrails.sh](/opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-13/it/test_elt_guardrails.sh)
+- [verify_warehouse_layers.sh](/opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-13/it/verify_warehouse_layers.sh)
+- [warehouse-layer-verification.md](/opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-13/it/warehouse-layer-verification.md)

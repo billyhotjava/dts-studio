@@ -171,17 +171,17 @@
 
 | ID | 任务 | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| ER-01 | ELT 物理表与同步 SQL 对齐 | P0 | READY | EL-01, EL-03, EL-04 |
-| ER-02 | Watermark 模型与状态机收口 | P0 | READY | EL-02, EL-07 |
-| ER-03 | 项目履约主题表同步链修复 | P0 | READY | ER-01, ER-02 |
-| ER-04 | 现场业务事实表同步链修复 | P0 | READY | ER-01, ER-02 |
-| ER-05 | Data-layer 路由接入 Copilot 主链 | P1 | READY | EL-05, ER-03, ER-04 |
-| ER-06 | 主题层健康检查与自动降级 | P1 | READY | ER-02, ER-05 |
-| ER-07 | 监控、手动触发与编排服务统一 | P2 | READY | ER-02, ER-03, ER-04 |
-| ER-08 | IT 验收与性能基线补齐 | P2 | READY | ER-03~ER-07 |
-| ER-09 | 数仓分层策略与落库核验 | P1 | READY | ER-03, ER-04 |
+| ER-01 | ELT 物理表与同步 SQL 对齐 | P0 | DONE | EL-01, EL-03, EL-04 |
+| ER-02 | Watermark 模型与状态机收口 | P0 | DONE | EL-02, EL-07 |
+| ER-03 | 项目履约主题表同步链修复 | P0 | DONE | ER-01, ER-02 |
+| ER-04 | 现场业务事实表同步链修复 | P0 | DONE | ER-01, ER-02 |
+| ER-05 | Data-layer 路由接入 Copilot 主链 | P1 | DONE | EL-05, ER-03, ER-04 |
+| ER-06 | 主题层健康检查与自动降级 | P1 | DONE | ER-02, ER-05 |
+| ER-07 | 监控、手动触发与编排服务统一 | P2 | DONE | ER-02, ER-03, ER-04 |
+| ER-08 | IT 验收与性能基线补齐 | P2 | DONE | ER-03~ER-07 |
+| ER-09 | 数仓分层策略与落库核验 | P1 | DONE | ER-03, ER-04 |
 
-**统计**: READY=9, IN_PROGRESS=0, DONE=0, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=9, BLOCKED=0
 
 ## Backlog
 
@@ -191,4 +191,4 @@
 
 ## 总体统计
 
-**READY=81, IN_PROGRESS=1, DONE=10, BLOCKED=0, DEFERRED=1 (总计 93 任务)**
+**READY=72, IN_PROGRESS=1, DONE=19, BLOCKED=0, DEFERRED=1 (总计 93 任务)**

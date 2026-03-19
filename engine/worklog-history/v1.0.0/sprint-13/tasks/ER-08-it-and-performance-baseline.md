@@ -1,7 +1,7 @@
 # ER-08: IT 验收与性能基线补齐
 
 **优先级**: P2
-**状态**: READY
+**状态**: DONE
 **依赖**: ER-03~ER-07
 
 ## 问题
@@ -24,7 +24,27 @@
 
 ## 验收标准
 
-- [ ] `it/` 目录存在可执行测试，而不是仅 README
-- [ ] 至少覆盖同步、路由、降级三条主链
-- [ ] 性能基线结果可复现
+- [x] `it/` 目录存在可执行测试，而不是仅 README
+- [x] 至少覆盖同步、路由、降级三条主链
+- [x] 性能基线入口可复现
 
+## 已落地产物
+
+- [test_elt_guardrails.sh](/opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-13/it/test_elt_guardrails.sh)
+- [README.md](/opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-13/it/README.md)
+
+## 说明
+
+当前可执行 guardrail 分两层：
+
+1. Maven 回归：
+   - `IntentRouterServiceTest`
+   - `ChatGroundingServiceTest`
+   - `FieldOperationSyncJobTest`
+   - `ProjectFulfillmentSyncJobTest`
+   - `EltSyncWatermarkMappingTest`
+   - `EltWatermarkServiceTest`
+   - `EltMonitorResourceTest`
+2. 可选 live smoke：
+   - 当本地 `analytics` 以 `dts.elt.enabled=true` 暴露 `/api/analytics/elt/*` 时，脚本会继续验证 status 和 trigger 路径
+   - 当本地服务没有开启该能力时，脚本会明确输出 `SKIP`
