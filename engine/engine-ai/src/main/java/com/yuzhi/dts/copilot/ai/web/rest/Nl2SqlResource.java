@@ -62,6 +62,8 @@ public class Nl2SqlResource {
             AiChatFeedback feedback = new AiChatFeedback();
             feedback.setSessionId(getString(body, "sessionId"));
             feedback.setMessageId(getString(body, "messageId"));
+            feedback.setUserId(getString(body, "userId"));
+            feedback.setUserName(getString(body, "userName"));
             feedback.setRating(getString(body, "rating"));
             feedback.setReason(getString(body, "reason"));
             feedback.setDetail(getString(body, "detail"));

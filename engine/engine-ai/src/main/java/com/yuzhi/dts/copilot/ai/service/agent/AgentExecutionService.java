@@ -2,6 +2,8 @@ package com.yuzhi.dts.copilot.ai.service.agent;
 
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
+import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService;
+import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService.GroundingContext;
 import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.rag.dto.RagResult;
@@ -61,13 +63,16 @@ public class AgentExecutionService {
     private final ReActEngine reActEngine;
     private final RagService ragService;
     private final AiProviderConfigRepository providerConfigRepository;
+    private final ChatGroundingService chatGroundingService;
 
     public AgentExecutionService(ReActEngine reActEngine,
                                  RagService ragService,
-                                 AiProviderConfigRepository providerConfigRepository) {
+                                 AiProviderConfigRepository providerConfigRepository,
+                                 ChatGroundingService chatGroundingService) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
+        this.chatGroundingService = chatGroundingService;
     }
 
     /**
@@ -82,6 +87,11 @@ public class AgentExecutionService {
      */
     public String executeChat(String sessionId, String userId, String userMessage,
                               List<Map<String, Object>> history, Long dataSourceId) {
+        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage);
+        if (groundingContext.needsClarification()) {
+            return groundingContext.clarificationMessage();
+        }
+
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
             return "No AI provider is configured. Please configure a provider in the settings.";
@@ -97,7 +107,7 @@ public class AgentExecutionService {
         List<Map<String, Object>> messages = new ArrayList<>();
 
         // System prompt with RAG context
-        String systemPrompt = buildSystemPrompt(userMessage);
+        String systemPrompt = buildSystemPrompt(userMessage, groundingContext);
         Map<String, Object> systemMsg = new LinkedHashMap<>();
         systemMsg.put("role", "system");
         systemMsg.put("content", systemPrompt);
@@ -121,8 +131,15 @@ public class AgentExecutionService {
                 provider.getTemperature(), provider.getMaxTokens());
     }
 
-    private String buildSystemPrompt(String userMessage) {
+    private String buildSystemPrompt(String userMessage, GroundingContext groundingContext) {
         StringBuilder sb = new StringBuilder(SYSTEM_PROMPT);
+
+        if (groundingContext != null && groundingContext.promptContext() != null
+                && !groundingContext.promptContext().isBlank()) {
+            sb.append("\n\nBusiness grounding context:\n")
+                    .append(groundingContext.promptContext())
+                    .append("\n");
+        }
 
         // Enrich with RAG context
         try {

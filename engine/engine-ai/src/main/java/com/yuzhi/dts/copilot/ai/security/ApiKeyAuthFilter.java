@@ -31,6 +31,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         "/api/health",
         "/api/info",
         "/api/ai/config/**",
+        "/api/ai/nl2sql/**",
         "/api/ai/copilot/datasources/**",
         "/api/ai/copilot/screen/**",
         "/api/auth/keys/**",
