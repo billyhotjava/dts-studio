@@ -89,8 +89,9 @@ public class IntentRouterService {
             return new RoutingResult(null, null, Collections.emptyList(), 0.0, true);
         }
 
-        // Sort by score descending
-        scores.sort(Comparator.comparingDouble(DomainScore::score).reversed());
+        // Sort by matched count descending (absolute hits matter more than ratio)
+        scores.sort(Comparator.comparingInt(DomainScore::matchedCount).reversed()
+                .thenComparing(Comparator.comparingDouble(DomainScore::score).reversed()));
 
         DomainScore top = scores.get(0);
 
@@ -101,30 +102,33 @@ public class IntentRouterService {
                     "v_monthly_settlement",
                     Collections.emptyList(),
                     top.score(),
-                    top.score() < MEDIUM_CONFIDENCE_THRESHOLD
+                    false  // settlement match is always actionable
             );
         }
 
-        // High confidence: single clear winner
-        if (top.score() >= HIGH_CONFIDENCE_THRESHOLD) {
-            if (scores.size() == 1 || top.score() - scores.get(1).score() > 0.1) {
-                return new RoutingResult(
-                        top.rule().getDomain(),
-                        top.rule().getPrimaryView(),
-                        parseJsonArray(top.rule().getSecondaryViews()),
-                        top.score(),
-                        false
-                );
-            }
+        // Determine effective confidence based on multiple signals
+        boolean singleDomainMatched = scores.size() == 1;
+        boolean clearWinner = scores.size() > 1
+                && top.matchedCount() > scores.get(1).matchedCount();
+
+        // High confidence: only one domain matched, or clear winner with 2+ hits
+        if (singleDomainMatched || (clearWinner && top.matchedCount() >= 2)) {
+            return new RoutingResult(
+                    top.rule().getDomain(),
+                    top.rule().getPrimaryView(),
+                    parseJsonArray(top.rule().getSecondaryViews()),
+                    top.score(),
+                    false
+            );
         }
 
-        // Medium confidence: top score in range or two domains close
-        if (top.score() >= MEDIUM_CONFIDENCE_THRESHOLD) {
+        // Medium confidence: single keyword hit on one domain (still actionable)
+        if (clearWinner || top.matchedCount() >= 1) {
             List<String> combinedSecondary = new ArrayList<>(parseJsonArray(top.rule().getSecondaryViews()));
             if (scores.size() > 1) {
                 DomainScore second = scores.get(1);
-                // Include second domain's primary view as secondary if scores are close
-                if (top.score() - second.score() <= 0.15) {
+                // Include second domain's primary view if scores are close
+                if (top.matchedCount() == second.matchedCount()) {
                     combinedSecondary.add(second.rule().getPrimaryView());
                 }
             }
@@ -137,7 +141,7 @@ public class IntentRouterService {
             );
         }
 
-        // Low confidence
+        // Low confidence (shouldn't reach here given matchedCount >= 1 above, but safety net)
         return new RoutingResult(
                 top.rule().getDomain(),
                 top.rule().getPrimaryView(),

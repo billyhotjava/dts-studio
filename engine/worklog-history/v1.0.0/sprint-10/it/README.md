@@ -19,9 +19,25 @@
 - 枚举词典翻译
 - 权限控制：视图白名单、结算域角色限制
 
-## 测试资产
+## 测试资产清单
 
-- `BG-10-acceptance-matrix.md`：完整验收矩阵
+- `BG-10-dual-channel-nl2sql-matrix.md` -- 验收矩阵（7维度 40+ 用例）
+- `test-execution-plan.md` -- 分阶段测试执行计划
+- `IntentRouterServiceTest.java` -- 路由引擎单元测试（dts-copilot-ai）
+- `TemplateMatcherServiceTest.java` -- 模板匹配单元测试（dts-copilot-ai）
+- `CopilotQueryServiceTest.java` -- 权限验证单元测试（dts-copilot-analytics）
+
+## 执行命令
+
+### Phase 1: 单元测试
+
+```bash
+# 路由引擎 + 模板匹配测试
+cd dts-copilot-ai && mvn test -pl . -Dtest="IntentRouterServiceTest,TemplateMatcherServiceTest"
+
+# 权限验证测试
+cd dts-copilot-analytics && mvn test -pl . -Dtest="CopilotQueryServiceTest"
+```
 
 ## 约束
 
