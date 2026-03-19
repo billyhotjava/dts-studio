@@ -19,6 +19,10 @@ public class ChatGroundingService {
             "hi", "hello", "hey", "hey there", "help",
             "你好", "您好", "嗨", "哈喽", "在吗", "在不在", "帮忙", "帮助");
 
+    private static final Set<String> ASSISTANT_META_INPUTS = Set.of(
+            "你是谁", "你能做什么", "你可以做什么", "你是什么模型",
+            "what can you do", "who are you", "what model are you");
+
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
     private final SemanticPackService semanticPackService;
@@ -46,19 +50,27 @@ public class ChatGroundingService {
             );
         }
 
-        TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
-        RoutingResult routing = intentRouterService.route(userQuestion);
-
-        if ((routing == null || routing.needsClarification()) && !templateMatch.matched()) {
+        if (isAssistantMetaInput(userQuestion)) {
             return new GroundingContext(
                     true,
-                    intentRouterService.generateClarificationMessage(),
+                    buildAssistantMetaMessage(),
                     null,
                     null,
                     List.of(),
                     null,
                     null,
-                    "");
+                    ""
+            );
+        }
+
+        TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
+        RoutingResult routing = intentRouterService.route(userQuestion);
+
+        // When neither routing nor template matches, pass through to LLM
+        // without grounding context instead of blocking the user.
+        if ((routing == null || routing.needsClarification()) && !templateMatch.matched()) {
+            return new GroundingContext(
+                    false, null, null, null, List.of(), null, null, "");
         }
 
         String domain = resolveDomain(routing, templateMatch);
@@ -150,6 +162,24 @@ public class ChatGroundingService {
                 || normalized.matches("^(你好|您好|嗨|哈喽|在吗|在不在)[！!。.?？]*$");
     }
 
+    private boolean isAssistantMetaInput(String userQuestion) {
+        if (!StringUtils.hasText(userQuestion)) {
+            return false;
+        }
+        String normalized = userQuestion.trim().toLowerCase(Locale.ROOT);
+        if (ASSISTANT_META_INPUTS.contains(normalized)) {
+            return true;
+        }
+        return normalized.contains("你是什么模型")
+                || normalized.contains("我想问下你是什么模型")
+                || normalized.contains("你是谁")
+                || normalized.contains("你能做什么")
+                || normalized.contains("你可以做什么")
+                || normalized.contains("what model are you")
+                || normalized.contains("who are you")
+                || normalized.contains("what can you do");
+    }
+
     private String buildFriendlyGuidanceMessage() {
         return """
                 你好，我可以帮你查询园林项目的业务数据。
@@ -157,6 +187,17 @@ public class ChatGroundingService {
                 1. 本月加花最多的项目是哪个？
                 2. 哪些项目的养护任务还没完成？
                 3. 当前在服项目一共有多少个？
+                """.trim();
+    }
+
+    private String buildAssistantMetaMessage() {
+        return """
+                我是 DTS Copilot，当前接入的是系统已配置的大模型服务。
+                我主要帮你处理园林业务数据问题，比如项目履约、报花业务、任务执行、养护和结算分析。
+                你可以继续直接问业务问题，例如：
+                1. 当前在服项目一共有多少个？
+                2. 本月加花最多的项目是哪个？
+                3. 哪些项目的养护任务还没完成？
                 """.trim();
     }
 

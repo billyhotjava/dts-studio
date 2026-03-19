@@ -86,9 +86,11 @@ public class CopilotChatResource {
                         datasourceId,
                         outputStream);
             } catch (Exception ex) {
-                String errorEvent = "event: error\ndata: {\"error\":\"%s\"}\n\n"
-                        .formatted(ex.getMessage() != null ? ex.getMessage().replace("\"", "\\\"") : "unknown");
-                outputStream.write(errorEvent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                String errMsg = ex.getMessage() != null ? ex.getMessage() : "unknown";
+                String errJson = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .createObjectNode().put("error", errMsg).toString();
+                outputStream.write(("event: error\ndata: " + errJson + "\n\n")
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 outputStream.flush();
             }
         };

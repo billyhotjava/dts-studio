@@ -25,6 +25,9 @@ import java.util.Map;
 public class CopilotAgentChatClient {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final HttpClient sseHttpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     private final RestClient restClient;
     private final String baseUrl;
@@ -97,9 +100,6 @@ public class CopilotAgentChatClient {
 
         try {
             String requestBody = objectMapper.writeValueAsString(payload);
-            HttpClient httpClient = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .build();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/internal/agent/chat/send-stream"))
                     .header("Content-Type", "application/json")
@@ -108,7 +108,7 @@ public class CopilotAgentChatClient {
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
 
-            HttpResponse<java.io.InputStream> response = httpClient.send(request,
+            HttpResponse<java.io.InputStream> response = sseHttpClient.send(request,
                     HttpResponse.BodyHandlers.ofInputStream());
 
             if (response.statusCode() != 200) {

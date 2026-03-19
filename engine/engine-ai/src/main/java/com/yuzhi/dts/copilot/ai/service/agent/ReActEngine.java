@@ -177,7 +177,7 @@ public class ReActEngine {
                         String argumentsStr = toolCall.get("function").get("arguments").asText();
 
                         writeSseEvent(sseOutput, "tool",
-                                "{\"tool\":\"%s\",\"status\":\"running\"}".formatted(toolName));
+                                mapper.createObjectNode().put("tool", toolName).put("status", "running").toString());
 
                         JsonNode arguments;
                         try { arguments = mapper.readTree(argumentsStr); }
@@ -187,7 +187,7 @@ public class ReActEngine {
                         ToolResult result = toolRegistry.executeTool(toolName, toolContext, arguments);
 
                         writeSseEvent(sseOutput, "tool",
-                                "{\"tool\":\"%s\",\"status\":\"done\"}".formatted(toolName));
+                                mapper.createObjectNode().put("tool", toolName).put("status", "done").toString());
 
                         Map<String, Object> toolResultMsg = new LinkedHashMap<>();
                         toolResultMsg.put("role", "tool");

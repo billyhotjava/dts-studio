@@ -70,4 +70,19 @@ class ChatGroundingServiceTest {
         assertThat(result.needsClarification()).isTrue();
         assertThat(result.clarificationMessage()).contains("您的问题可能涉及以下方面");
     }
+
+    @Test
+    @DisplayName("助手自我介绍类问题不应落到业务范围澄清")
+    void assistantMetaQuestionUsesAssistantGuidance() {
+        when(templateMatcherService.match("我想问下你是什么模型"))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.route("我想问下你是什么模型"))
+                .thenReturn(new RoutingResult(null, null, List.of(), 0.0, true));
+
+        ChatGroundingService.GroundingContext result = chatGroundingService.buildContext("我想问下你是什么模型");
+
+        assertThat(result.needsClarification()).isTrue();
+        assertThat(result.clarificationMessage()).contains("我是 DTS Copilot");
+        assertThat(result.clarificationMessage()).doesNotContain("您的问题可能涉及以下方面");
+    }
 }
