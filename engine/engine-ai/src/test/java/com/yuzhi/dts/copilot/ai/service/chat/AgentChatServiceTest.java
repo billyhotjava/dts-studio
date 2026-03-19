@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -36,7 +37,8 @@ class AgentChatServiceTest {
         session.setStatus("ACTIVE");
 
         when(sessionRepository.findBySessionId("sess-1")).thenReturn(Optional.of(session));
-        when(agentExecutionService.executeChatStream(eq("sess-1"), eq("alice"), eq("hi"), anyList(), anyLong(), any()))
+        when(agentExecutionService.executeChatStream(
+                eq("sess-1"), eq("alice"), eq("hi"), anyList(), anyLong(), anyMap(), any()))
                 .thenThrow(new RuntimeException(new InterruptedException("stream interrupted")));
 
         AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
@@ -68,7 +70,8 @@ class AgentChatServiceTest {
 
         when(sessionRepository.findBySessionId("sess-1")).thenReturn(Optional.of(session));
         when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(agentExecutionService.executeChatStream(eq("sess-1"), eq("alice"), eq("hi"), anyList(), anyLong(), any()))
+        when(agentExecutionService.executeChatStream(
+                eq("sess-1"), eq("alice"), eq("hi"), anyList(), anyLong(), anyMap(), any()))
                 .thenThrow(new IllegalStateException("upstream unavailable"));
 
         AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);

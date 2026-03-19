@@ -4,12 +4,15 @@ import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.CopilotAgentChatClient;
 import com.yuzhi.dts.copilot.analytics.service.CopilotChatDataSourceResolver;
+import com.yuzhi.dts.copilot.analytics.service.elt.EltWatermarkService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.client.RestClientException;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,19 +30,23 @@ class CopilotChatResourceTest {
         AnalyticsSessionService sessionService = mock(AnalyticsSessionService.class);
         CopilotAgentChatClient chatClient = mock(CopilotAgentChatClient.class);
         CopilotChatDataSourceResolver dataSourceResolver = mock(CopilotChatDataSourceResolver.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<EltWatermarkService> watermarkServiceProvider = mock(ObjectProvider.class);
 
         AnalyticsUser user = new AnalyticsUser();
         user.setId(1L);
         user.setUsername("alice");
         when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
         when(dataSourceResolver.resolveSelectedDatasourceId(null)).thenReturn(null);
+        when(watermarkServiceProvider.getIfAvailable()).thenReturn(null);
         RuntimeException interrupted = new RestClientException(
                 "Streaming chat failed: java.lang.InterruptedException",
                 new InterruptedException("stream interrupted"));
         org.mockito.Mockito.doThrow(interrupted).when(chatClient)
-                .sendMessageStream(anyString(), isNull(), anyString(), isNull(), any());
+                .sendMessageStream(anyString(), isNull(), anyString(), isNull(), any(Map.class), any());
 
-        CopilotChatResource resource = new CopilotChatResource(sessionService, chatClient, dataSourceResolver);
+        CopilotChatResource resource = new CopilotChatResource(
+                sessionService, chatClient, dataSourceResolver, watermarkServiceProvider);
         CopilotChatResource.ChatSendRequest request = new CopilotChatResource.ChatSendRequest(null, "hello", null);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
