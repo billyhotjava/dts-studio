@@ -173,6 +173,10 @@ public class InternalAgentChatResource {
         map.put("content", message.getContent());
         map.put("toolCalls", message.getToolCalls());
         map.put("toolCallId", message.getToolCallId());
+        map.put("generatedSql", message.getGeneratedSql());
+        map.put("routedDomain", message.getRoutedDomain());
+        map.put("targetView", message.getTargetView());
+        map.put("templateCode", message.getTemplateCode());
         map.put("createdAt", message.getCreatedAt() != null ? message.getCreatedAt().toString() : null);
         return map;
     }

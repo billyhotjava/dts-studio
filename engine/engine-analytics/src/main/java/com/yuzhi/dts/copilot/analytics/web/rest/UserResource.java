@@ -243,8 +243,8 @@ public class UserResource {
         }
         AnalyticsUser target = existing.get();
         target.setActive(true);
-        userRepository.save(target);
-        return ResponseEntity.noContent().build();
+        target = userRepository.save(target);
+        return ResponseEntity.ok(toMetabaseUser(target, groupService, MetabaseLocale.resolve(request)));
     }
 
     @PostMapping(path = "/{id}/send_invite")

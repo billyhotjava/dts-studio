@@ -48,6 +48,18 @@ public class AiChatMessage {
     @Column(name = "tokens_used")
     private Integer tokensUsed;
 
+    @Column(name = "generated_sql", columnDefinition = "TEXT")
+    private String generatedSql;
+
+    @Column(name = "routed_domain", length = 32)
+    private String routedDomain;
+
+    @Column(name = "target_view", length = 128)
+    private String targetView;
+
+    @Column(name = "template_code", length = 64)
+    private String templateCode;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -110,6 +122,38 @@ public class AiChatMessage {
 
     public void setTokensUsed(Integer tokensUsed) {
         this.tokensUsed = tokensUsed;
+    }
+
+    public String getGeneratedSql() {
+        return generatedSql;
+    }
+
+    public void setGeneratedSql(String generatedSql) {
+        this.generatedSql = generatedSql;
+    }
+
+    public String getRoutedDomain() {
+        return routedDomain;
+    }
+
+    public void setRoutedDomain(String routedDomain) {
+        this.routedDomain = routedDomain;
+    }
+
+    public String getTargetView() {
+        return targetView;
+    }
+
+    public void setTargetView(String targetView) {
+        this.targetView = targetView;
+    }
+
+    public String getTemplateCode() {
+        return templateCode;
+    }
+
+    public void setTemplateCode(String templateCode) {
+        this.templateCode = templateCode;
     }
 
     public Instant getCreatedAt() {

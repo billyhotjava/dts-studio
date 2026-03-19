@@ -11,12 +11,12 @@ import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * High-level agent execution service.
@@ -85,16 +85,24 @@ public class AgentExecutionService {
      * @param dataSourceId optional active data source
      * @return the agent's text response
      */
-    public String executeChat(String sessionId, String userId, String userMessage,
-                              List<Map<String, Object>> history, Long dataSourceId) {
+    public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
+                                           List<Map<String, Object>> history, Long dataSourceId) {
         GroundingContext groundingContext = chatGroundingService.buildContext(userMessage);
         if (groundingContext.needsClarification()) {
-            return groundingContext.clarificationMessage();
+            return new ChatExecutionResult(
+                    groundingContext.clarificationMessage(),
+                    null,
+                    groundingContext
+            );
         }
 
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
-            return "No AI provider is configured. Please configure a provider in the settings.";
+            return new ChatExecutionResult(
+                    "No AI provider is configured. Please configure a provider in the settings.",
+                    null,
+                    groundingContext
+            );
         }
 
         OpenAiCompatibleClient client = new OpenAiCompatibleClient(
@@ -127,8 +135,13 @@ public class AgentExecutionService {
         // Execute ReAct loop
         ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
 
-        return reActEngine.execute(client, provider.getModel(), messages, toolContext,
+        String response = reActEngine.execute(client, provider.getModel(), messages, toolContext,
                 provider.getTemperature(), provider.getMaxTokens());
+        return new ChatExecutionResult(
+                response,
+                resolveGeneratedSql(response, groundingContext),
+                groundingContext
+        );
     }
 
     private String buildSystemPrompt(String userMessage, GroundingContext groundingContext) {
@@ -168,4 +181,38 @@ public class AgentExecutionService {
                     return enabled.isEmpty() ? null : enabled.get(0);
                 });
     }
+
+    private String resolveGeneratedSql(String response, GroundingContext groundingContext) {
+        String generatedSql = extractSqlFromMarkdown(response);
+        if (StringUtils.hasText(generatedSql)) {
+            return generatedSql;
+        }
+        if (groundingContext != null && StringUtils.hasText(groundingContext.resolvedSql())) {
+            return groundingContext.resolvedSql().trim();
+        }
+        return null;
+    }
+
+    private String extractSqlFromMarkdown(String content) {
+        if (!StringUtils.hasText(content)) {
+            return null;
+        }
+        int start = content.indexOf("```sql");
+        if (start < 0) {
+            return null;
+        }
+        int bodyStart = start + "```sql".length();
+        int end = content.indexOf("```", bodyStart);
+        if (end < 0) {
+            return null;
+        }
+        String sql = content.substring(bodyStart, end).trim();
+        return StringUtils.hasText(sql) ? sql : null;
+    }
+
+    public record ChatExecutionResult(
+            String response,
+            String generatedSql,
+            GroundingContext groundingContext
+    ) {}
 }

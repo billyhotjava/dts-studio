@@ -62,7 +62,7 @@ public class SessionResource {
         String password = request == null ? "" : Objects.toString(request.password(), "");
 
         Optional<AnalyticsUser> user = userRepository.findByUsernameIgnoreCase(username);
-        if (user.isEmpty() || !passwordEncoder.matches(password, user.get().getPasswordHash())) {
+        if (user.isEmpty() || !user.get().isActive() || !passwordEncoder.matches(password, user.get().getPasswordHash())) {
             ResponseEntity.BodyBuilder builder = ResponseEntity.status(401).contentType(MediaType.APPLICATION_JSON);
             for (String cookie : MetabaseCookies.deviceCookieHeaders(deviceId, secure)) {
                 builder.header("Set-Cookie", cookie);
