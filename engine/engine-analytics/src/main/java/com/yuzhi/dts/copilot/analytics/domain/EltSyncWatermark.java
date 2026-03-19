@@ -23,17 +23,20 @@ public class EltSyncWatermark implements Serializable {
     @Column(name = "target_table", nullable = false, unique = true, length = 128)
     private String targetTable;
 
-    @Column(name = "last_watermark", nullable = false)
+    @Column(name = "last_watermark")
     private Instant lastWatermark;
 
-    @Column(name = "status", nullable = false, length = 32)
-    private String status;
+    @Column(name = "last_sync_time")
+    private Instant lastSyncTime;
 
-    @Column(name = "last_batch_id", length = 64)
-    private String lastBatchId;
+    @Column(name = "last_sync_rows")
+    private Integer lastSyncRows;
 
-    @Column(name = "last_row_count")
-    private Integer lastRowCount;
+    @Column(name = "last_sync_duration_ms")
+    private Integer lastSyncDurationMs;
+
+    @Column(name = "sync_status", nullable = false, length = 16)
+    private String syncStatus;
 
     @Column(name = "error_message", columnDefinition = "text")
     private String errorMessage;
@@ -68,28 +71,36 @@ public class EltSyncWatermark implements Serializable {
         this.lastWatermark = lastWatermark;
     }
 
-    public String getStatus() {
-        return status;
+    public Instant getLastSyncTime() {
+        return lastSyncTime;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setLastSyncTime(Instant lastSyncTime) {
+        this.lastSyncTime = lastSyncTime;
     }
 
-    public String getLastBatchId() {
-        return lastBatchId;
+    public Integer getLastSyncRows() {
+        return lastSyncRows;
     }
 
-    public void setLastBatchId(String lastBatchId) {
-        this.lastBatchId = lastBatchId;
+    public void setLastSyncRows(Integer lastSyncRows) {
+        this.lastSyncRows = lastSyncRows;
     }
 
-    public Integer getLastRowCount() {
-        return lastRowCount;
+    public Integer getLastSyncDurationMs() {
+        return lastSyncDurationMs;
     }
 
-    public void setLastRowCount(Integer lastRowCount) {
-        this.lastRowCount = lastRowCount;
+    public void setLastSyncDurationMs(Integer lastSyncDurationMs) {
+        this.lastSyncDurationMs = lastSyncDurationMs;
+    }
+
+    public String getSyncStatus() {
+        return syncStatus;
+    }
+
+    public void setSyncStatus(String syncStatus) {
+        this.syncStatus = syncStatus;
     }
 
     public String getErrorMessage() {

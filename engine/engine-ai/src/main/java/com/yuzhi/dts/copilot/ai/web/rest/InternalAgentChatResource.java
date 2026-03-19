@@ -53,15 +53,18 @@ public class InternalAgentChatResource {
         if (!request.hasRequiredFields()) {
             return ResponseEntity.badRequest().body(Map.of("error", "userId and message are required"));
         }
-        if (StringUtils.hasText(request.sessionId())) {
-            ResponseEntity<?> ownershipError = verifySessionOwnership(request.sessionId(), request.userId());
+
+        // If sessionId belongs to another user, treat as new session
+        String effectiveSessionId = request.sessionId();
+        if (StringUtils.hasText(effectiveSessionId)) {
+            ResponseEntity<?> ownershipError = verifySessionOwnership(effectiveSessionId, request.userId());
             if (ownershipError != null) {
-                return ownershipError;
+                effectiveSessionId = null;
             }
         }
 
         String response = agentChatService.sendMessage(
-                request.sessionId(),
+                effectiveSessionId,
                 request.userId(),
                 request.message(),
                 request.datasourceId());
@@ -83,15 +86,19 @@ public class InternalAgentChatResource {
         if (!request.hasRequiredFields()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId and message are required");
         }
-        if (StringUtils.hasText(request.sessionId())) {
-            ResponseEntity<?> ownershipError = verifySessionOwnership(request.sessionId(), request.userId());
+
+        // If sessionId belongs to another user, treat as new session
+        String effectiveSessionId = request.sessionId();
+        if (StringUtils.hasText(effectiveSessionId)) {
+            ResponseEntity<?> ownershipError = verifySessionOwnership(effectiveSessionId, request.userId());
             if (ownershipError != null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found");
+                effectiveSessionId = null;
             }
         }
+        final String sessionId = effectiveSessionId;
 
         return outputStream -> agentChatService.sendMessageStream(
-                request.sessionId(), request.userId(), request.message(),
+                sessionId, request.userId(), request.message(),
                 request.datasourceId(), outputStream);
     }
 

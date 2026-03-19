@@ -98,7 +98,8 @@ public class EltMonitorResource {
 
         EltSyncWatermark watermark = wm.get();
         watermark.setLastWatermark(Instant.EPOCH);
-        watermark.setStatus("RESET");
+        watermark.setSyncStatus("RESET");
+        watermark.setLastSyncTime(Instant.now());
         watermark.setErrorMessage(null);
         watermarkRepository.save(watermark);
 
@@ -110,16 +111,15 @@ public class EltMonitorResource {
     }
 
     private EltStatusResponse toStatusResponse(EltSyncWatermark wm) {
-        long delayMinutes = Duration.between(wm.getUpdatedAt(), Instant.now()).toMinutes();
-        boolean healthy = !"FAILED".equals(wm.getStatus()) && delayMinutes <= 120;
-        Long durationMs = wm.getLastWatermark() != null && wm.getUpdatedAt() != null
-                ? Duration.between(wm.getLastWatermark(), wm.getUpdatedAt()).toMillis()
-                : null;
+        Instant lastSyncTime = wm.getLastSyncTime();
+        long delayMinutes = lastSyncTime == null ? 0 : Duration.between(lastSyncTime, Instant.now()).toMinutes();
+        boolean healthy = !"FAILED".equals(wm.getSyncStatus()) && (lastSyncTime == null || delayMinutes <= 120);
+        Long durationMs = wm.getLastSyncDurationMs() != null ? wm.getLastSyncDurationMs().longValue() : null;
         return new EltStatusResponse(
                 wm.getTargetTable(),
-                wm.getStatus(),
-                wm.getUpdatedAt(),
-                wm.getLastRowCount(),
+                wm.getSyncStatus(),
+                wm.getLastSyncTime(),
+                wm.getLastSyncRows(),
                 durationMs,
                 delayMinutes,
                 healthy
