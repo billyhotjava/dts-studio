@@ -27,7 +27,7 @@ services:
     volumes:
       - copilot-ollama-data:/root/.ollama
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD-SHELL", "if command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:11434/api/tags >/dev/null; else wget -q -O /dev/null http://localhost:11434/api/tags; fi || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -58,7 +58,7 @@ services:
       copilot-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8091/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "if command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:8091/actuator/health >/dev/null; else wget -q -O /dev/null http://localhost:8091/actuator/health; fi || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -80,6 +80,7 @@ services:
       PG_USER: ${PG_USER:-copilot}
       PG_PASSWORD: ${PG_PASSWORD:-copilot_dev}
       COPILOT_AI_BASE_URL: http://copilot-ai:8091
+      COPILOT_ADMIN_SECRET: ${COPILOT_ADMIN_SECRET:-change-me-in-production}
     ports:
       - "${COPILOT_ANALYTICS_PORT:-8092}:8092"
     depends_on:
@@ -88,7 +89,7 @@ services:
       copilot-ai:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8092/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "if command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:8092/actuator/health >/dev/null; else wget -q -O /dev/null http://localhost:8092/actuator/health; fi || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -108,7 +109,7 @@ services:
       copilot-analytics:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "if command -v curl >/dev/null 2>&1; then curl -fsS http://localhost:80/ >/dev/null; else wget -q -O /dev/null http://localhost:80/; fi || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

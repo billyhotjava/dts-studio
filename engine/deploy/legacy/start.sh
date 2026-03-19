@@ -14,6 +14,13 @@ if [[ -f imgversion.conf ]]; then
   set +a
 fi
 
+# ── 加载运行配置 ──────────────────────────────────────────
+if [[ -f .env ]]; then
+  set -a
+  source .env
+  set +a
+fi
+
 # ── 参数解析 ──────────────────────────────────────────────
 SKIP_BUILD=false
 NO_TLS=false
