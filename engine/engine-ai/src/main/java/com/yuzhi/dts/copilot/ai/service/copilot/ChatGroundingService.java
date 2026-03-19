@@ -2,8 +2,9 @@ package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.TemplateMatchResult;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -13,6 +14,10 @@ import org.springframework.util.StringUtils;
  */
 @Service
 public class ChatGroundingService {
+
+    private static final Set<String> FRIENDLY_GUIDANCE_INPUTS = Set.of(
+            "hi", "hello", "hey", "hey there", "help",
+            "你好", "您好", "嗨", "哈喽", "在吗", "在不在", "帮忙", "帮助");
 
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
@@ -28,6 +33,19 @@ public class ChatGroundingService {
     }
 
     public GroundingContext buildContext(String userQuestion) {
+        if (isFriendlyGuidanceInput(userQuestion)) {
+            return new GroundingContext(
+                    true,
+                    buildFriendlyGuidanceMessage(),
+                    null,
+                    null,
+                    List.of(),
+                    null,
+                    null,
+                    ""
+            );
+        }
+
         TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
         RoutingResult routing = intentRouterService.route(userQuestion);
 
@@ -118,6 +136,28 @@ public class ChatGroundingService {
             case "task", "curing", "pendulum" -> "flowerbiz";
             default -> domain;
         };
+    }
+
+    private boolean isFriendlyGuidanceInput(String userQuestion) {
+        if (!StringUtils.hasText(userQuestion)) {
+            return false;
+        }
+        String normalized = userQuestion.trim().toLowerCase(Locale.ROOT);
+        if (FRIENDLY_GUIDANCE_INPUTS.contains(normalized)) {
+            return true;
+        }
+        return normalized.matches("^(hi|hello|hey)(\\s+there)?[!?.]*$")
+                || normalized.matches("^(你好|您好|嗨|哈喽|在吗|在不在)[！!。.?？]*$");
+    }
+
+    private String buildFriendlyGuidanceMessage() {
+        return """
+                你好，我可以帮你查询园林项目的业务数据。
+                你可以直接问具体问题，比如：
+                1. 本月加花最多的项目是哪个？
+                2. 哪些项目的养护任务还没完成？
+                3. 当前在服项目一共有多少个？
+                """.trim();
     }
 
     public record GroundingContext(
