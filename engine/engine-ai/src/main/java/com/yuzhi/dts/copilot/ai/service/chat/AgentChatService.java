@@ -142,6 +142,11 @@ public class AgentChatService {
             executionResult = agentExecutionService.executeChatStream(
                     session.getSessionId(), userId, message, history, effectiveDataSourceId, output);
         } catch (Exception e) {
+            if (isStreamInterrupted(e)) {
+                restoreInterruptFlag(e);
+                log.info("Streaming chat interrupted: {}", describeInterruption(e));
+                return;
+            }
             log.error("Streaming chat failed: {}", e.getMessage(), e);
             String errorMessage = buildStreamFailureMessage(e);
             persistStreamingFailure(session, userId, message, errorMessage);
@@ -290,5 +295,35 @@ public class AgentChatService {
         assistantMsg.setRoutedDomain(groundingContext.domain());
         assistantMsg.setTargetView(groundingContext.primaryView());
         assistantMsg.setTemplateCode(groundingContext.templateCode());
+    }
+
+    static boolean isStreamInterrupted(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof InterruptedException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static void restoreInterruptFlag(Throwable throwable) {
+        if (isStreamInterrupted(throwable)) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static String describeInterruption(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof InterruptedException interrupted) {
+                return StringUtils.hasText(interrupted.getMessage()) ? interrupted.getMessage() : interrupted.getClass().getSimpleName();
+            }
+            current = current.getCause();
+        }
+        return throwable != null && StringUtils.hasText(throwable.getMessage())
+                ? throwable.getMessage()
+                : "interrupted";
     }
 }
