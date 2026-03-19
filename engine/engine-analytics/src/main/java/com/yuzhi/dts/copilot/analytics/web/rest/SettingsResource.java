@@ -93,7 +93,7 @@ public class SettingsResource {
     }
 
     private Optional<String> adminEmail() {
-        return userRepository.findFirstBySuperuserTrueOrderByIdAsc().map(AnalyticsUser::getEmail);
+        return userRepository.findFirstBySuperuserTrueOrderByIdAsc().map(AnalyticsUser::getUsername);
     }
 
     private String getOrCreateUuid(String key) {

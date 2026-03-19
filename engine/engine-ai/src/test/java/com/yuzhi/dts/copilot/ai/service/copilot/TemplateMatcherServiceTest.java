@@ -185,12 +185,11 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("项目名提取: '翠湖项目' -> project_name contains 翠湖")
+    @DisplayName("项目名提取: '翠湖项目' -> project_name=翠湖")
     void extractProjectName() {
         TemplateMatchResult result = matcherService.match("翠湖项目的绿植有多少");
 
         assertThat(result.matched()).isTrue();
-        // Parameter extraction is best-effort; just verify it's present
         assertThat(result.extractedParams()).containsKey("project_name");
         assertThat(result.extractedParams().get("project_name")).isNotBlank();
     }

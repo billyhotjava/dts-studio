@@ -167,7 +167,6 @@ class IntentRouterServiceTest {
     @Test
     @DisplayName("结算隔离: 含欠款关键词 -> settlement 域")
     void outstandingAmountRoutesToSettlement() {
-        // "客户" also matches project domain, but "欠款" + "应收" = 2 hits in settlement
         RoutingResult result = routerService.route("欠款应收情况");
 
         assertThat(result.domain()).isEqualTo("settlement");
@@ -210,6 +209,16 @@ class IntentRouterServiceTest {
 
         assertThat(result.domain()).isEqualTo("flowerbiz");
         assertThat(result.confidence()).isGreaterThanOrEqualTo(0.3);
+        assertThat(result.needsClarification()).isFalse();
+    }
+
+    @Test
+    @DisplayName("单个业务关键词命中 -> 可路由到对应域")
+    void singleBusinessKeywordRoutesToDomain() {
+        RoutingResult result = routerService.route("客户情况");
+
+        // "客户" 是 project 域的明确关键词，应路由而非澄清
+        assertThat(result.domain()).isEqualTo("project");
         assertThat(result.needsClarification()).isFalse();
     }
 

@@ -9,6 +9,7 @@ import com.yuzhi.dts.copilot.analytics.web.support.MetabaseLocale;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.util.LinkedHashMap;
+import java.util.regex.Pattern;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequestMapping("/api/user")
 @Transactional
 public class UserResource {
+
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-]{2,50}$");
 
     private final AnalyticsSessionService sessionService;
     private final AnalyticsUserRepository userRepository;
@@ -101,6 +104,8 @@ public class UserResource {
         Map<String, String> errors = new LinkedHashMap<>();
         if (username == null || username.isBlank()) {
             errors.put("username", "value must be a non-blank string.");
+        } else if (!USERNAME_PATTERN.matcher(username).matches()) {
+            errors.put("username", "用户名只能包含字母、数字、下划线和连字符，长度 2-50。");
         }
         if (firstName == null || firstName.isBlank()) {
             errors.put("first_name", "value must be a non-blank string.");
@@ -260,7 +265,7 @@ public class UserResource {
     static Map<String, Object> toMetabaseUser(AnalyticsUser user, GroupService groupService, String locale) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", user.getId());
-        result.put("email", user.getUsername());
+        result.put("username", user.getUsername());
         result.put("first_name", user.getFirstName());
         result.put("last_name", user.getLastName());
         result.put("common_name", "%s %s".formatted(user.getFirstName(), user.getLastName()).trim());

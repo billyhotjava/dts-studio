@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Intent routing engine for NL2SQL.
@@ -25,6 +26,8 @@ public class IntentRouterService {
 
     private static final double HIGH_CONFIDENCE_THRESHOLD = 0.3;
     private static final double MEDIUM_CONFIDENCE_THRESHOLD = 0.15;
+    private static final Set<String> GENERIC_KEYWORDS = Set.of(
+            "项目", "项目点", "合同", "任务", "收入", "费用", "正常", "停用", "执行", "维护");
 
     private final Nl2SqlRoutingRuleRepository routingRuleRepository;
     private final ObjectMapper objectMapper;
@@ -73,14 +76,16 @@ public class IntentRouterService {
         for (Nl2SqlRoutingRule rule : rules) {
             List<String> keywords = parseJsonArray(rule.getKeywords());
             int matchedCount = 0;
+            List<String> matchedKeywords = new ArrayList<>();
             for (String keyword : keywords) {
                 if (userQuestion.contains(keyword)) {
                     matchedCount++;
+                    matchedKeywords.add(keyword);
                 }
             }
             if (matchedCount > 0) {
                 double score = (double) matchedCount / keywords.size();
-                scores.add(new DomainScore(rule, score, matchedCount));
+                scores.add(new DomainScore(rule, score, matchedCount, matchedKeywords));
             }
         }
 
@@ -94,9 +99,12 @@ public class IntentRouterService {
                 .thenComparing(Comparator.comparingDouble(DomainScore::score).reversed()));
 
         DomainScore top = scores.get(0);
+        boolean singleGenericHit = top.matchedCount() == 1
+                && top.matchedKeywords().stream().allMatch(GENERIC_KEYWORDS::contains)
+                && top.score() < HIGH_CONFIDENCE_THRESHOLD;
 
         // Special rule: if settlement domain matched, force settlement isolation
-        if ("settlement".equals(top.rule().getDomain())) {
+        if ("settlement".equals(top.rule().getDomain()) && !singleGenericHit) {
             return new RoutingResult(
                     "settlement",
                     "v_monthly_settlement",
@@ -110,9 +118,18 @@ public class IntentRouterService {
         boolean singleDomainMatched = scores.size() == 1;
         boolean clearWinner = scores.size() > 1
                 && top.matchedCount() > scores.get(1).matchedCount();
+        if (singleGenericHit && singleDomainMatched) {
+            return new RoutingResult(
+                    top.rule().getDomain(),
+                    top.rule().getPrimaryView(),
+                    parseJsonArray(top.rule().getSecondaryViews()),
+                    top.score(),
+                    true
+            );
+        }
 
         // High confidence: only one domain matched, or clear winner with 2+ hits
-        if (singleDomainMatched || (clearWinner && top.matchedCount() >= 2)) {
+        if ((singleDomainMatched && !singleGenericHit) || (clearWinner && top.score() >= MEDIUM_CONFIDENCE_THRESHOLD)) {
             return new RoutingResult(
                     top.rule().getDomain(),
                     top.rule().getPrimaryView(),
@@ -123,11 +140,10 @@ public class IntentRouterService {
         }
 
         // Medium confidence: single keyword hit on one domain (still actionable)
-        if (clearWinner || top.matchedCount() >= 1) {
+        if ((clearWinner || top.matchedCount() >= 1) && !(singleGenericHit && singleDomainMatched)) {
             List<String> combinedSecondary = new ArrayList<>(parseJsonArray(top.rule().getSecondaryViews()));
             if (scores.size() > 1) {
                 DomainScore second = scores.get(1);
-                // Include second domain's primary view if scores are close
                 if (top.matchedCount() == second.matchedCount()) {
                     combinedSecondary.add(second.rule().getPrimaryView());
                 }
@@ -141,7 +157,7 @@ public class IntentRouterService {
             );
         }
 
-        // Low confidence (shouldn't reach here given matchedCount >= 1 above, but safety net)
+        // Low confidence (safety net)
         return new RoutingResult(
                 top.rule().getDomain(),
                 top.rule().getPrimaryView(),
@@ -186,5 +202,5 @@ public class IntentRouterService {
         }
     }
 
-    private record DomainScore(Nl2SqlRoutingRule rule, double score, int matchedCount) {}
+    private record DomainScore(Nl2SqlRoutingRule rule, double score, int matchedCount, List<String> matchedKeywords) {}
 }
