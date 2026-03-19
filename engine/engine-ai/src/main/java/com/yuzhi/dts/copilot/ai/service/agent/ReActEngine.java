@@ -10,6 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -130,5 +133,102 @@ public class ReActEngine {
 
         log.warn("ReAct engine reached maximum iterations ({})", MAX_ITERATIONS);
         return "I reached the maximum number of reasoning steps. Here is what I have so far based on the conversation.";
+    }
+
+    /**
+     * Streaming variant: tool-call rounds are synchronous, final text response is
+     * streamed as SSE token events to the output stream.
+     */
+    public String executeStreaming(OpenAiCompatibleClient client, String model,
+                                   List<Map<String, Object>> messages, ToolContext toolContext,
+                                   Double temperature, Integer maxTokens,
+                                   OutputStream sseOutput) {
+        List<Map<String, Object>> toolDefinitions = toolRegistry.getToolDefinitions();
+        StringBuilder fullResponse = new StringBuilder();
+
+        for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+            log.debug("ReAct streaming iteration {}/{}", iteration + 1, MAX_ITERATIONS);
+            try {
+                JsonNode response = client.chatCompletion(model, messages, temperature, maxTokens,
+                        toolDefinitions.isEmpty() ? null : toolDefinitions);
+
+                JsonNode choices = response.get("choices");
+                if (choices == null || choices.isEmpty()) {
+                    return "I'm sorry, I received an empty response. Please try again.";
+                }
+
+                JsonNode message = choices.get(0).get("message");
+                if (message == null) {
+                    return "I'm sorry, I received an invalid response. Please try again.";
+                }
+
+                JsonNode toolCalls = message.get("tool_calls");
+                if (toolCalls != null && toolCalls.isArray() && !toolCalls.isEmpty()) {
+                    Map<String, Object> assistantMsg = new LinkedHashMap<>();
+                    assistantMsg.put("role", "assistant");
+                    assistantMsg.put("content", message.has("content") && !message.get("content").isNull()
+                            ? message.get("content").asText() : null);
+                    assistantMsg.put("tool_calls", mapper.treeToValue(toolCalls, List.class));
+                    messages.add(assistantMsg);
+
+                    for (JsonNode toolCall : toolCalls) {
+                        String toolCallId = toolCall.get("id").asText();
+                        String toolName = toolCall.get("function").get("name").asText();
+                        String argumentsStr = toolCall.get("function").get("arguments").asText();
+
+                        writeSseEvent(sseOutput, "tool",
+                                "{\"tool\":\"%s\",\"status\":\"running\"}".formatted(toolName));
+
+                        JsonNode arguments;
+                        try { arguments = mapper.readTree(argumentsStr); }
+                        catch (Exception e) { arguments = mapper.createObjectNode(); }
+
+                        log.info("Executing tool: {} with args: {}", toolName, argumentsStr);
+                        ToolResult result = toolRegistry.executeTool(toolName, toolContext, arguments);
+
+                        writeSseEvent(sseOutput, "tool",
+                                "{\"tool\":\"%s\",\"status\":\"done\"}".formatted(toolName));
+
+                        Map<String, Object> toolResultMsg = new LinkedHashMap<>();
+                        toolResultMsg.put("role", "tool");
+                        toolResultMsg.put("tool_call_id", toolCallId);
+                        toolResultMsg.put("content", result.output());
+                        messages.add(toolResultMsg);
+                    }
+                    continue;
+                }
+
+                // Final text response — stream as token events
+                String content = message.has("content") && !message.get("content").isNull()
+                        ? message.get("content").asText() : "";
+                streamTextAsTokenEvents(sseOutput, content, fullResponse);
+                return fullResponse.toString();
+
+            } catch (Exception e) {
+                log.error("ReAct streaming iteration {} failed: {}", iteration + 1, e.getMessage(), e);
+                return "I encountered an error during processing: " + e.getMessage();
+            }
+        }
+
+        return "I reached the maximum number of reasoning steps.";
+    }
+
+    private void streamTextAsTokenEvents(OutputStream out, String text, StringBuilder collector) {
+        int chunkSize = 20;
+        for (int i = 0; i < text.length(); i += chunkSize) {
+            String chunk = text.substring(i, Math.min(i + chunkSize, text.length()));
+            collector.append(chunk);
+            String escaped = mapper.createObjectNode().put("content", chunk).toString();
+            writeSseEvent(out, "token", escaped);
+        }
+    }
+
+    private void writeSseEvent(OutputStream out, String event, String data) {
+        try {
+            out.write(("event: " + event + "\ndata: " + data + "\n\n").getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException e) {
+            log.debug("SSE write failed (client disconnected?): {}", e.getMessage());
+        }
     }
 }

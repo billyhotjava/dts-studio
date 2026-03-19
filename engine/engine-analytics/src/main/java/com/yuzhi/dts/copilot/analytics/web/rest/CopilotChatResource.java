@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -58,6 +60,38 @@ public class CopilotChatResource {
                 body == null ? null : body.sessionId(),
                 body == null ? null : body.userMessage(),
                 datasourceId));
+    }
+
+    @PostMapping(path = "/send-stream", consumes = MediaType.APPLICATION_JSON_VALUE,
+                 produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public StreamingResponseBody sendMessageStream(@RequestBody ChatSendRequest body, HttpServletRequest request) {
+        AnalyticsUser user = resolveUser(request);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated");
+        }
+        final Long datasourceId;
+        try {
+            datasourceId = chatDataSourceResolver.resolveSelectedDatasourceId(
+                    body == null ? null : body.datasourceId());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+
+        return outputStream -> {
+            try {
+                copilotAgentChatClient.sendMessageStream(
+                        resolveCopilotUserId(user),
+                        body == null ? null : body.sessionId(),
+                        body == null ? null : body.userMessage(),
+                        datasourceId,
+                        outputStream);
+            } catch (Exception ex) {
+                String errorEvent = "event: error\ndata: {\"error\":\"%s\"}\n\n"
+                        .formatted(ex.getMessage() != null ? ex.getMessage().replace("\"", "\\\"") : "unknown");
+                outputStream.write(errorEvent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                outputStream.flush();
+            }
+        };
     }
 
     @GetMapping(path = "/sessions", produces = MediaType.APPLICATION_JSON_VALUE)

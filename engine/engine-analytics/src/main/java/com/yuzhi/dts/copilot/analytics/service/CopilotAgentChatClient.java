@@ -6,6 +6,16 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Collections;
 import java.util.List;
@@ -14,12 +24,16 @@ import java.util.Map;
 @Service
 public class CopilotAgentChatClient {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     private final RestClient restClient;
+    private final String baseUrl;
     private final String adminSecret;
 
     public CopilotAgentChatClient(
             @Value("${dts.copilot.ai.base-url:http://localhost:8091}") String baseUrl,
             @Value("${copilot.admin-secret:}") String adminSecret) {
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .build();
@@ -67,6 +81,53 @@ public class CopilotAgentChatClient {
                 .header("X-Admin-Secret", adminSecret)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
+    }
+
+    public void sendMessageStream(String userId, String sessionId, String message,
+                                   Long datasourceId, OutputStream output) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userId", userId);
+        payload.put("message", message);
+        if (sessionId != null && !sessionId.isBlank()) {
+            payload.put("sessionId", sessionId);
+        }
+        if (datasourceId != null) {
+            payload.put("datasourceId", datasourceId);
+        }
+
+        try {
+            String requestBody = objectMapper.writeValueAsString(payload);
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/internal/agent/chat/send-stream"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Admin-Secret", adminSecret)
+                    .timeout(Duration.ofSeconds(120))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            HttpResponse<java.io.InputStream> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() != 200) {
+                String error = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
+                throw new IllegalStateException("Streaming failed: " + response.statusCode() + " " + error);
+            }
+
+            try (var in = response.body()) {
+                byte[] buffer = new byte[1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                    output.flush();
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            throw new org.springframework.web.client.RestClientException(
+                    "Streaming chat failed: " + e.getMessage(), e);
+        }
     }
 
     public void deleteSession(String userId, String sessionId) {

@@ -24,6 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/internal/agent/chat")
@@ -68,6 +72,22 @@ public class InternalAgentChatResource {
         result.put("response", response);
         result.put("timestamp", Instant.now().toString());
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping(path = "/send-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public StreamingResponseBody sendMessageStream(
+            @RequestHeader(value = "X-Admin-Secret", required = false) String secret,
+            @RequestBody ChatRequest request) {
+        if (!StringUtils.hasText(adminSecret) || !Objects.equals(adminSecret, secret)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid admin secret");
+        }
+        if (!request.hasRequiredFields()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId and message are required");
+        }
+
+        return outputStream -> agentChatService.sendMessageStream(
+                request.sessionId(), request.userId(), request.message(),
+                request.datasourceId(), outputStream);
     }
 
     @GetMapping("/sessions")

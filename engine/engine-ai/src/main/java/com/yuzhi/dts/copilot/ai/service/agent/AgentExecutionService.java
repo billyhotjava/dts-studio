@@ -13,6 +13,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,10 +66,16 @@ public class AgentExecutionService {
             [SQL 逻辑说明]
             """;
 
+    private static final ObjectMapper mapper = new ObjectMapper();
+
     private final ReActEngine reActEngine;
     private final RagService ragService;
     private final AiProviderConfigRepository providerConfigRepository;
     private final ChatGroundingService chatGroundingService;
+
+    // CS-02: Cached LLM client to reuse HTTP connections
+    private volatile OpenAiCompatibleClient cachedClient;
+    private volatile String cachedClientKey;
 
     public AgentExecutionService(ReActEngine reActEngine,
                                  RagService ragService,
@@ -96,6 +108,12 @@ public class AgentExecutionService {
             );
         }
 
+        // CS-01: Template fast-path — skip LLM entirely when template matched with SQL
+        if (groundingContext.templateCode() != null && groundingContext.resolvedSql() != null) {
+            String response = formatTemplateResponse(groundingContext);
+            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext);
+        }
+
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
             return new ChatExecutionResult(
@@ -105,11 +123,7 @@ public class AgentExecutionService {
             );
         }
 
-        OpenAiCompatibleClient client = new OpenAiCompatibleClient(
-                provider.getBaseUrl(),
-                provider.getApiKey(),
-                provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120
-        );
+        OpenAiCompatibleClient client = getOrCreateClient(provider);
 
         // Build conversation messages
         List<Map<String, Object>> messages = new ArrayList<>();
@@ -208,6 +222,126 @@ public class AgentExecutionService {
         }
         String sql = content.substring(bodyStart, end).trim();
         return StringUtils.hasText(sql) ? sql : null;
+    }
+
+    // ── CS-04: Streaming variant ──────────────────────────────────────────
+
+    /**
+     * Streaming variant of executeChat. Writes SSE events to output.
+     * Returns the complete response text for persistence.
+     */
+    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                  List<Map<String, Object>> history, Long dataSourceId,
+                                                  OutputStream sseOutput) {
+        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage);
+        if (groundingContext.needsClarification()) {
+            writeTokenAndDone(sseOutput, groundingContext.clarificationMessage(), null);
+            return new ChatExecutionResult(groundingContext.clarificationMessage(), null, groundingContext);
+        }
+
+        // CS-01: Template fast-path (streaming)
+        if (groundingContext.templateCode() != null && groundingContext.resolvedSql() != null) {
+            String response = formatTemplateResponse(groundingContext);
+            writeTokenAndDone(sseOutput, response, groundingContext.resolvedSql());
+            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext);
+        }
+
+        AiProviderConfig provider = resolveProvider();
+        if (provider == null) {
+            String msg = "No AI provider is configured. Please configure a provider in the settings.";
+            writeTokenAndDone(sseOutput, msg, null);
+            return new ChatExecutionResult(msg, null, groundingContext);
+        }
+
+        OpenAiCompatibleClient client = getOrCreateClient(provider);
+
+        List<Map<String, Object>> messages = new ArrayList<>();
+        String systemPrompt = buildSystemPrompt(userMessage, groundingContext);
+        Map<String, Object> systemMsg = new LinkedHashMap<>();
+        systemMsg.put("role", "system");
+        systemMsg.put("content", systemPrompt);
+        messages.add(systemMsg);
+        if (history != null) {
+            messages.addAll(history);
+        }
+        Map<String, Object> userMsg = new LinkedHashMap<>();
+        userMsg.put("role", "user");
+        userMsg.put("content", userMessage);
+        messages.add(userMsg);
+
+        ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
+        String response = reActEngine.executeStreaming(client, provider.getModel(), messages, toolContext,
+                provider.getTemperature(), provider.getMaxTokens(), sseOutput);
+
+        String sql = resolveGeneratedSql(response, groundingContext);
+        writeDoneEvent(sseOutput, sql);
+
+        return new ChatExecutionResult(response, sql, groundingContext);
+    }
+
+    // ── CS-01: Template response formatting ─────────────────────────────
+
+    private String formatTemplateResponse(GroundingContext ctx) {
+        StringBuilder sb = new StringBuilder();
+        if (ctx.domain() != null) {
+            sb.append("根据您的问题，已从 **").append(ctx.domain())
+              .append("** 业务域匹配到预制查询模板");
+            if (ctx.templateCode() != null) {
+                sb.append("（").append(ctx.templateCode()).append("）");
+            }
+            sb.append("。\n\n");
+        }
+        sb.append("```sql\n").append(ctx.resolvedSql().trim()).append("\n```\n");
+        if (ctx.primaryView() != null) {
+            sb.append("\n查询目标视图：`").append(ctx.primaryView()).append("`");
+        }
+        return sb.toString();
+    }
+
+    // ── CS-02: HttpClient caching ───────────────────────────────────────
+
+    private OpenAiCompatibleClient getOrCreateClient(AiProviderConfig provider) {
+        String key = provider.getBaseUrl() + "|" + provider.getApiKey() + "|" +
+                     (provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
+        if (cachedClient != null && key.equals(cachedClientKey)) {
+            return cachedClient;
+        }
+        synchronized (this) {
+            if (cachedClient != null && key.equals(cachedClientKey)) {
+                return cachedClient;
+            }
+            cachedClient = new OpenAiCompatibleClient(
+                    provider.getBaseUrl(), provider.getApiKey(),
+                    provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
+            cachedClientKey = key;
+            return cachedClient;
+        }
+    }
+
+    // ── SSE helpers ─────────────────────────────────────────────────────
+
+    private void writeTokenAndDone(OutputStream out, String text, String sql) {
+        try {
+            String escaped = mapper.createObjectNode().put("content", text).toString();
+            out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
+            writeDoneEvent(out, sql);
+            out.flush();
+        } catch (IOException e) {
+            log.debug("SSE write failed: {}", e.getMessage());
+        }
+    }
+
+    private void writeDoneEvent(OutputStream out, String sql) {
+        try {
+            ObjectNode done = mapper.createObjectNode();
+            if (sql != null) {
+                done.put("generatedSql", sql);
+            }
+            out.write(("event: done\ndata: " + done.toString() + "\n\n").getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException e) {
+            log.debug("SSE done event write failed: {}", e.getMessage());
+        }
     }
 
     public record ChatExecutionResult(

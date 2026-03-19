@@ -111,28 +111,59 @@ public class AgentChatService {
     @Transactional
     public void sendMessageStream(String sessionId, String userId, String message,
                                   Long datasourceId, OutputStream output) {
-        // For streaming, we delegate to the synchronous path and stream the result.
-        // Full SSE streaming with ReAct requires deeper integration; this provides
-        // a working baseline that sends the complete response as a single SSE event.
-        try {
-            String response = sendMessage(sessionId, userId, message, datasourceId);
+        AiChatSession session = resolveOrCreateSession(sessionId, userId);
+        if (datasourceId != null) {
+            session.setDataSourceId(datasourceId);
+        }
 
-            // Send the response as SSE
-            String sseData = "data: " + escapeForSse(response) + "\n\n";
-            output.write(sseData.getBytes(StandardCharsets.UTF_8));
-            output.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+        AiChatMessage userMsg = new AiChatMessage();
+        userMsg.setRole("user");
+        userMsg.setContent(message);
+        session.addMessage(userMsg);
+
+        List<Map<String, Object>> history = buildHistory(session);
+        Long effectiveDataSourceId = datasourceId != null ? datasourceId : session.getDataSourceId();
+
+        // Send session event first so frontend gets the sessionId immediately
+        try {
+            String sessionEvent = "event: session\ndata: {\"sessionId\":\"%s\"}\n\n"
+                    .formatted(session.getSessionId());
+            output.write(sessionEvent.getBytes(StandardCharsets.UTF_8));
             output.flush();
+        } catch (Exception e) {
+            log.debug("SSE session event write failed (client disconnected): {}", e.getMessage());
+            return;
+        }
+
+        // Execute with real streaming
+        ChatExecutionResult executionResult;
+        try {
+            executionResult = agentExecutionService.executeChatStream(
+                    session.getSessionId(), userId, message, history, effectiveDataSourceId, output);
         } catch (Exception e) {
             log.error("Streaming chat failed: {}", e.getMessage(), e);
             try {
-                String errorSse = "data: {\"error\": \"" + escapeForSse(e.getMessage()) + "\"}\n\n";
-                output.write(errorSse.getBytes(StandardCharsets.UTF_8));
-                output.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8));
+                output.write(("event: error\ndata: {\"error\":\"" + escapeForSse(e.getMessage()) + "\"}\n\n")
+                        .getBytes(StandardCharsets.UTF_8));
                 output.flush();
-            } catch (Exception ignored) {
-                // Output stream may already be closed
-            }
+            } catch (Exception ignored) {}
+            return;
         }
+
+        // Persist assistant message
+        AiChatMessage assistantMsg = new AiChatMessage();
+        assistantMsg.setRole("assistant");
+        assistantMsg.setContent(executionResult.response());
+        assistantMsg.setGeneratedSql(executionResult.generatedSql());
+        applyGroundingMetadata(assistantMsg, executionResult.groundingContext());
+        session.addMessage(assistantMsg);
+
+        if (session.getTitle() == null || session.getTitle().isBlank()) {
+            session.setTitle(generateTitle(message));
+        }
+
+        sessionRepository.save(session);
+        auditService.logChatAction(userId, session.getSessionId(), "CHAT_MESSAGE", message, executionResult.response());
     }
 
     /**
