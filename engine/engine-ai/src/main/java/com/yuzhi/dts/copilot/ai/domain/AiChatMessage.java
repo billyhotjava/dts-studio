@@ -63,6 +63,9 @@ public class AiChatMessage {
     @Column(name = "template_code", length = 64)
     private String templateCode;
 
+    @Column(name = "response_kind", length = 64)
+    private String responseKind;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -165,6 +168,14 @@ public class AiChatMessage {
 
     public void setTemplateCode(String templateCode) {
         this.templateCode = templateCode;
+    }
+
+    public String getResponseKind() {
+        return responseKind;
+    }
+
+    public void setResponseKind(String responseKind) {
+        this.responseKind = responseKind;
     }
 
     public Instant getCreatedAt() {

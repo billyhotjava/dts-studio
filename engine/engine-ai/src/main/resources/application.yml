@@ -50,4 +50,7 @@ dts:
       config-path: ${DTS_AI_CONFIG_PATH:/opt/dts/upload/ai-copilot-config.json}
 
 copilot:
+  chat:
+    planner:
+      mode: ${COPILOT_CHAT_PLANNER_MODE:asset}
   admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}

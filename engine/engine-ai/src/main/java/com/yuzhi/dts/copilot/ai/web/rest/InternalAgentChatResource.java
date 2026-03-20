@@ -208,6 +208,7 @@ public class InternalAgentChatResource {
         map.put("toolCallId", message.getToolCallId());
         map.put("generatedSql", message.getGeneratedSql());
         map.put("reasoningContent", message.getReasoningContent());
+        map.put("responseKind", message.getResponseKind());
         map.put("routedDomain", message.getRoutedDomain());
         map.put("targetView", message.getTargetView());
         map.put("templateCode", message.getTemplateCode());

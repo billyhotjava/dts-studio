@@ -76,10 +76,10 @@ resolve_auth_header() {
 }
 
 run_guardrail_tests() {
-  echo "[IT-ELT-01] run AI routing and grounding guardrails"
+  echo "[IT-ELT-01] run AI planner and routing guardrails"
   mvn -f "${MAVEN_ROOT}/pom.xml" \
     -pl dts-copilot-ai \
-    -Dtest=IntentRouterServiceTest,ChatGroundingServiceTest \
+    -Dtest=ConversationPlannerServiceTest,AssetBackedPlannerPolicyTest,AgentExecutionServiceTest,AgentChatServiceTest,InternalAgentChatResourceTest,IntentRouterServiceTest \
     test
 
   echo "[IT-ELT-02] run analytics ELT guardrails"

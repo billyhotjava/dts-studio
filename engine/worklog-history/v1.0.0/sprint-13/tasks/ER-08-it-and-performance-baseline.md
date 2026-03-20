@@ -38,8 +38,12 @@
 当前可执行 guardrail 分两层：
 
 1. Maven 回归：
+   - `ConversationPlannerServiceTest`
+   - `AssetBackedPlannerPolicyTest`
+   - `AgentExecutionServiceTest`
+   - `AgentChatServiceTest`
+   - `InternalAgentChatResourceTest`
    - `IntentRouterServiceTest`
-   - `ChatGroundingServiceTest`
    - `FieldOperationSyncJobTest`
    - `ProjectFulfillmentSyncJobTest`
    - `EltSyncWatermarkMappingTest`

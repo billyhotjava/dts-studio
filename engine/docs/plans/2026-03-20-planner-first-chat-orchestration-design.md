@@ -2,7 +2,7 @@
 
 ## Goal
 
-将 Copilot 对话入口从“业务路由先拦截”重构为“planner-first”，让会话先进入统一规划层，再由规划层决定直接回复、模板快路径或 agent/tool 链路，彻底消除库表探索、泛化分析等请求被业务澄清文案提前截断的问题。
+将 Copilot 对话入口从“业务路由先拦截”重构为“planner-first”，让会话先进入统一规划层，再由规划层决定业务资产直答、模板快路径或 agent/tool 链路，彻底消除库表探索、泛化分析等请求被业务澄清文案提前截断的问题，并预留未来切换为 LLM planner 的口子。
 
 ## Problem Statement
 
@@ -19,7 +19,7 @@
 
 ### 1. Conversation Planner
 
-新增显式规划层 `ConversationPlannerService`，统一输出 `ConversationPlan`：
+新增显式规划层 `ConversationPlannerService`，但其内部不直接写死规划逻辑，而是委托给 `PlannerPolicy`。统一输出 `ConversationPlan`：
 
 - `DIRECT_RESPONSE`
 - `TEMPLATE_FAST_PATH`
@@ -38,14 +38,38 @@
 
 ### 2. Planner Policy
 
-规划层不再把“澄清”作为系统级拦截，而是降级成 agent 的提示策略：
+规划层不再把“澄清”作为系统级拦截，而是降级成 agent 的提示策略。策略实现分三种模式：
 
-- 问候 / 产品说明：直接回复
+- `asset`
+- `llm`
+- `hybrid`
+
+当前先落 `asset`，但主链只依赖统一接口。
+
+#### AssetBackedPlannerPolicy
+
+只消费已有业务资产：
+
+- `Nl2SqlQueryTemplate`
+- `Nl2SqlRoutingRule`
+- `SemanticPack`
+- `mart/fact` 健康状态
+
+行为规则：
+
 - 精确模板命中：模板快路径
-- 库表探索：直接进入 agent，提示优先 `schema_lookup`
+- 明确命中业务资产直答目录：允许 `DIRECT_RESPONSE`
 - 高置信业务分析：附带业务语义上下文进入 agent
-- 低置信业务问题：仍进入 agent，但 planner prompt 明确要求先做 schema/上下文探索，再在必要时提出聚焦澄清
-- 泛化数据分析问题：进入 agent，不走业务澄清硬拦截
+- 低置信业务问题：进入 agent，并附带 planner 提示，要求优先 schema/tool 探索再决定是否追问
+- 通用问候 / 产品介绍 / 库表探索 / 泛化分析：默认进入 agent，不在 Java 中硬编码直答
+
+#### LlmBackedPlannerPolicy
+
+未来接本地模型后，由模型直接输出结构化 `ConversationPlan`。主链不变，只切 policy。
+
+#### HybridPlannerPolicy
+
+过渡态：先跑资产策略，未命中时再委托 LLM planner。
 
 ### 3. Business Router Demotion
 
@@ -69,12 +93,12 @@
 
 会话消息增加结构化 `responseKind` 元数据，前端不再依赖固定文案前缀：
 
-- `GREETING_GUIDANCE`
-- `ASSISTANT_META`
+- `BUSINESS_DIRECT_RESPONSE`
 - `SCHEMA_EXPLORATION`
 - `BUSINESS_ANALYSIS`
 - `BUSINESS_CLARIFICATION`
 - `GENERIC_ANALYSIS`
+- `TEMPLATE_SQL`
 
 `copilotSessionBootstrap` 优先读取结构化类型，只在旧会话上回退到 legacy 前缀判断。
 
@@ -82,10 +106,11 @@
 
 1. analytics 收到消息
 2. ai `AgentChatService` 调用 `ConversationPlannerService`
-3. planner 输出 `ConversationPlan`
-4. `AgentExecutionService` 根据 `plan.mode` 执行
-5. assistant 消息持久化 `responseKind + routing metadata`
-6. 前端恢复会话时读取结构化类型，而不是依赖旧文案
+3. `ConversationPlannerService` 根据配置选择 `PlannerPolicy`
+4. policy 输出 `ConversationPlan`
+5. `AgentExecutionService` 根据 `plan.mode` 执行
+6. assistant 消息持久化 `responseKind + routing metadata`
+7. 前端恢复会话时读取结构化类型，而不是依赖旧文案
 
 ## Error Handling
 
@@ -93,6 +118,7 @@
 - 低置信问题进入 agent，由模型在上下文不足时主动追问
 - streaming/non-streaming 共用 planner
 - 老会话兼容旧 `OLD_CLARIFICATION_PREFIX`，但新消息不再依赖该协议
+- `DIRECT_RESPONSE` 仅限业务资产明确覆盖的问题
 
 ## Testing Strategy
 
@@ -100,11 +126,12 @@
 
 - 库表探索请求不再走业务澄清短路
 - 模糊业务问题不再被系统级拦截，而是进入 agent
-- 问候 / 产品说明仍走直接回复
+- 通用问候 / 产品说明默认进入 agent，而不是 Java 直答
 - 模板命中仍保留快路径
+- 业务资产命中时允许 direct response
 - streaming 与 non-streaming 行为一致
 - 会话恢复优先使用 `responseKind`
 
 ## Rollout
 
-本次重构只改对话编排，不改工具协议和 analytics 对外 API。数据库仅新增 `ai_chat_message.response_kind` 字段，旧数据保持兼容。
+本次重构只改对话编排，不改工具协议和 analytics 对外 API。数据库仅新增 `ai_chat_message.response_kind` 字段，旧数据保持兼容；同时预留 `copilot.chat.planner.mode=asset|llm|hybrid` 配置。

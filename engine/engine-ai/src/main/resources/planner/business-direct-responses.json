@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "code": "business-scope-overview",
+      "responseType": "BUSINESS_SCOPE_OVERVIEW",
+      "intentPatterns": [
+        ".*(能分析|能查|支持查询|支持分析).*(业务|数据|范围).*",
+        ".*(哪些|什么).*(业务|主题域|分析范围).*",
+        ".*(可以问|怎么问).*(业务|数据).*"
+      ]
+    }
+  ]
+}
