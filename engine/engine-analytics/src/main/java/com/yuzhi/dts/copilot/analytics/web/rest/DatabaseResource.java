@@ -36,6 +36,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +58,7 @@ import org.springframework.util.StringUtils;
 @Transactional
 public class DatabaseResource {
 
+    private static final Logger log = LoggerFactory.getLogger(DatabaseResource.class);
     private static final DateTimeFormatter METABASE_TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS");
 
     private final AnalyticsSessionService sessionService;
@@ -305,8 +309,10 @@ public class DatabaseResource {
                             summary.disabledFields()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("errors", Map.of("database", e.getMessage())));
-        } catch (SQLException e) {
-            return ResponseEntity.accepted().body(Map.of("error", "Error syncing schema: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Metadata sync failed for database {}: {}", dbId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "同步失败: " + e.getMessage()));
         }
     }
 
