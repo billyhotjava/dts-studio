@@ -19,6 +19,7 @@ class ProviderTemplateCatalogTest {
         assertDoesNotThrow(() -> ProviderTemplate.valueOf("BAIDU_QIANFAN"));
         assertDoesNotThrow(() -> ProviderTemplate.valueOf("DOUBAO"));
         assertDoesNotThrow(() -> ProviderTemplate.valueOf("SILICONFLOW"));
+        assertDoesNotThrow(() -> ProviderTemplate.valueOf("MINIMAX"));
         assertDoesNotThrow(() -> ProviderTemplate.valueOf("OLLAMA"));
     }
 }

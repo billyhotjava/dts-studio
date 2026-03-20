@@ -26,7 +26,7 @@ import java.util.TreeMap;
 /**
  * HTTP client for any OpenAI-compatible LLM endpoint (Ollama, OpenAI, DeepSeek, etc.)
  */
-public class OpenAiCompatibleClient {
+public class OpenAiCompatibleClient implements LlmProviderClient {
 
     private static final Logger log = LoggerFactory.getLogger(OpenAiCompatibleClient.class);
     private static final ObjectMapper mapper = new ObjectMapper();

@@ -3,7 +3,6 @@ package com.yuzhi.dts.copilot.ai.web.rest;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.service.config.AiConfigService;
 import com.yuzhi.dts.copilot.ai.service.config.ProviderTemplate;
-import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.ApiResponse;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.AiProviderConfigRequest;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.AiProviderConfigResponse;
@@ -154,26 +153,7 @@ public class AiConfigResource {
             return authCheck;
         }
         return configService.getProvider(id)
-                .map(config -> {
-                    OpenAiCompatibleClient client = new OpenAiCompatibleClient(
-                            config.getBaseUrl(),
-                            config.getApiKey(),
-                            config.getTimeoutSeconds() != null ? config.getTimeoutSeconds() : 10
-                    );
-                    boolean available = client.isAvailable();
-                    Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("reachable", available);
-                    result.put("provider", config.getName());
-                    result.put("baseUrl", config.getBaseUrl());
-                    if (available) {
-                        try {
-                            result.put("models", client.listModels());
-                        } catch (Exception e) {
-                            result.put("modelsError", e.getMessage());
-                        }
-                    }
-                    return ResponseEntity.ok(ApiResponse.ok(result));
-                })
+                .map(config -> ResponseEntity.ok(ApiResponse.ok(configService.testProvider(id))))
                 .orElseGet(() -> ResponseEntity.badRequest()
                         .body(ApiResponse.error("Provider not found: " + id)));
     }
