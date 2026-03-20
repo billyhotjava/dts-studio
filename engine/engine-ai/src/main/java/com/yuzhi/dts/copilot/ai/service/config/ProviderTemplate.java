@@ -29,7 +29,8 @@ public enum ProviderTemplate {
     MOONSHOT("Moonshot Kimi", "https://api.moonshot.cn/v1", null, "moonshot-v1-8k", 0.3, 4096, 60, false, "CHINA", false, 240),
     BAIDU_QIANFAN("百度千帆", "https://qianfan.baidubce.com/v2", null, "ernie-4.5-8k-preview", 0.3, 4096, 60, false, "CHINA", false, 250),
     DOUBAO("火山方舟 / 豆包", "https://ark.cn-beijing.volces.com/api/v3", null, "doubao-seed-1-6-flash-250828", 0.3, 4096, 60, false, "CHINA", false, 260),
-    SILICONFLOW("硅基流动", "https://api.siliconflow.cn/v1", null, "deepseek-ai/DeepSeek-V3", 0.3, 4096, 60, false, "CHINA", false, 270);
+    SILICONFLOW("硅基流动", "https://api.siliconflow.cn/v1", null, "deepseek-ai/DeepSeek-V3", 0.3, 4096, 60, false, "CHINA", false, 270),
+    MINIMAX("MiniMax", "https://api.minimaxi.com/anthropic", null, "MiniMax-M2.7", 0.3, 4096, 60, false, "CHINA", false, 280);
 
     private final String displayName;
     private final String defaultBaseUrl;

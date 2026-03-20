@@ -4,7 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
-import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,7 @@ public class AiConfigService {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private final AiProviderConfigRepository repository;
+    private final LlmProviderClientFactory clientFactory;
 
     @Value("${dts.copilot.ai.config-path:/opt/dts/upload/ai-copilot-config.json}")
     private String configFilePath;
@@ -53,8 +55,10 @@ public class AiConfigService {
     @Value("${dts.copilot.llm.timeout-seconds:60}")
     private int envLlmTimeout;
 
-    public AiConfigService(AiProviderConfigRepository repository) {
+    public AiConfigService(AiProviderConfigRepository repository,
+                           LlmProviderClientFactory clientFactory) {
         this.repository = repository;
+        this.clientFactory = clientFactory;
     }
 
     @Transactional(readOnly = true)
@@ -225,9 +229,7 @@ public class AiConfigService {
      */
     public Map<String, Object> testProviderConfig(AiProviderConfig config) {
         try {
-            OpenAiCompatibleClient client = new OpenAiCompatibleClient(
-                    config.getBaseUrl(), config.getApiKey(),
-                    config.getTimeoutSeconds() != null ? config.getTimeoutSeconds() : 30);
+            LlmProviderClient client = clientFactory.create(config);
             JsonNode models = client.listModels();
 
             boolean modelFound = false;

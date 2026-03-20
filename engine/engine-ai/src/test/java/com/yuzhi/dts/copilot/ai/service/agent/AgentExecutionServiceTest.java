@@ -17,6 +17,8 @@ import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ResponseKind;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
 import java.util.Collections;
@@ -44,6 +46,12 @@ class AgentExecutionServiceTest {
     @Mock
     private ConversationPlannerService conversationPlannerService;
 
+    @Mock
+    private LlmProviderClientFactory clientFactory;
+
+    @Mock
+    private LlmProviderClient llmProviderClient;
+
     private AgentExecutionService service;
 
     @BeforeEach
@@ -52,7 +60,8 @@ class AgentExecutionServiceTest {
                 reActEngine,
                 ragService,
                 providerConfigRepository,
-                conversationPlannerService
+                conversationPlannerService,
+                clientFactory
         );
     }
 
@@ -97,14 +106,16 @@ class AgentExecutionServiceTest {
                         "不要直接返回固定的业务范围清单"));
         when(providerConfigRepository.findByIsDefaultTrue())
                 .thenReturn(Optional.of(buildProvider()));
-        when(reActEngine.execute(any(), eq("qwen-plus"), anyList(), any(ToolContext.class), eq(0.2), eq(4096)))
+        when(clientFactory.create(any())).thenReturn(llmProviderClient);
+        when(reActEngine.execute(eq(llmProviderClient), eq("qwen-plus"), anyList(), any(ToolContext.class), eq(0.2), eq(4096)))
                 .thenReturn("请确认统计口径");
 
         AgentExecutionService.ChatExecutionResult result = service.executeChat(
                 "sess-1", "alice", "帮我做个统计", Collections.emptyList(), 7L, Map.of());
 
         assertThat(result.response()).isEqualTo("请确认统计口径");
-        verify(reActEngine).execute(any(), eq("qwen-plus"), anyList(), any(ToolContext.class), eq(0.2), eq(4096));
+        verify(clientFactory).create(any(AiProviderConfig.class));
+        verify(reActEngine).execute(eq(llmProviderClient), eq("qwen-plus"), anyList(), any(ToolContext.class), eq(0.2), eq(4096));
     }
 
     private AiProviderConfig buildProvider() {

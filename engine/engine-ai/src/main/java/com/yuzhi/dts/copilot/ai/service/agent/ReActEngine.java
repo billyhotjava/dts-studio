@@ -2,6 +2,7 @@ package com.yuzhi.dts.copilot.ai.service.agent;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolRegistry;
@@ -53,7 +54,7 @@ public class ReActEngine {
      * @param maxTokens   LLM max tokens
      * @return the final text response from the LLM
      */
-    public String execute(OpenAiCompatibleClient client, String model,
+    public String execute(LlmProviderClient client, String model,
                           List<Map<String, Object>> messages, ToolContext toolContext,
                           Double temperature, Integer maxTokens) {
         List<Map<String, Object>> toolDefinitions = toolRegistry.getToolDefinitions();
@@ -142,7 +143,7 @@ public class ReActEngine {
      * Streaming variant: tool-call rounds are synchronous, final text response is
      * streamed as SSE token events to the output stream.
      */
-    public String executeStreaming(OpenAiCompatibleClient client, String model,
+    public String executeStreaming(LlmProviderClient client, String model,
                                    List<Map<String, Object>> messages, ToolContext toolContext,
                                    Double temperature, Integer maxTokens,
                                    OutputStream sseOutput) {

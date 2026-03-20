@@ -1,6 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.llm.gateway;
 
-import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,12 +16,12 @@ public class ProviderState {
 
     private final Long providerId;
     private final String providerName;
-    private final OpenAiCompatibleClient client;
+    private final LlmProviderClient client;
     private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
     private final AtomicReference<Instant> lastFailureTime = new AtomicReference<>(null);
     private volatile boolean circuitOpen = false;
 
-    public ProviderState(Long providerId, String providerName, OpenAiCompatibleClient client) {
+    public ProviderState(Long providerId, String providerName, LlmProviderClient client) {
         this.providerId = providerId;
         this.providerName = providerName;
         this.client = client;
@@ -35,7 +35,7 @@ public class ProviderState {
         return providerName;
     }
 
-    public OpenAiCompatibleClient getClient() {
+    public LlmProviderClient getClient() {
         return client;
     }
 

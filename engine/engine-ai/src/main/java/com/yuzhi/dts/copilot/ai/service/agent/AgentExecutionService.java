@@ -7,7 +7,8 @@ import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
-import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
+import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.rag.dto.RagResult;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
@@ -74,18 +75,21 @@ public class AgentExecutionService {
     private final RagService ragService;
     private final AiProviderConfigRepository providerConfigRepository;
     private final ConversationPlannerService conversationPlannerService;
+    private final LlmProviderClientFactory clientFactory;
 
-    private volatile OpenAiCompatibleClient cachedClient;
+    private volatile LlmProviderClient cachedClient;
     private volatile String cachedClientKey;
 
     public AgentExecutionService(ReActEngine reActEngine,
                                  RagService ragService,
                                  AiProviderConfigRepository providerConfigRepository,
-                                 ConversationPlannerService conversationPlannerService) {
+                                 ConversationPlannerService conversationPlannerService,
+                                 LlmProviderClientFactory clientFactory) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
         this.conversationPlannerService = conversationPlannerService;
+        this.clientFactory = clientFactory;
     }
 
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
@@ -117,7 +121,7 @@ public class AgentExecutionService {
             );
         }
 
-        OpenAiCompatibleClient client = getOrCreateClient(provider);
+        LlmProviderClient client = getOrCreateClient(provider);
         List<Map<String, Object>> messages = new ArrayList<>();
 
         Map<String, Object> systemMsg = new LinkedHashMap<>();
@@ -179,7 +183,7 @@ public class AgentExecutionService {
             return new ChatExecutionResult(message, null, conversationPlan, null);
         }
 
-        OpenAiCompatibleClient client = getOrCreateClient(provider);
+        LlmProviderClient client = getOrCreateClient(provider);
         List<Map<String, Object>> messages = new ArrayList<>();
         Map<String, Object> systemMsg = new LinkedHashMap<>();
         systemMsg.put("role", "system");
@@ -289,7 +293,7 @@ public class AgentExecutionService {
         return sb.toString();
     }
 
-    private OpenAiCompatibleClient getOrCreateClient(AiProviderConfig provider) {
+    private LlmProviderClient getOrCreateClient(AiProviderConfig provider) {
         String key = provider.getBaseUrl() + "|" + provider.getApiKey() + "|"
                 + (provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
         if (cachedClient != null && key.equals(cachedClientKey)) {
@@ -299,10 +303,7 @@ public class AgentExecutionService {
             if (cachedClient != null && key.equals(cachedClientKey)) {
                 return cachedClient;
             }
-            cachedClient = new OpenAiCompatibleClient(
-                    provider.getBaseUrl(),
-                    provider.getApiKey(),
-                    provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
+            cachedClient = clientFactory.create(provider);
             cachedClientKey = key;
             return cachedClient;
         }
