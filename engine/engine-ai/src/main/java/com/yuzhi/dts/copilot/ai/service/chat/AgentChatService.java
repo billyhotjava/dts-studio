@@ -6,7 +6,7 @@ import com.yuzhi.dts.copilot.ai.repository.AiChatSessionRepository;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService.ChatExecutionResult;
 import com.yuzhi.dts.copilot.ai.service.audit.AiAuditService;
-import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService.GroundingContext;
+import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -92,7 +92,7 @@ public class AgentChatService {
         assistantMsg.setContent(response);
         assistantMsg.setGeneratedSql(executionResult.generatedSql());
         assistantMsg.setReasoningContent(executionResult.reasoningContent());
-        applyGroundingMetadata(assistantMsg, executionResult.groundingContext());
+        applyGroundingMetadata(assistantMsg, executionResult.conversationPlan());
         session.addMessage(assistantMsg);
 
         // Auto-generate title from first message
@@ -177,7 +177,7 @@ public class AgentChatService {
         assistantMsg.setContent(executionResult.response());
         assistantMsg.setGeneratedSql(executionResult.generatedSql());
         assistantMsg.setReasoningContent(executionResult.reasoningContent());
-        applyGroundingMetadata(assistantMsg, executionResult.groundingContext());
+        applyGroundingMetadata(assistantMsg, executionResult.conversationPlan());
         session.addMessage(assistantMsg);
 
         if (session.getTitle() == null || session.getTitle().isBlank()) {
@@ -301,13 +301,16 @@ public class AgentChatService {
         return base + " 原因: " + detail;
     }
 
-    private void applyGroundingMetadata(AiChatMessage assistantMsg, GroundingContext groundingContext) {
-        if (assistantMsg == null || groundingContext == null || groundingContext.needsClarification()) {
+    private void applyGroundingMetadata(AiChatMessage assistantMsg, ConversationPlan conversationPlan) {
+        if (assistantMsg == null || conversationPlan == null) {
             return;
         }
-        assistantMsg.setRoutedDomain(groundingContext.domain());
-        assistantMsg.setTargetView(groundingContext.primaryView());
-        assistantMsg.setTemplateCode(groundingContext.templateCode());
+        if (conversationPlan.responseKind() != null) {
+            assistantMsg.setResponseKind(conversationPlan.responseKind().name());
+        }
+        assistantMsg.setRoutedDomain(conversationPlan.routedDomain());
+        assistantMsg.setTargetView(conversationPlan.primaryTarget());
+        assistantMsg.setTemplateCode(conversationPlan.templateCode());
     }
 
     static boolean isStreamInterrupted(Throwable throwable) {

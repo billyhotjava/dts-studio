@@ -10,7 +10,8 @@
 
 ## 范围
 
-- `ChatGroundingService`
+- `ConversationPlannerService`
+- `AssetBackedPlannerPolicy`
 - `Nl2SqlService`
 - `IntentRouterService`
 - 路由结果在 chat metadata 中的透传
@@ -26,4 +27,3 @@
 - [ ] 主聊天链能消费 data-layer 路由结果
 - [ ] session/message metadata 可看到路由层级
 - [ ] 主题层模板问题不再回落到旧视图链
-

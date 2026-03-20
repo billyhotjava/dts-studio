@@ -17,4 +17,5 @@
     <include file="config/liquibase/changelog/v1_0_0_011__mart_query_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_012__chat_message_grounding_metadata.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_013__chat_message_reasoning.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_014__chat_message_response_kind.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

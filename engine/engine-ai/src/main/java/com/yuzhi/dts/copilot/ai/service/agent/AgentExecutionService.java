@@ -1,21 +1,16 @@
 package com.yuzhi.dts.copilot.ai.service.agent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
-import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService;
-import com.yuzhi.dts.copilot.ai.service.copilot.ChatGroundingService.GroundingContext;
+import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
+import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
+import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
 import com.yuzhi.dts.copilot.ai.service.llm.OpenAiCompatibleClient;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.rag.dto.RagResult;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +19,10 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * High-level agent execution service.
@@ -69,37 +68,26 @@ public class AgentExecutionService {
             [SQL 逻辑说明]
             """;
 
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ReActEngine reActEngine;
     private final RagService ragService;
     private final AiProviderConfigRepository providerConfigRepository;
-    private final ChatGroundingService chatGroundingService;
+    private final ConversationPlannerService conversationPlannerService;
 
-    // CS-02: Cached LLM client to reuse HTTP connections
     private volatile OpenAiCompatibleClient cachedClient;
     private volatile String cachedClientKey;
 
     public AgentExecutionService(ReActEngine reActEngine,
                                  RagService ragService,
                                  AiProviderConfigRepository providerConfigRepository,
-                                 ChatGroundingService chatGroundingService) {
+                                 ConversationPlannerService conversationPlannerService) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
-        this.chatGroundingService = chatGroundingService;
+        this.conversationPlannerService = conversationPlannerService;
     }
 
-    /**
-     * Execute a chat interaction: enrich with RAG context, then run the ReAct loop.
-     *
-     * @param sessionId   the chat session identifier
-     * @param userId      the user identifier
-     * @param userMessage the user's message
-     * @param history     previous conversation messages (role/content maps)
-     * @param dataSourceId optional active data source
-     * @return the agent's text response
-     */
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
                                            List<Map<String, Object>> history, Long dataSourceId) {
         return executeChat(sessionId, userId, userMessage, history, dataSourceId, Collections.emptyMap());
@@ -108,20 +96,15 @@ public class AgentExecutionService {
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
                                            List<Map<String, Object>> history, Long dataSourceId,
                                            Map<String, Boolean> martHealthSnapshot) {
-        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage, martHealthSnapshot);
-        if (groundingContext.needsClarification()) {
-            return new ChatExecutionResult(
-                    groundingContext.clarificationMessage(),
-                    null,
-                    groundingContext,
-                    null
-            );
+        ConversationPlan conversationPlan = conversationPlannerService.plan(userMessage, martHealthSnapshot);
+        if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
+            return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
         }
-
-        // CS-01: Template fast-path — skip LLM entirely when template matched with SQL
-        if (groundingContext.templateCode() != null && groundingContext.resolvedSql() != null) {
-            String response = formatTemplateResponse(groundingContext);
-            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext, null);
+        if (conversationPlan.mode() == PlanMode.TEMPLATE_FAST_PATH
+                && StringUtils.hasText(conversationPlan.templateCode())
+                && StringUtils.hasText(conversationPlan.resolvedSql())) {
+            String response = formatTemplateResponse(conversationPlan);
+            return new ChatExecutionResult(response, conversationPlan.resolvedSql(), conversationPlan, null);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -129,92 +112,145 @@ public class AgentExecutionService {
             return new ChatExecutionResult(
                     "No AI provider is configured. Please configure a provider in the settings.",
                     null,
-                    groundingContext,
+                    conversationPlan,
                     null
             );
         }
 
         OpenAiCompatibleClient client = getOrCreateClient(provider);
-
-        // Build conversation messages
         List<Map<String, Object>> messages = new ArrayList<>();
 
-        // System prompt with RAG context
-        String systemPrompt = buildSystemPrompt(userMessage, groundingContext);
         Map<String, Object> systemMsg = new LinkedHashMap<>();
         systemMsg.put("role", "system");
-        systemMsg.put("content", systemPrompt);
+        systemMsg.put("content", buildSystemPrompt(userMessage, conversationPlan));
         messages.add(systemMsg);
-
-        // Add conversation history
         if (history != null) {
             messages.addAll(history);
         }
-
-        // Add current user message
         Map<String, Object> userMsg = new LinkedHashMap<>();
         userMsg.put("role", "user");
         userMsg.put("content", userMessage);
         messages.add(userMsg);
 
-        // Execute ReAct loop
         ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
-
-        String response = reActEngine.execute(client, provider.getModel(), messages, toolContext,
-                provider.getTemperature(), provider.getMaxTokens());
+        String response = reActEngine.execute(
+                client,
+                provider.getModel(),
+                messages,
+                toolContext,
+                provider.getTemperature(),
+                provider.getMaxTokens());
         return new ChatExecutionResult(
                 response,
-                resolveGeneratedSql(response, groundingContext),
-                groundingContext,
+                resolveGeneratedSql(response, conversationPlan),
+                conversationPlan,
                 null
         );
     }
 
-    private String buildSystemPrompt(String userMessage, GroundingContext groundingContext) {
-        StringBuilder sb = new StringBuilder(SYSTEM_PROMPT);
+    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                 List<Map<String, Object>> history, Long dataSourceId,
+                                                 OutputStream sseOutput) {
+        return executeChatStream(
+                sessionId, userId, userMessage, history, dataSourceId, Collections.emptyMap(), sseOutput);
+    }
 
-        if (groundingContext != null && groundingContext.promptContext() != null
-                && !groundingContext.promptContext().isBlank()) {
-            sb.append("\n\nBusiness grounding context:\n")
-                    .append(groundingContext.promptContext())
-                    .append("\n");
+    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                 List<Map<String, Object>> history, Long dataSourceId,
+                                                 Map<String, Boolean> martHealthSnapshot,
+                                                 OutputStream sseOutput) {
+        ConversationPlan conversationPlan = conversationPlannerService.plan(userMessage, martHealthSnapshot);
+        if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
+            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null);
+            return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
+        }
+        if (conversationPlan.mode() == PlanMode.TEMPLATE_FAST_PATH
+                && StringUtils.hasText(conversationPlan.templateCode())
+                && StringUtils.hasText(conversationPlan.resolvedSql())) {
+            String response = formatTemplateResponse(conversationPlan);
+            writeTokenAndDone(sseOutput, response, conversationPlan.resolvedSql());
+            return new ChatExecutionResult(response, conversationPlan.resolvedSql(), conversationPlan, null);
         }
 
-        // Enrich with RAG context
+        AiProviderConfig provider = resolveProvider();
+        if (provider == null) {
+            String message = "No AI provider is configured. Please configure a provider in the settings.";
+            writeTokenAndDone(sseOutput, message, null);
+            return new ChatExecutionResult(message, null, conversationPlan, null);
+        }
+
+        OpenAiCompatibleClient client = getOrCreateClient(provider);
+        List<Map<String, Object>> messages = new ArrayList<>();
+        Map<String, Object> systemMsg = new LinkedHashMap<>();
+        systemMsg.put("role", "system");
+        systemMsg.put("content", buildSystemPrompt(userMessage, conversationPlan));
+        messages.add(systemMsg);
+        if (history != null) {
+            messages.addAll(history);
+        }
+        Map<String, Object> userMsg = new LinkedHashMap<>();
+        userMsg.put("role", "user");
+        userMsg.put("content", userMessage);
+        messages.add(userMsg);
+
+        ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
+        String response = reActEngine.executeStreaming(
+                client,
+                provider.getModel(),
+                messages,
+                toolContext,
+                provider.getTemperature(),
+                provider.getMaxTokens(),
+                sseOutput);
+        String sql = resolveGeneratedSql(response, conversationPlan);
+        writeDoneEvent(sseOutput, sql);
+
+        return new ChatExecutionResult(
+                response,
+                sql,
+                conversationPlan,
+                extractReasoningFromMessages(messages)
+        );
+    }
+
+    private String buildSystemPrompt(String userMessage, ConversationPlan conversationPlan) {
+        StringBuilder sb = new StringBuilder(SYSTEM_PROMPT);
+        if (conversationPlan != null && StringUtils.hasText(conversationPlan.promptContext())) {
+            sb.append("\n\nBusiness grounding context:\n")
+                    .append(conversationPlan.promptContext())
+                    .append("\n");
+        }
         try {
             List<RagResult> ragResults = ragService.retrieve(userMessage, 3);
             if (!ragResults.isEmpty()) {
                 sb.append("\n\nRelevant context from the knowledge base:\n");
                 for (int i = 0; i < ragResults.size(); i++) {
-                    RagResult r = ragResults.get(i);
+                    RagResult result = ragResults.get(i);
                     sb.append(String.format("\n--- Context %d [%s: %s] ---\n%s\n",
-                            i + 1, r.contentType(), r.sourceId(), r.content()));
+                            i + 1, result.contentType(), result.sourceId(), result.content()));
                 }
             }
         } catch (Exception e) {
             log.debug("RAG retrieval skipped: {}", e.getMessage());
         }
-
         return sb.toString();
     }
 
     private AiProviderConfig resolveProvider() {
-        // Try default provider first, then first enabled
         return providerConfigRepository.findByIsDefaultTrue()
                 .orElseGet(() -> {
-                    List<AiProviderConfig> enabled = providerConfigRepository
-                            .findByEnabledTrueOrderByPriorityAsc();
+                    List<AiProviderConfig> enabled = providerConfigRepository.findByEnabledTrueOrderByPriorityAsc();
                     return enabled.isEmpty() ? null : enabled.get(0);
                 });
     }
 
-    private String resolveGeneratedSql(String response, GroundingContext groundingContext) {
+    private String resolveGeneratedSql(String response, ConversationPlan conversationPlan) {
         String generatedSql = extractSqlFromMarkdown(response);
         if (StringUtils.hasText(generatedSql)) {
             return generatedSql;
         }
-        if (groundingContext != null && StringUtils.hasText(groundingContext.resolvedSql())) {
-            return groundingContext.resolvedSql().trim();
+        if (conversationPlan != null && StringUtils.hasText(conversationPlan.resolvedSql())) {
+            return conversationPlan.resolvedSql().trim();
         }
         return null;
     }
@@ -236,97 +272,26 @@ public class AgentExecutionService {
         return StringUtils.hasText(sql) ? sql : null;
     }
 
-    // ── CS-04: Streaming variant ──────────────────────────────────────────
-
-    /**
-     * Streaming variant of executeChat. Writes SSE events to output.
-     * Returns the complete response text for persistence.
-     */
-    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
-                                                  List<Map<String, Object>> history, Long dataSourceId,
-                                                  OutputStream sseOutput) {
-        return executeChatStream(sessionId, userId, userMessage, history, dataSourceId, Collections.emptyMap(), sseOutput);
-    }
-
-    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
-                                                 List<Map<String, Object>> history, Long dataSourceId,
-                                                 Map<String, Boolean> martHealthSnapshot,
-                                                 OutputStream sseOutput) {
-        GroundingContext groundingContext = chatGroundingService.buildContext(userMessage, martHealthSnapshot);
-        if (groundingContext.needsClarification()) {
-            writeTokenAndDone(sseOutput, groundingContext.clarificationMessage(), null);
-            return new ChatExecutionResult(groundingContext.clarificationMessage(), null, groundingContext, null);
-        }
-
-        // CS-01: Template fast-path (streaming)
-        if (groundingContext.templateCode() != null && groundingContext.resolvedSql() != null) {
-            String response = formatTemplateResponse(groundingContext);
-            writeTokenAndDone(sseOutput, response, groundingContext.resolvedSql());
-            return new ChatExecutionResult(response, groundingContext.resolvedSql(), groundingContext, null);
-        }
-
-        AiProviderConfig provider = resolveProvider();
-        if (provider == null) {
-            String msg = "No AI provider is configured. Please configure a provider in the settings.";
-            writeTokenAndDone(sseOutput, msg, null);
-            return new ChatExecutionResult(msg, null, groundingContext, null);
-        }
-
-        OpenAiCompatibleClient client = getOrCreateClient(provider);
-
-        List<Map<String, Object>> messages = new ArrayList<>();
-        String systemPrompt = buildSystemPrompt(userMessage, groundingContext);
-        Map<String, Object> systemMsg = new LinkedHashMap<>();
-        systemMsg.put("role", "system");
-        systemMsg.put("content", systemPrompt);
-        messages.add(systemMsg);
-        if (history != null) {
-            messages.addAll(history);
-        }
-        Map<String, Object> userMsg = new LinkedHashMap<>();
-        userMsg.put("role", "user");
-        userMsg.put("content", userMessage);
-        messages.add(userMsg);
-
-        ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
-        String response = reActEngine.executeStreaming(client, provider.getModel(), messages, toolContext,
-                provider.getTemperature(), provider.getMaxTokens(), sseOutput);
-
-        String sql = resolveGeneratedSql(response, groundingContext);
-        writeDoneEvent(sseOutput, sql);
-
-        return new ChatExecutionResult(
-                response,
-                sql,
-                groundingContext,
-                extractReasoningFromMessages(messages)
-        );
-    }
-
-    // ── CS-01: Template response formatting ─────────────────────────────
-
-    private String formatTemplateResponse(GroundingContext ctx) {
+    private String formatTemplateResponse(ConversationPlan plan) {
         StringBuilder sb = new StringBuilder();
-        if (ctx.domain() != null) {
-            sb.append("根据您的问题，已从 **").append(ctx.domain())
-              .append("** 业务域匹配到预制查询模板");
-            if (ctx.templateCode() != null) {
-                sb.append("（").append(ctx.templateCode()).append("）");
+        if (plan.routedDomain() != null) {
+            sb.append("根据您的问题，已从 **").append(plan.routedDomain())
+                    .append("** 业务域匹配到预制查询模板");
+            if (plan.templateCode() != null) {
+                sb.append("（").append(plan.templateCode()).append("）");
             }
             sb.append("。\n\n");
         }
-        sb.append("```sql\n").append(ctx.resolvedSql().trim()).append("\n```\n");
-        if (ctx.primaryView() != null) {
-            sb.append("\n查询目标视图：`").append(ctx.primaryView()).append("`");
+        sb.append("```sql\n").append(plan.resolvedSql().trim()).append("\n```\n");
+        if (plan.primaryTarget() != null) {
+            sb.append("\n查询目标视图：`").append(plan.primaryTarget()).append("`");
         }
         return sb.toString();
     }
 
-    // ── CS-02: HttpClient caching ───────────────────────────────────────
-
     private OpenAiCompatibleClient getOrCreateClient(AiProviderConfig provider) {
-        String key = provider.getBaseUrl() + "|" + provider.getApiKey() + "|" +
-                     (provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
+        String key = provider.getBaseUrl() + "|" + provider.getApiKey() + "|"
+                + (provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
         if (cachedClient != null && key.equals(cachedClientKey)) {
             return cachedClient;
         }
@@ -335,18 +300,17 @@ public class AgentExecutionService {
                 return cachedClient;
             }
             cachedClient = new OpenAiCompatibleClient(
-                    provider.getBaseUrl(), provider.getApiKey(),
+                    provider.getBaseUrl(),
+                    provider.getApiKey(),
                     provider.getTimeoutSeconds() != null ? provider.getTimeoutSeconds() : 120);
             cachedClientKey = key;
             return cachedClient;
         }
     }
 
-    // ── SSE helpers ─────────────────────────────────────────────────────
-
     private void writeTokenAndDone(OutputStream out, String text, String sql) {
         try {
-            String escaped = mapper.createObjectNode().put("content", text).toString();
+            String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
             writeDoneEvent(out, sql);
             out.flush();
@@ -357,23 +321,16 @@ public class AgentExecutionService {
 
     private void writeDoneEvent(OutputStream out, String sql) {
         try {
-            ObjectNode done = mapper.createObjectNode();
+            ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
                 done.put("generatedSql", sql);
             }
-            out.write(("event: done\ndata: " + done.toString() + "\n\n").getBytes(StandardCharsets.UTF_8));
+            out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
         } catch (IOException e) {
             log.debug("SSE done event write failed: {}", e.getMessage());
         }
     }
-
-    public record ChatExecutionResult(
-            String response,
-            String generatedSql,
-            GroundingContext groundingContext,
-            String reasoningContent
-    ) {}
 
     private String extractReasoningFromMessages(List<Map<String, Object>> messages) {
         if (messages == null || messages.isEmpty()) {
@@ -387,4 +344,11 @@ public class AgentExecutionService {
         }
         return null;
     }
+
+    public record ChatExecutionResult(
+            String response,
+            String generatedSql,
+            ConversationPlan conversationPlan,
+            String reasoningContent
+    ) {}
 }
