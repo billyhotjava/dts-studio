@@ -108,10 +108,13 @@ public class ReActEngine {
                         log.info("Executing tool: {} with args: {}", toolName, argumentsStr);
                         ToolResult result = toolRegistry.executeTool(toolName, toolContext, arguments);
 
+                        // Build content that includes both summary and actual data
+                        String toolContent = buildToolResultContent(result);
+
                         Map<String, Object> toolResultMsg = new LinkedHashMap<>();
                         toolResultMsg.put("role", "tool");
                         toolResultMsg.put("tool_call_id", toolCallId);
-                        toolResultMsg.put("content", result.output());
+                        toolResultMsg.put("content", toolContent);
                         messages.add(toolResultMsg);
                     }
 
@@ -208,10 +211,12 @@ public class ReActEngine {
                         writeSseEvent(sseOutput, "tool",
                                 mapper.createObjectNode().put("tool", toolName).put("status", "done").toString());
 
+                        String toolContent = buildToolResultContent(result);
+
                         Map<String, Object> toolResultMsg = new LinkedHashMap<>();
                         toolResultMsg.put("role", "tool");
                         toolResultMsg.put("tool_call_id", toolCallId);
-                        toolResultMsg.put("content", result.output());
+                        toolResultMsg.put("content", toolContent);
                         messages.add(toolResultMsg);
                     }
                     continue;
@@ -250,5 +255,33 @@ public class ReActEngine {
 
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    /**
+     * Build tool result content that includes both the summary and actual data.
+     * This prevents the LLM from looping when it sees "returned N rows" but no data.
+     * Data is truncated to avoid token explosion.
+     */
+    private String buildToolResultContent(ToolResult result) {
+        String output = result.output();
+        if (result.data() == null || result.data().isEmpty()) {
+            return output;
+        }
+
+        // Include actual data rows, limited to prevent token explosion
+        String dataStr;
+        try {
+            dataStr = mapper.writeValueAsString(result.data());
+        } catch (Exception e) {
+            return output;
+        }
+
+        // Truncate if too large (keep under ~4000 chars to stay within token budget)
+        int maxDataLength = 4000;
+        if (dataStr.length() > maxDataLength) {
+            dataStr = dataStr.substring(0, maxDataLength) + "... (truncated)";
+        }
+
+        return output + "\n\nData:\n" + dataStr;
     }
 }
