@@ -91,6 +91,28 @@ class ChatGroundingServiceTest {
     }
 
     @Test
+    @DisplayName("库表探索问题不应被业务范围澄清拦截")
+    void metadataExplorationQuestionBypassesBusinessClarification() {
+        when(templateMatcherService.match("帮我查询下新业务测试库1的所有表"))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer("帮我查询下新业务测试库1的所有表", Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("project", "v_project_overview", List.of(), 0.0, true),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+
+        ChatGroundingService.GroundingContext result =
+                chatGroundingService.buildContext("帮我查询下新业务测试库1的所有表", Map.of());
+
+        assertThat(result.needsClarification()).isFalse();
+        assertThat(result.clarificationMessage()).isNull();
+        assertThat(result.promptContext()).contains("schema_lookup");
+        assertThat(result.promptContext()).doesNotContain("您的问题可能涉及以下方面");
+    }
+
+    @Test
     @DisplayName("主题层健康时，主链使用 MART 目标表")
     void healthyMartRoutingUsesMartTableInGroundingContext() {
         when(templateMatcherService.match("最近半年加花趋势"))

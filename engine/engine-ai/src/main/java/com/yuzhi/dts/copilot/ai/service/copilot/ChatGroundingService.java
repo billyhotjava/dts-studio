@@ -26,6 +26,9 @@ public class ChatGroundingService {
             "你是谁", "你能做什么", "你可以做什么", "你是什么模型",
             "what can you do", "who are you", "what model are you");
 
+    private static final Set<String> METADATA_EXPLORATION_KEYWORDS = Set.of(
+            "所有表", "全部表", "有哪些表", "什么表", "表结构", "字段", "schema", "元数据", "数据表", "表名");
+
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
     private final SemanticPackService semanticPackService;
@@ -57,6 +60,19 @@ public class ChatGroundingService {
                     null, null, List.of(),
                     null, null, "VIEW", null,
                     "");
+        }
+        if (isMetadataExplorationInput(userQuestion)) {
+            return new GroundingContext(
+                    false,
+                    null,
+                    null,
+                    null,
+                    List.of(),
+                    null,
+                    null,
+                    "VIEW",
+                    null,
+                    buildMetadataExplorationPrompt());
         }
 
         TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
@@ -197,6 +213,16 @@ public class ChatGroundingService {
                 || normalized.contains("what can you do");
     }
 
+    private boolean isMetadataExplorationInput(String userQuestion) {
+        if (!StringUtils.hasText(userQuestion)) {
+            return false;
+        }
+        String normalized = userQuestion.trim().toLowerCase(Locale.ROOT);
+        return METADATA_EXPLORATION_KEYWORDS.stream().anyMatch(normalized::contains)
+                || normalized.matches(".*(查询|查看|列出|展示).*(表|字段|schema).*")
+                || normalized.matches(".*(数据库|数据源|库).*(有哪些|所有|全部).*(表|字段).*");
+    }
+
     private String buildFriendlyGuidanceMessage() {
         return """
                 你好，我可以帮你查询园林项目的业务数据。
@@ -215,6 +241,17 @@ public class ChatGroundingService {
                 1. 当前在服项目一共有多少个？
                 2. 本月加花最多的项目是哪个？
                 3. 哪些项目的养护任务还没完成？
+                """.trim();
+    }
+
+    private String buildMetadataExplorationPrompt() {
+        return """
+                【元数据探索】
+                - 当前问题是在查看数据源的表结构或字段信息，不要回到业务范围澄清。
+                - 优先调用 schema_lookup 工具。
+                - 如果用户在问“所有表/有哪些表”，调用 schema_lookup 且不要传 table_name。
+                - 如果用户指定了某张表，再调用 schema_lookup 查看字段明细。
+                - 先返回真实表名或字段信息，再补简短说明。
                 """.trim();
     }
 
