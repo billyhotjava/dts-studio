@@ -191,6 +191,19 @@
 
 **统计**: READY=0, IN_PROGRESS=0, DONE=1, BLOCKED=0
 
+## Sprint-15: Copilot 语音输入支持 (VI)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| VI-01 | useVoiceInput Hook 实现 | P0 | READY | - |
+| VI-02 | VoiceInputButton 组件 | P0 | READY | VI-01 |
+| VI-03 | CopilotChat 集成 | P0 | READY | VI-02 |
+| VI-04 | 移动端适配与手势处理 | P1 | READY | VI-03 |
+| VI-05 | 后端 ASR 降级接口（可选） | P2 | READY | VI-03 |
+| VI-06 | IT 测试与兼容性验证 | P2 | READY | VI-01~04 |
+
+**统计**: READY=6, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
@@ -199,4 +212,4 @@
 
 ## 总体统计
 
-**READY=72, IN_PROGRESS=1, DONE=20, BLOCKED=0, DEFERRED=1 (总计 94 任务)**
+**READY=78, IN_PROGRESS=1, DONE=20, BLOCKED=0, DEFERRED=1 (总计 100 任务)**
