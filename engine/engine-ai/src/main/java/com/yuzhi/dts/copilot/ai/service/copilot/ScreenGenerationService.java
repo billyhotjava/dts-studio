@@ -32,7 +32,7 @@ public class ScreenGenerationService {
 		  "semanticModelHints": { "domain": "领域", "factTable": "事实表名", "timeField": "时间字段" },
 		  "queryRecommendations": [{ "id": "q1", "purpose": "用途", "domain": "领域", "factTable": "表名", "timeRange": "时间范围", "granularity": "粒度" }],
 		  "sqlBlueprints": [{ "queryId": "q1", "purpose": "用途", "sql": "SELECT ... FROM ...", "factTable": "表名" }],
-		  "vizRecommendations": [{ "queryId": "q1", "componentType": "line-chart|bar-chart|pie-chart|kpi-card|table|area-chart|gauge|radar-chart", "title": "组件标题" }],
+		  "vizRecommendations": [{ "queryId": "q1", "componentType": "line-chart|bar-chart|pie-chart|number-card|table|gauge-chart|radar-chart", "title": "组件标题" }],
 		  "screenSpec": {
 		    "name": "大屏名称",
 		    "description": "大屏描述",
@@ -43,9 +43,9 @@ public class ScreenGenerationService {
 		    "components": [
 		      {
 		        "id": "comp_1",
-		        "type": "line-chart|bar-chart|pie-chart|kpi-card|table|area-chart|gauge|radar-chart|text|filter-select",
+		        "type": "组件类型",
 		        "title": "组件标题",
-		        "x": 0, "y": 0, "w": 6, "h": 4,
+		        "x": 0, "y": 0, "width": 480, "height": 120,
 		        "dataSource": { "queryId": "q1" },
 		        "config": {}
 		      }
@@ -55,11 +55,28 @@ public class ScreenGenerationService {
 		  "quality": { "score": 85 }
 		}
 
-		布局规则：
-		- 画布宽度按 24 列栅格，高度按行（每行约 60px）
-		- 第一行通常放 KPI 卡片（3-4 个，w=6 h=2）
-		- 中间放图表（w=8 或 w=12，h=4 或 h=5）
-		- 底部可放明细表（w=24 h=4）
+		【组件类型（type 字段必须使用以下值之一）】：
+		- number-card: KPI 数字卡片（显示单个指标数值）
+		- line-chart: 折线图（趋势分析）
+		- bar-chart: 柱状图（对比分析）
+		- pie-chart: 饼图（结构占比）
+		- gauge-chart: 仪表盘（进度/比率）
+		- radar-chart: 雷达图（多维对比）
+		- table: 明细数据表
+		- scroll-ranking: 滚动排行榜
+		- scroll-board: 滚动轮播表
+		- markdown-text: 富文本/标题
+		- filter-select: 筛选下拉框
+		- filter-date-range: 日期范围筛选
+
+		【布局规则 - 使用像素坐标】：
+		- 画布 1920 x 1080 像素
+		- x, y 为左上角像素坐标；width, height 为像素尺寸
+		- KPI 卡片典型尺寸：width=460, height=120
+		- 图表典型尺寸：width=640 或 width=960, height=300 或 height=360
+		- 明细表典型尺寸：width=1920, height=300
+		- 标题：width=1920, height=60
+		- 4 个 KPI 一行：每个 width=460, 间距 20px
 		- 组件不要重叠
 
 		SQL 规则：
