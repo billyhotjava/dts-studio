@@ -1,0 +1,140 @@
+package com.yuzhi.dts.copilot.analytics.service.report;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsReportTemplate;
+import org.junit.jupiter.api.Test;
+
+class ReportExecutionPlanServiceTest {
+
+    private final AuthorityQueryService authorityQueryService = new AuthorityQueryService();
+    private final ReportExecutionPlanService service = new ReportExecutionPlanService(authorityQueryService);
+
+    @Test
+    void financeStateAndDetailTemplatesShouldRouteToAuthorityViewOrSql() {
+        AnalyticsReportTemplate authorityViewTemplate = template(
+                "FIN-AR-OVERVIEW",
+                "财务",
+                "KPI",
+                "VIEW",
+                "v_monthly_settlement",
+                "REALTIME");
+        AnalyticsReportTemplate authoritySqlTemplate = template(
+                "FIN-PENDING-RECEIPTS-DETAIL",
+                "财务",
+                "DETAIL",
+                "VIEW",
+                "authority.finance.pending_receipts_detail",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan viewPlan = service.planFor(authorityViewTemplate);
+        ReportExecutionPlanService.ReportExecutionPlan sqlPlan = service.planFor(authoritySqlTemplate);
+
+        assertThat(viewPlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_VIEW);
+        assertThat(viewPlan.targetObject()).isEqualTo("v_monthly_settlement");
+        assertThat(sqlPlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(sqlPlan.targetObject()).isEqualTo("authority.finance.pending_receipts_detail");
+    }
+
+    @Test
+    void procurementAndWarehouseRealtimeStateTemplatesShouldPreferAuthorityViews() {
+        AnalyticsReportTemplate procurementRealtimeTemplate = template(
+                "PROC-PURCHASE-REQUEST-TODO",
+                "采购",
+                "DETAIL",
+                "VIEW",
+                "v_procurement_todo",
+                "REALTIME");
+        AnalyticsReportTemplate inventoryRealtimeTemplate = template(
+                "WH-STOCK-OVERVIEW",
+                "仓库",
+                "KPI",
+                "VIEW",
+                "v_inventory_current",
+                "REALTIME");
+        AnalyticsReportTemplate procurementFallbackTemplate = template(
+                "PROC-PENDING-INBOUND-LIST",
+                "采购",
+                "DETAIL",
+                "VIEW",
+                "authority.procurement.pending_inbound_list",
+                "NEAR_REALTIME_5M");
+
+        ReportExecutionPlanService.ReportExecutionPlan procurementRealtimePlan =
+                service.planFor(procurementRealtimeTemplate);
+        ReportExecutionPlanService.ReportExecutionPlan inventoryRealtimePlan =
+                service.planFor(inventoryRealtimeTemplate);
+        ReportExecutionPlanService.ReportExecutionPlan procurementFallbackPlan =
+                service.planFor(procurementFallbackTemplate);
+
+        assertThat(procurementRealtimePlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_VIEW);
+        assertThat(procurementRealtimePlan.adapterKey()).isEqualTo("authority.procurement");
+        assertThat(inventoryRealtimePlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_VIEW);
+        assertThat(inventoryRealtimePlan.adapterKey()).isEqualTo("authority.inventory");
+        assertThat(procurementFallbackPlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+    }
+
+    @Test
+    void trendAndRankingTemplatesShouldRouteToMartOrCachePlans() {
+        AnalyticsReportTemplate martTemplate = template(
+                "FIN-CUSTOMER-AR-RANK",
+                "财务",
+                "RANK",
+                "MART",
+                "mart.finance.customer_ar_rank_daily",
+                "NEAR_REALTIME_5M");
+        AnalyticsReportTemplate cacheTemplate = template(
+                "PROC-ARRIVAL-ONTIME-RATE",
+                "采购",
+                "TREND",
+                "CACHE",
+                "cache.procurement.arrival_ontime_rate",
+                "CACHE_1M");
+
+        ReportExecutionPlanService.ReportExecutionPlan martPlan = service.planFor(martTemplate);
+        ReportExecutionPlanService.ReportExecutionPlan cachedPlan = service.planFor(cacheTemplate);
+
+        assertThat(martPlan.route()).isEqualTo(ReportExecutionPlanService.Route.MART_FACT);
+        assertThat(martPlan.targetObject()).isEqualTo("mart.finance.customer_ar_rank_daily");
+        assertThat(cachedPlan.route()).isEqualTo(ReportExecutionPlanService.Route.CACHE);
+        assertThat(cachedPlan.targetObject()).isEqualTo("cache.procurement.arrival_ontime_rate");
+    }
+
+    @Test
+    void unknownTemplatesShouldFallBackToExploration() {
+        AnalyticsReportTemplate template = template(
+                "OPS-UNKNOWN",
+                "运营",
+                "其他",
+                "VIEW",
+                "authority.ops.unknown",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(template);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.EXPLORATION);
+    }
+
+    private static AnalyticsReportTemplate template(
+            String templateCode,
+            String domain,
+            String category,
+            String dataSourceType,
+            String targetObject,
+            String refreshPolicy) {
+        AnalyticsReportTemplate template = new AnalyticsReportTemplate();
+        template.setTemplateCode(templateCode);
+        template.setName(templateCode);
+        template.setDomain(domain);
+        template.setCategory(category);
+        template.setDataSourceType(dataSourceType);
+        template.setTargetObject(targetObject);
+        template.setRefreshPolicy(refreshPolicy);
+        template.setCertificationStatus("CERTIFIED");
+        template.setPublished(true);
+        template.setArchived(false);
+        template.setCreatorId(1L);
+        template.setSpecJson("{}");
+        return template;
+    }
+}

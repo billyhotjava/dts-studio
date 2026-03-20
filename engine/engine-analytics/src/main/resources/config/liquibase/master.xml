@@ -43,4 +43,6 @@
     <include file="config/liquibase/changelog/0036_business_views_metadata.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0037_semantic_extensions.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0038_elt_mart_tables.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0039_report_template_registry.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0040_seed_finance_procurement_templates.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

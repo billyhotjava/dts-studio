@@ -29,6 +29,39 @@ public class AnalyticsReportTemplate implements Serializable {
     @Column(name = "spec_json", columnDefinition = "text")
     private String specJson;
 
+    @Column(name = "template_code", length = 128)
+    private String templateCode;
+
+    @Column(name = "domain", length = 128)
+    private String domain;
+
+    @Column(name = "category", length = 128)
+    private String category;
+
+    @Column(name = "data_source_type", length = 64)
+    private String dataSourceType;
+
+    @Column(name = "target_object", length = 255)
+    private String targetObject;
+
+    @Column(name = "refresh_policy", length = 64)
+    private String refreshPolicy;
+
+    @Column(name = "permission_policy_json", columnDefinition = "text")
+    private String permissionPolicyJson;
+
+    @Column(name = "parameter_schema_json", columnDefinition = "text")
+    private String parameterSchemaJson;
+
+    @Column(name = "metric_definition_json", columnDefinition = "text")
+    private String metricDefinitionJson;
+
+    @Column(name = "presentation_schema_json", columnDefinition = "text")
+    private String presentationSchemaJson;
+
+    @Column(name = "certification_status", length = 32)
+    private String certificationStatus;
+
     @Column(name = "version_no", nullable = false)
     private int versionNo = 1;
 
@@ -73,6 +106,94 @@ public class AnalyticsReportTemplate implements Serializable {
 
     public void setSpecJson(String specJson) {
         this.specJson = specJson;
+    }
+
+    public String getTemplateCode() {
+        return templateCode;
+    }
+
+    public void setTemplateCode(String templateCode) {
+        this.templateCode = templateCode;
+    }
+
+    public String getDomain() {
+        return domain;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getDataSourceType() {
+        return dataSourceType;
+    }
+
+    public void setDataSourceType(String dataSourceType) {
+        this.dataSourceType = dataSourceType;
+    }
+
+    public String getTargetObject() {
+        return targetObject;
+    }
+
+    public void setTargetObject(String targetObject) {
+        this.targetObject = targetObject;
+    }
+
+    public String getRefreshPolicy() {
+        return refreshPolicy;
+    }
+
+    public void setRefreshPolicy(String refreshPolicy) {
+        this.refreshPolicy = refreshPolicy;
+    }
+
+    public String getPermissionPolicyJson() {
+        return permissionPolicyJson;
+    }
+
+    public void setPermissionPolicyJson(String permissionPolicyJson) {
+        this.permissionPolicyJson = permissionPolicyJson;
+    }
+
+    public String getParameterSchemaJson() {
+        return parameterSchemaJson;
+    }
+
+    public void setParameterSchemaJson(String parameterSchemaJson) {
+        this.parameterSchemaJson = parameterSchemaJson;
+    }
+
+    public String getMetricDefinitionJson() {
+        return metricDefinitionJson;
+    }
+
+    public void setMetricDefinitionJson(String metricDefinitionJson) {
+        this.metricDefinitionJson = metricDefinitionJson;
+    }
+
+    public String getPresentationSchemaJson() {
+        return presentationSchemaJson;
+    }
+
+    public void setPresentationSchemaJson(String presentationSchemaJson) {
+        this.presentationSchemaJson = presentationSchemaJson;
+    }
+
+    public String getCertificationStatus() {
+        return certificationStatus;
+    }
+
+    public void setCertificationStatus(String certificationStatus) {
+        this.certificationStatus = certificationStatus;
     }
 
     public int getVersionNo() {

@@ -183,6 +183,14 @@
 
 **统计**: READY=0, IN_PROGRESS=0, DONE=9, BLOCKED=0
 
+## Sprint-14: 已知报表优先化与 Copilot 探索兜底 (RF)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| RF-01 | 初始报表目录锁定与候选清单 | P0 | DONE | 2026-03-20 known report fastpath plan |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=1, BLOCKED=0
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
@@ -191,4 +199,4 @@
 
 ## 总体统计
 
-**READY=72, IN_PROGRESS=1, DONE=19, BLOCKED=0, DEFERRED=1 (总计 93 任务)**
+**READY=72, IN_PROGRESS=1, DONE=20, BLOCKED=0, DEFERRED=1 (总计 94 任务)**
