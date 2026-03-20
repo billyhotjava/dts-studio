@@ -11,5 +11,6 @@ public interface AnalyticsTableRepository extends JpaRepository<AnalyticsTable, 
     List<AnalyticsTable> findAllByDatabaseIdAndSchemaNameOrderByNameAsc(Long databaseId, String schemaName);
 
     Optional<AnalyticsTable> findByDatabaseIdAndSchemaNameAndName(Long databaseId, String schemaName, String name);
-}
 
+    long deleteAllByDatabaseId(Long databaseId);
+}

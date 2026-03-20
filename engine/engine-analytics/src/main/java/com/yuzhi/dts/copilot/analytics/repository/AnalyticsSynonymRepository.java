@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 public interface AnalyticsSynonymRepository extends JpaRepository<AnalyticsSynonym, Long> {
 
     List<AnalyticsSynonym> findByDatabaseIdOrDatabaseIdIsNull(Long databaseId);
+
+    long deleteAllByDatabaseId(Long databaseId);
 }

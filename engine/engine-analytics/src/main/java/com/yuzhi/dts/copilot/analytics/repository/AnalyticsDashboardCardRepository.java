@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AnalyticsDashboardCardRepository extends JpaRepository<AnalyticsDashboardCard, Long> {
     List<AnalyticsDashboardCard> findAllByDashboardIdOrderByIdAsc(long dashboardId);
-}
 
+    long deleteAllByCardIdIn(Iterable<Long> cardIds);
+}

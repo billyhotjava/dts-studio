@@ -5,10 +5,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCard;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsField;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsAlert;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsTable;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsAlertRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsAlertSubscriptionRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsCardRepository;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDashboardCardRepository;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsFieldRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsSynonymRepository;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsTableRepository;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.JdbcDetailsResolver;
@@ -54,6 +61,11 @@ public class DatabaseResource {
     private final AnalyticsDatabaseRepository databaseRepository;
     private final AnalyticsTableRepository tableRepository;
     private final AnalyticsFieldRepository fieldRepository;
+    private final AnalyticsCardRepository cardRepository;
+    private final AnalyticsDashboardCardRepository dashboardCardRepository;
+    private final AnalyticsAlertRepository alertRepository;
+    private final AnalyticsAlertSubscriptionRepository alertSubscriptionRepository;
+    private final AnalyticsSynonymRepository synonymRepository;
     private final MetadataSyncService metadataSyncService;
     private final JdbcDetailsResolver jdbcDetailsResolver;
     private final PlatformInfraClient platformInfraClient;
@@ -64,6 +76,11 @@ public class DatabaseResource {
             AnalyticsDatabaseRepository databaseRepository,
             AnalyticsTableRepository tableRepository,
             AnalyticsFieldRepository fieldRepository,
+            AnalyticsCardRepository cardRepository,
+            AnalyticsDashboardCardRepository dashboardCardRepository,
+            AnalyticsAlertRepository alertRepository,
+            AnalyticsAlertSubscriptionRepository alertSubscriptionRepository,
+            AnalyticsSynonymRepository synonymRepository,
             MetadataSyncService metadataSyncService,
             JdbcDetailsResolver jdbcDetailsResolver,
             PlatformInfraClient platformInfraClient,
@@ -72,6 +89,11 @@ public class DatabaseResource {
         this.databaseRepository = databaseRepository;
         this.tableRepository = tableRepository;
         this.fieldRepository = fieldRepository;
+        this.cardRepository = cardRepository;
+        this.dashboardCardRepository = dashboardCardRepository;
+        this.alertRepository = alertRepository;
+        this.alertSubscriptionRepository = alertSubscriptionRepository;
+        this.synonymRepository = synonymRepository;
         this.metadataSyncService = metadataSyncService;
         this.jdbcDetailsResolver = jdbcDetailsResolver;
         this.platformInfraClient = platformInfraClient;
@@ -413,6 +435,7 @@ public class DatabaseResource {
         if (!databaseRepository.existsById(dbId)) {
             return ResponseEntity.notFound().build();
         }
+        deleteDatabaseMetadata(dbId);
         databaseRepository.deleteById(dbId);
         return ResponseEntity.noContent().build();
     }
@@ -527,8 +550,8 @@ public class DatabaseResource {
             return Optional.empty();
         }
         return databaseRepository.findAll().stream()
-            .filter(db -> platformId.equals(resolvePlatformDataSourceId(db.getDetailsJson())))
-            .findFirst();
+                .filter(db -> platformId.equals(resolvePlatformDataSourceId(db.getDetailsJson())))
+                .findFirst();
     }
 
     private Optional<AnalyticsDatabase> findByDataSource(Long dataSourceId) {
@@ -727,6 +750,24 @@ public class DatabaseResource {
             return null;
         }
         return METABASE_TIMESTAMP.format(instant.atZone(ZoneId.systemDefault()).toLocalDateTime());
+    }
+
+    private void deleteDatabaseMetadata(Long databaseId) {
+        List<AnalyticsCard> cards = cardRepository.findAllByDatabaseIdOrderByIdAsc(databaseId);
+        List<Long> cardIds = cards.stream().map(AnalyticsCard::getId).filter(Objects::nonNull).toList();
+        if (!cardIds.isEmpty()) {
+            List<AnalyticsAlert> alerts = alertRepository.findAllByCardIdInOrderByIdAsc(cardIds);
+            List<Long> alertIds = alerts.stream().map(AnalyticsAlert::getId).filter(Objects::nonNull).toList();
+            if (!alertIds.isEmpty()) {
+                alertSubscriptionRepository.deleteAllByAlertIdIn(alertIds);
+            }
+            alertRepository.deleteAllByCardIdIn(cardIds);
+            dashboardCardRepository.deleteAllByCardIdIn(cardIds);
+            cardRepository.deleteAllByDatabaseId(databaseId);
+        }
+        fieldRepository.deleteAllByDatabaseId(databaseId);
+        tableRepository.deleteAllByDatabaseId(databaseId);
+        synonymRepository.deleteAllByDatabaseId(databaseId);
     }
 
     private List<Map<String, Object>> listTablesForDatabase(Long databaseId, boolean includeFields) {

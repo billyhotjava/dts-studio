@@ -11,5 +11,6 @@ public interface AnalyticsAlertSubscriptionRepository extends JpaRepository<Anal
     Optional<AnalyticsAlertSubscription> findByAlertIdAndUserId(Long alertId, Long userId);
 
     long deleteByAlertIdAndUserId(Long alertId, Long userId);
-}
 
+    long deleteAllByAlertIdIn(Iterable<Long> alertIds);
+}

@@ -12,4 +12,8 @@ public interface AnalyticsCardRepository extends JpaRepository<AnalyticsCard, Lo
     List<AnalyticsCard> findAllByArchivedFalseAndCollectionIdOrderByIdAsc(Long collectionId);
 
     List<AnalyticsCard> findAllByArchivedFalseAndCollectionIdIsNullOrderByIdAsc();
+
+    List<AnalyticsCard> findAllByDatabaseIdOrderByIdAsc(Long databaseId);
+
+    long deleteAllByDatabaseId(Long databaseId);
 }

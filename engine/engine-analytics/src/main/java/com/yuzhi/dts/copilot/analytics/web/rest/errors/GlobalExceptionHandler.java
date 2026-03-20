@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.UnexpectedRollbackException;
@@ -59,6 +60,24 @@ public class GlobalExceptionHandler {
             HttpServletResponse response) {
         IllegalArgumentMapping mapping = mapIllegalArgument(ex);
         return buildError(HttpStatus.BAD_REQUEST, mapping.code(), mapping.message(), request, response, mapping.retryable());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        log.warn("[analytics] Data integrity violation on {}: {}", request.getRequestURI(), ex.getMessage());
+        if ("DELETE".equalsIgnoreCase(request.getMethod()) && request.getRequestURI().startsWith("/api/database/")) {
+            return buildError(
+                    HttpStatus.CONFLICT,
+                    "DB_DELETE_CONFLICT",
+                    "Database still has related metadata and cannot be deleted directly",
+                    request,
+                    response,
+                    false);
+        }
+        return buildError(HttpStatus.CONFLICT, "DATA_INTEGRITY_VIOLATION", ex.getMessage(), request, response, false);
     }
 
     @ExceptionHandler(DataAccessException.class)

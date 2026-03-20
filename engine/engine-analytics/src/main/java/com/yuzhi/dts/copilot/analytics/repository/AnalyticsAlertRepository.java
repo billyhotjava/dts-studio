@@ -11,5 +11,8 @@ public interface AnalyticsAlertRepository extends JpaRepository<AnalyticsAlert, 
     List<AnalyticsAlert> findAllByArchivedFalseOrderByIdAsc();
 
     List<AnalyticsAlert> findAllByArchivedFalseAndCardIdOrderByIdAsc(Long cardId);
-}
 
+    List<AnalyticsAlert> findAllByCardIdInOrderByIdAsc(Iterable<Long> cardIds);
+
+    long deleteAllByCardIdIn(Iterable<Long> cardIds);
+}

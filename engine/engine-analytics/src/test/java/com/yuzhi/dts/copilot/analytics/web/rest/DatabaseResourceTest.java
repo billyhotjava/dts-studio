@@ -2,14 +2,23 @@ package com.yuzhi.dts.copilot.analytics.web.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsAlert;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCard;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsAlertRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsAlertSubscriptionRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsCardRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDashboardCardRepository;
+import com.yuzhi.dts.copilot.analytics.repository.AnalyticsSynonymRepository;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.JdbcDetailsResolver;
 import com.yuzhi.dts.copilot.analytics.service.MetadataSyncService;
 import com.yuzhi.dts.copilot.analytics.service.PlatformInfraClient;
+import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.Driver;
@@ -17,6 +26,7 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -26,6 +36,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -47,6 +58,21 @@ class DatabaseResourceTest {
 
     @Mock
     private com.yuzhi.dts.copilot.analytics.repository.AnalyticsFieldRepository fieldRepository;
+
+    @Mock
+    private AnalyticsCardRepository cardRepository;
+
+    @Mock
+    private AnalyticsDashboardCardRepository dashboardCardRepository;
+
+    @Mock
+    private AnalyticsAlertRepository alertRepository;
+
+    @Mock
+    private AnalyticsAlertSubscriptionRepository alertSubscriptionRepository;
+
+    @Mock
+    private AnalyticsSynonymRepository synonymRepository;
 
     @Mock
     private MetadataSyncService metadataSyncService;
@@ -74,6 +100,11 @@ class DatabaseResourceTest {
                 databaseRepository,
                 tableRepository,
                 fieldRepository,
+                cardRepository,
+                dashboardCardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                synonymRepository,
                 metadataSyncService,
                 jdbcDetailsResolver,
                 platformInfraClient,
@@ -119,6 +150,72 @@ class DatabaseResourceTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isEqualTo(Map.of());
         assertThat(elapsedMs).isGreaterThanOrEqualTo(6_000);
+    }
+
+    @Test
+    void deleteRemovesDependentMetadataBeforeDeletingDatabase() throws Exception {
+        DatabaseResource resource = new DatabaseResource(
+                sessionService,
+                databaseRepository,
+                tableRepository,
+                fieldRepository,
+                cardRepository,
+                dashboardCardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                synonymRepository,
+                metadataSyncService,
+                jdbcDetailsResolver,
+                platformInfraClient,
+                MAPPER);
+
+        AnalyticsUser user = new AnalyticsUser();
+        user.setId(1L);
+        user.setUsername("admin");
+        user.setPasswordHash("secret");
+        user.setSuperuser(true);
+        user.setActive(true);
+        when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
+        when(databaseRepository.existsById(5L)).thenReturn(true);
+
+        AnalyticsCard card = new AnalyticsCard();
+        card.setId(21L);
+        when(cardRepository.findAllByDatabaseIdOrderByIdAsc(5L)).thenReturn(List.of(card));
+
+        AnalyticsAlert alert = new AnalyticsAlert();
+        setEntityId(alert, 31L);
+        alert.setCardId(21L);
+        when(alertRepository.findAllByCardIdInOrderByIdAsc(List.of(21L))).thenReturn(List.of(alert));
+
+        ResponseEntity<?> response = resource.delete(5L, new MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+
+        InOrder inOrder = inOrder(
+                cardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                dashboardCardRepository,
+                fieldRepository,
+                tableRepository,
+                synonymRepository,
+                databaseRepository);
+        inOrder.verify(cardRepository).findAllByDatabaseIdOrderByIdAsc(5L);
+        inOrder.verify(alertRepository).findAllByCardIdInOrderByIdAsc(List.of(21L));
+        inOrder.verify(alertSubscriptionRepository).deleteAllByAlertIdIn(List.of(31L));
+        inOrder.verify(alertRepository).deleteAllByCardIdIn(List.of(21L));
+        inOrder.verify(dashboardCardRepository).deleteAllByCardIdIn(List.of(21L));
+        inOrder.verify(cardRepository).deleteAllByDatabaseId(5L);
+        inOrder.verify(fieldRepository).deleteAllByDatabaseId(5L);
+        inOrder.verify(tableRepository).deleteAllByDatabaseId(5L);
+        inOrder.verify(synonymRepository).deleteAllByDatabaseId(5L);
+        inOrder.verify(databaseRepository).deleteById(5L);
+    }
+
+    private static void setEntityId(Object entity, Long id) throws Exception {
+        Field field = entity.getClass().getDeclaredField("id");
+        field.setAccessible(true);
+        field.set(entity, id);
     }
 
     private static final class SlowSuccessDriver implements Driver {
