@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,10 +23,15 @@ public class PlatformInfraClient {
 
     private final CopilotAiClient copilotAiClient;
     private final ObjectMapper objectMapper;
+    private final LocalAiDataSourceLookup localAiDataSourceLookup;
 
-    public PlatformInfraClient(CopilotAiClient copilotAiClient, ObjectMapper objectMapper) {
+    public PlatformInfraClient(
+            CopilotAiClient copilotAiClient,
+            ObjectMapper objectMapper,
+            LocalAiDataSourceLookup localAiDataSourceLookup) {
         this.copilotAiClient = copilotAiClient;
         this.objectMapper = objectMapper;
+        this.localAiDataSourceLookup = localAiDataSourceLookup;
     }
 
     public List<DataSourceSummary> listDataSources() {
@@ -58,8 +64,11 @@ public class PlatformInfraClient {
             throw new IllegalArgumentException("dataSourceId不能为空");
         }
         try {
-            return copilotAiClient.getDataSource(id, "")
-                    .map(this::toDetail)
+            Optional<Map<String, Object>> remote = copilotAiClient.getDataSource(id, "");
+            if (remote.isPresent()) {
+                return toDetail(remote.get());
+            }
+            return localAiDataSourceLookup.findById(id)
                     .orElseThrow(() -> new IllegalStateException("未返回数据源详情"));
         } catch (IllegalStateException ex) {
             throw ex;

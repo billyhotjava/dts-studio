@@ -46,6 +46,7 @@
 - `dts-copilot` 当前 analytics 只有轻量 `mart/fact`
 - `0036_business_views_metadata.xml` 登记的 `7` 个 `v_*` 业务视图目前只存在 SQL 资产，不在测试库中
 - `0040` 固定报表种子中的 `authority.*` / `mart.finance.*` / `fact.procurement.*` 目标大多还没有真实 backing
+- 当前 `analytics_database` 运行态仍可能保存为 `{"dataSourceId":...}` 的平台数据源引用，因此 authority SQL 不仅要有真实业务 SQL，还要有稳定的数据源详情解析链
 
 ## 建议
 
@@ -54,6 +55,7 @@
 - 在 analytics 内补最小可用的财务/采购/仓库主题资产
 - 同时保留 L0 业务权威直读
 - 用模板决定一张固定报表走 L0 还是 L1
+- 对仍走 `dataSourceId` 的数据库目录，优先保证本地 `copilot_ai.data_source` fallback 可用，避免 fixed-report 因远端详情接口短暂不可达直接 500
 
 ## V1 具体策略
 

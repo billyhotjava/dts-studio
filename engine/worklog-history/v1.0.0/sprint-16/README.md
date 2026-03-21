@@ -163,6 +163,10 @@
    - `target_object` 已固定到 `authority.finance.settlement_summary`
    - `FixedReportResource` 现在可直接返回财务结算汇总结果预览
    - 真实权威表已锁定到 `f_settled_items`
+12. 平台数据源详情 fallback 收口
+   - 当 `analytics_database.details_json` 仍引用 `dataSourceId`，但 `analytics -> copilot-ai` 的详情接口暂时不可达时
+   - `PlatformInfraClient` 会回退到本地 `copilot_ai.data_source` 读取 JDBC/账号信息
+   - 固定报表运行不再因为 `未返回数据源详情` 直接失败
 
 ## 任务列表
 

@@ -14,7 +14,7 @@
             </sqlCheck>
         </preConditions>
 
-        <sql splitStatements="false">
+        <sql splitStatements="false"><![CDATA[
 INSERT INTO copilot_ai.nl2sql_query_template
   (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority)
 VALUES
@@ -38,7 +38,7 @@ VALUES
  'SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, ''-01'') AND a.purchase_time < DATE_ADD(CONCAT(:month, ''-01''), INTERVAL 1 MONTH) GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC',
  '{"month":{"type":"string","required":true},"good_name":{"type":"string","required":true}}',
  'authority.procurement.purchase_amount_by_buyer', '某月某产品采购详细情况按采购人金额统计', 30);
-        </sql>
+        ]]></sql>
     </changeSet>
 
 </databaseChangeLog>
