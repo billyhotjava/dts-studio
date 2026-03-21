@@ -28,7 +28,8 @@ public class SemanticPackService {
 
     private static final String[] PACK_FILES = {
             "semantic-packs/project-fulfillment.json",
-            "semantic-packs/field-operations.json"
+            "semantic-packs/field-operations.json",
+            "semantic-packs/procurement.json"
     };
 
     private final ObjectMapper objectMapper;

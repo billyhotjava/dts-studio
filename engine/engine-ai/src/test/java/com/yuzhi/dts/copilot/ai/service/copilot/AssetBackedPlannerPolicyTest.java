@@ -154,6 +154,36 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
+    void procurementAuthorityTemplateUsesTemplateSqlFastPath() {
+        String question = "查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计";
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(
+                        true,
+                        buildTemplate("TPL-33", "procurement", "authority.procurement.purchase_amount_by_buyer"),
+                        Map.of("month", "2025-02", "good_name", "绿萝"),
+                        "SELECT b.purchase_user_name FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id"));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult(null, null, List.of(), 0.0, true),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(semanticPackService.getContextForDomain("procurement")).thenReturn("procurement semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.TEMPLATE_SQL);
+        assertThat(plan.templateCode()).isEqualTo("TPL-33");
+        assertThat(plan.primaryTarget()).isEqualTo("authority.procurement.purchase_amount_by_buyer");
+        assertThat(plan.resolvedSql()).contains("t_purchase_price_item");
+        assertThat(plan.resolvedSql()).doesNotContain("i_pendulum_purchase");
+        assertThat(plan.resolvedSql()).doesNotContain("title like");
+    }
+
+    @Test
     void ambiguousBusinessQuestionUsesAgentWorkflowInsteadOfHardClarification() {
         when(templateMatcherService.match("帮我做个统计"))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));

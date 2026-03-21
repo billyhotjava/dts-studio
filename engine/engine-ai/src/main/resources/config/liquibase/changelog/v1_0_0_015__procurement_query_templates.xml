@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-015-procurement-query-templates" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*)
+                FROM copilot_ai.nl2sql_query_template
+                WHERE template_code IN ('TPL-31', 'TPL-32', 'TPL-33')
+            </sqlCheck>
+        </preConditions>
+
+        <sql splitStatements="false">
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority)
+VALUES
+('TPL-31', 'procurement', NULL,
+ '[".*(采购明细|采购详细情况).*(产品|物品|商品|采购).*",".*(\\\\d{4}年\\\\d{1,2}月|\\\\d{4}-\\\\d{2}).*(采购明细|采购详细情况).*"]',
+ '["查询2025年2月绿萝采购明细","2025年2月绿萝这个产品的采购详细情况"]',
+ 'SELECT b.purchase_user_name, a.purchase_time, a.good_name, a.good_specs, c.real_purchase_number AS parchase_number, a.parchase_price, ROUND(c.real_purchase_number * a.parchase_price, 2) AS total_amount, a.supply_name, f.code AS biz_code, f.project_name FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, ''-01'') AND a.purchase_time < DATE_ADD(CONCAT(:month, ''-01''), INTERVAL 1 MONTH) ORDER BY a.purchase_time DESC, b.purchase_user_name ASC',
+ '{"month":{"type":"string","required":true},"good_name":{"type":"string","required":true}}',
+ 'authority.procurement.purchase_item_detail', '某月某产品采购明细', 20),
+
+('TPL-32', 'procurement', NULL,
+ '[".*(按采购人|采购人).*(采购金额|金额|总价|统计).*",".*(采购金额|金额).*(采购人).*统计.*"]',
+ '["查询2025年2月绿萝按采购人统计采购金额","绿萝采购金额按采购人统计"]',
+ 'SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, ''-01'') AND a.purchase_time < DATE_ADD(CONCAT(:month, ''-01''), INTERVAL 1 MONTH) GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC',
+ '{"month":{"type":"string","required":true},"good_name":{"type":"string","required":true}}',
+ 'authority.procurement.purchase_amount_by_buyer', '某月某产品按采购人统计采购金额', 25),
+
+('TPL-33', 'procurement', NULL,
+ '[".*(采购详细情况|采购明细).*(按采购人).*(采购金额|金额).*",".*(\\\\d{4}年\\\\d{1,2}月|\\\\d{4}-\\\\d{2}).*(产品|物品|商品).*(采购详细情况|采购明细).*(采购人).*(金额).*"]',
+ '["查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计"]',
+ 'SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, ''-01'') AND a.purchase_time < DATE_ADD(CONCAT(:month, ''-01''), INTERVAL 1 MONTH) GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC',
+ '{"month":{"type":"string","required":true},"good_name":{"type":"string","required":true}}',
+ 'authority.procurement.purchase_amount_by_buyer', '某月某产品采购详细情况按采购人金额统计', 30);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

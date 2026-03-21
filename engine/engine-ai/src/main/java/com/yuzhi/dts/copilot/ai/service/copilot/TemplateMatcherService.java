@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -357,6 +358,7 @@ public class TemplateMatcherService {
                 case "project_name" -> value = extractNameBeforeKeyword(question, "项目");
                 case "customer_name" -> value = extractNameBeforeKeyword(question, "客户");
                 case "curing_user" -> value = extractNameBeforeKeyword(question, "养护人");
+                case "good_name" -> value = extractProductName(question);
                 default -> value = resolveDefault(defJson);
             }
 
@@ -388,6 +390,13 @@ public class TemplateMatcherService {
         Matcher m = Pattern.compile("(\\d{4}-\\d{2})").matcher(question);
         if (m.find()) {
             return m.group(1);
+        }
+
+        // Check for explicit 中文年月 pattern, e.g. 2025年2月
+        Matcher zhMonth = Pattern.compile("(\\d{4})年(\\d{1,2})月").matcher(question);
+        if (zhMonth.find()) {
+            int month = Integer.parseInt(zhMonth.group(2));
+            return zhMonth.group(1) + "-" + String.format("%02d", month);
         }
 
         // Use default
@@ -429,6 +438,52 @@ public class TemplateMatcherService {
         }
 
         return null;
+    }
+
+    private String extractProductName(String question) {
+        if (question == null || question.isBlank()) {
+            return null;
+        }
+
+        String normalized = question
+                .replaceAll("\\d{4}年\\d{1,2}月", " ")
+                .replaceAll("\\d{4}-\\d{2}", " ")
+                .replace('，', ' ')
+                .replace(',', ' ');
+
+        Pattern aroundKeyword = Pattern.compile("([\\u4e00-\\u9fa5A-Za-z0-9]{1,20})(?:这个)?(产品|物品|商品)");
+        Matcher aroundMatcher = aroundKeyword.matcher(normalized);
+        if (aroundMatcher.find()) {
+            String candidate = normalizeProductCandidate(aroundMatcher.group(1));
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+
+        Pattern beforePurchase = Pattern.compile("([\\u4e00-\\u9fa5A-Za-z0-9]{1,20})采购(明细|详细情况|情况)");
+        Matcher purchaseMatcher = beforePurchase.matcher(normalized);
+        if (purchaseMatcher.find()) {
+            String candidate = normalizeProductCandidate(purchaseMatcher.group(1));
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private String normalizeProductCandidate(String candidate) {
+        if (candidate == null) {
+            return null;
+        }
+        String normalized = candidate
+                .replaceAll("^(查询|查看|统计|帮我看下|帮我看看|帮我查询)", "")
+                .replaceAll("(这个|该|的)$", "")
+                .trim();
+        if (normalized.isBlank() || isStopWord(normalized)) {
+            return null;
+        }
+        return normalized;
     }
 
     /**
@@ -562,7 +617,9 @@ public class TemplateMatcherService {
     private List<Nl2SqlQueryTemplate> loadActiveTemplates() {
         long now = System.currentTimeMillis();
         if (cachedTemplates == null || (now - cacheTimestamp) > CACHE_TTL_MS) {
-            cachedTemplates = templateRepository.findByIsActiveTrueOrderByPriorityDesc();
+            List<Nl2SqlQueryTemplate> loaded = new ArrayList<>(templateRepository.findByIsActiveTrueOrderByPriorityDesc());
+            loaded.sort(Comparator.comparingInt(template -> template.getPriority() == null ? 0 : template.getPriority()).reversed());
+            cachedTemplates = List.copyOf(loaded);
             cacheTimestamp = now;
             log.debug("Refreshed query template cache, loaded {} templates", cachedTemplates.size());
         }

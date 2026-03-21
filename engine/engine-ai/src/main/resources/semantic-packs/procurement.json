@@ -1,0 +1,49 @@
+{
+  "domain": "procurement",
+  "description": "采购主题域，覆盖采购明细、采购人、采购金额、供应商和关联业务单。采购 authority 口径基于 t_purchase_price_item -> t_purchase_info -> t_plan_purchase_item -> t_flower_biz_item -> t_flower_biz_info 表链。",
+  "objects": [
+    {
+      "name": "采购明细",
+      "view": "authority.procurement.purchase_item_detail",
+      "description": "旧系统采购明细页的权威取数面。每条记录是一条采购价格项与业务单的关联明细，必须通过 t_plan_purchase_item 和 t_flower_biz_item 过滤无效记录。",
+      "keyDimensions": ["purchase_user_name", "purchase_time", "good_name", "good_specs", "supply_name", "biz_code", "project_name"],
+      "keyMeasures": ["parchase_number", "parchase_price", "total_amount"],
+      "commonFilters": ["good_name", "good_specs", "purchase_user_name", "supply_name", "biz_code", "purchase_time"],
+      "defaultTimeField": "purchase_time"
+    },
+    {
+      "name": "采购人金额统计",
+      "view": "authority.procurement.purchase_amount_by_buyer",
+      "description": "按采购人汇总采购数量、明细行数和采购金额。用于回答“按采购人/采购金额统计”类问题。",
+      "keyDimensions": ["purchase_user_name"],
+      "keyMeasures": ["row_count", "total_quantity", "purchase_amount"],
+      "commonFilters": ["good_name", "purchase_time", "purchase_user_name"],
+      "defaultTimeField": "purchase_time"
+    }
+  ],
+  "synonyms": [
+    { "term": "采购人", "field": "purchase_user_name", "views": ["authority.procurement.purchase_item_detail", "authority.procurement.purchase_amount_by_buyer"] },
+    { "term": "发起人", "field": "purchase_user_name", "views": ["authority.procurement.purchase_item_detail", "authority.procurement.purchase_amount_by_buyer"] },
+    { "term": "产品", "field": "good_name", "views": ["authority.procurement.purchase_item_detail", "authority.procurement.purchase_amount_by_buyer"] },
+    { "term": "物品", "field": "good_name", "views": ["authority.procurement.purchase_item_detail", "authority.procurement.purchase_amount_by_buyer"] },
+    { "term": "采购金额", "field": "purchase_amount", "views": ["authority.procurement.purchase_amount_by_buyer"] },
+    { "term": "采购总价", "field": "purchase_amount", "views": ["authority.procurement.purchase_amount_by_buyer"] },
+    { "term": "采购详细情况", "field": "authority.procurement.purchase_item_detail", "views": ["authority.procurement.purchase_item_detail"] },
+    { "term": "采购明细", "field": "authority.procurement.purchase_item_detail", "views": ["authority.procurement.purchase_item_detail"] }
+  ],
+  "fewShots": [
+    {
+      "question": "查询2025年2月绿萝采购明细",
+      "sql": "SELECT b.purchase_user_name, a.purchase_time, a.good_name, a.good_specs, c.real_purchase_number AS parchase_number, a.parchase_price, ROUND(c.real_purchase_number * a.parchase_price, 2) AS total_amount, a.supply_name, f.code AS biz_code, f.project_name FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = '绿萝' AND a.purchase_time >= '2025-02-01' AND a.purchase_time < '2025-03-01' ORDER BY a.purchase_time DESC, b.purchase_user_name ASC"
+    },
+    {
+      "question": "查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计",
+      "sql": "SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = '绿萝' AND a.purchase_time >= '2025-02-01' AND a.purchase_time < '2025-03-01' GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC"
+    }
+  ],
+  "guardrails": [
+    "不要使用 t_purchase_info.title like '%产品名%' 作为采购产品过滤条件。",
+    "不要把 i_pendulum_purchase* 作为采购明细默认表链。",
+    "对产品名必须区分精确匹配 good_name='绿萝' 与模糊匹配 LIKE '%绿萝%' 的不同口径。"
+  ]
+}

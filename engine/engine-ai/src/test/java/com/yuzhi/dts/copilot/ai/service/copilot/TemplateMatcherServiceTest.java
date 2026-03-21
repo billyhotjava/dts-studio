@@ -164,6 +164,34 @@ class TemplateMatcherServiceTest {
         assertThat(result.resolvedSql()).isNull();
     }
 
+    @Test
+    @DisplayName("采购域: 某月某产品采购明细按采购人金额统计命中 authority 模板")
+    void matchProcurementProductAmountByBuyer() {
+        TemplateMatchResult result = matcherService.match("查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-33");
+        assertThat(result.extractedParams().get("month")).isEqualTo("2025-02");
+        assertThat(result.extractedParams().get("good_name")).isEqualTo("绿萝");
+        assertThat(result.resolvedSql()).contains("t_purchase_price_item");
+        assertThat(result.resolvedSql()).contains("purchase_user_name");
+        assertThat(result.resolvedSql()).doesNotContain("i_pendulum_purchase");
+        assertThat(result.resolvedSql()).doesNotContain("title like");
+    }
+
+    @Test
+    @DisplayName("采购域: 某月某产品采购明细列表命中 authority 模板")
+    void matchProcurementProductDetailList() {
+        TemplateMatchResult result = matcherService.match("查询2025年2月绿萝采购明细");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-31");
+        assertThat(result.extractedParams().get("month")).isEqualTo("2025-02");
+        assertThat(result.extractedParams().get("good_name")).isEqualTo("绿萝");
+        assertThat(result.resolvedSql()).contains("t_purchase_price_item");
+        assertThat(result.resolvedSql()).contains("ORDER BY a.purchase_time DESC");
+    }
+
     // ===================== No match =====================
 
     @Test
@@ -212,6 +240,15 @@ class TemplateMatcherServiceTest {
         assertThat(result.matched()).isTrue();
         String expectedMonth = LocalDate.now().minusMonths(1).format(MONTH_FMT);
         assertThat(result.extractedParams().get("month")).isEqualTo(expectedMonth);
+    }
+
+    @Test
+    @DisplayName("时间参数: 中文年月 -> YYYY-MM")
+    void extractChineseMonth() {
+        TemplateMatchResult result = matcherService.match("查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.extractedParams().get("month")).isEqualTo("2025-02");
     }
 
     @Test
@@ -282,8 +319,8 @@ class TemplateMatcherServiceTest {
     // ===================== Helper: build mock templates =====================
 
     /**
-     * Build mock templates matching key entries from v1_0_0_010 seed data.
-     * Includes TPL-01, TPL-02, TPL-06, TPL-08, TPL-09, TPL-10, TPL-13, TPL-15, TPL-20.
+     * Build mock templates matching key entries from seed data.
+     * Includes project / settlement / task templates plus procurement authority templates.
      */
     private List<Nl2SqlQueryTemplate> buildMockTemplates() {
         List<Nl2SqlQueryTemplate> templates = new ArrayList<>();
@@ -359,6 +396,30 @@ class TemplateMatcherServiceTest {
                 "SELECT settlement_type_name, count(*) as 项目数 FROM v_project_overview WHERE project_status_name = '正常' GROUP BY settlement_type_name",
                 "{}",
                 "v_project_overview", "结算方式分布", 10));
+
+        // TPL-31: 某月某产品采购明细
+        templates.add(buildTemplate(31L, "TPL-31", "procurement", null,
+                "[\".*(采购明细|采购详细情况).*(绿植|产品|物品|商品|采购).*\",\".*(\\\\d{4}年\\\\d{1,2}月|\\\\d{4}-\\\\d{2}).*(采购明细|采购详细情况).*\"]",
+                "[\"查询2025年2月绿萝采购明细\"]",
+                "SELECT b.purchase_user_name, a.purchase_time, a.good_name, a.good_specs, c.real_purchase_number AS parchase_number, a.parchase_price, ROUND(c.real_purchase_number * a.parchase_price, 2) AS total_amount, a.supply_name, f.code AS biz_code, f.project_name FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, '-01') AND a.purchase_time < DATE_ADD(CONCAT(:month, '-01'), INTERVAL 1 MONTH) ORDER BY a.purchase_time DESC, b.purchase_user_name ASC",
+                "{\"month\":{\"type\":\"string\",\"required\":true},\"good_name\":{\"type\":\"string\",\"required\":true}}",
+                "authority.procurement.purchase_item_detail", "某月某产品采购明细", 20));
+
+        // TPL-32: 某月某产品按采购人统计采购金额
+        templates.add(buildTemplate(32L, "TPL-32", "procurement", null,
+                "[\".*(按采购人|采购人).*(采购金额|金额|总价|统计).*\",\".*(采购金额|金额).*(采购人).*统计.*\"]",
+                "[\"查询2025年2月绿萝按采购人统计采购金额\"]",
+                "SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, '-01') AND a.purchase_time < DATE_ADD(CONCAT(:month, '-01'), INTERVAL 1 MONTH) GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC",
+                "{\"month\":{\"type\":\"string\",\"required\":true},\"good_name\":{\"type\":\"string\",\"required\":true}}",
+                "authority.procurement.purchase_amount_by_buyer", "某月某产品按采购人统计采购金额", 22));
+
+        // TPL-33: 某月某产品采购详细情况，按采购人/采购金额统计
+        templates.add(buildTemplate(33L, "TPL-33", "procurement", null,
+                "[\".*(采购详细情况|采购明细).*(按采购人).*(采购金额|金额).*\",\".*(\\\\d{4}年\\\\d{1,2}月|\\\\d{4}-\\\\d{2}).*(产品|物品|商品).*(采购详细情况|采购明细).*(采购人).*(金额).*\"]",
+                "[\"查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计\"]",
+                "SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, '-01') AND a.purchase_time < DATE_ADD(CONCAT(:month, '-01'), INTERVAL 1 MONTH) GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC",
+                "{\"month\":{\"type\":\"string\",\"required\":true},\"good_name\":{\"type\":\"string\",\"required\":true}}",
+                "authority.procurement.purchase_amount_by_buyer", "某月某产品采购详细情况按采购人金额统计", 30));
 
         return templates;
     }
