@@ -19,6 +19,9 @@ class ReportTemplateBackingPromotionVerificationTest {
     private static final String RESOURCE_PATH_FINANCE = "config/liquibase/changelog/0046_promote_finance_settlement_summary_fixed_report.xml";
     private static final String RESOURCE_PATH_LOW_STOCK = "config/liquibase/changelog/0047_promote_low_stock_alert_fixed_report.xml";
     private static final String RESOURCE_PATH_ADVANCE = "config/liquibase/changelog/0048_promote_finance_advance_request_fixed_report.xml";
+    private static final String RESOURCE_PATH_PROC_DETAIL = "config/liquibase/changelog/0049_promote_procurement_detail_fixed_report.xml";
+    private static final String RESOURCE_PATH_REIMBURSEMENT = "config/liquibase/changelog/0050_promote_finance_reimbursement_fixed_report.xml";
+    private static final String RESOURCE_PATH_INVOICE = "config/liquibase/changelog/0051_promote_finance_invoice_fixed_report.xml";
     private static final String MASTER_PATH = "config/liquibase/master.xml";
 
     @Test
@@ -119,6 +122,79 @@ class ReportTemplateBackingPromotionVerificationTest {
         assertThat(columnText(update, "parameter_schema_json")).contains("\"applyUserId\"");
     }
 
+    @Test
+    void shouldPromoteProcurementDetailTemplateAfterFinanceAdvanceRequest() throws Exception {
+        Document changelog = loadDocument(RESOURCE_PATH_PROC_DETAIL);
+        Document master = loadDocument(MASTER_PATH);
+
+        assertMasterIncludesProcurementDetailPromotion(master);
+        Element update = findUpdate(changelog, "PROC-ORDER-EXECUTION-PROGRESS");
+        assertThat(columnValue(update, "name")).isEqualTo("采购明细-执行进度");
+        assertThat(columnValue(update, "category")).isEqualTo("明细");
+        assertThat(columnValue(update, "data_source_type")).isEqualTo("SQL");
+        assertThat(columnValue(update, "target_object")).isEqualTo("authority.procurement.order_execution_progress");
+        assertThat(columnValue(update, "refresh_policy")).isEqualTo("REALTIME");
+        assertThat(columnText(update, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(update, "spec_json")).contains("\"databaseName\":\"园林业务库\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"projectId\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"purchaseUserId\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"payType\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"startTime\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"endTime\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"goodName\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"goodSpecs\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"supplyName\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"bizCode\"");
+    }
+
+    @Test
+    void shouldPromoteFinanceReimbursementTemplateAfterProcurementDetail() throws Exception {
+        Document changelog = loadDocument(RESOURCE_PATH_REIMBURSEMENT);
+        Document master = loadDocument(MASTER_PATH);
+
+        assertMasterIncludesReimbursementPromotion(master);
+        Element update = findUpdate(changelog, "FIN-REIMBURSEMENT-STATUS");
+        assertThat(columnValue(update, "name")).isEqualTo("日常报销");
+        assertThat(columnValue(update, "category")).isEqualTo("状态");
+        assertThat(columnValue(update, "data_source_type")).isEqualTo("SQL");
+        assertThat(columnValue(update, "target_object")).isEqualTo("authority.finance.reimbursement_status");
+        assertThat(columnValue(update, "refresh_policy")).isEqualTo("REALTIME");
+        assertThat(columnText(update, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(update, "spec_json")).contains("\"databaseName\":\"园林业务库\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"code\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"status\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"applyUserId\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"collectName\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"payType\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"remark\"");
+    }
+
+    @Test
+    void shouldPromoteFinanceInvoiceTemplateAfterReimbursement() throws Exception {
+        Document changelog = loadDocument(RESOURCE_PATH_INVOICE);
+        Document master = loadDocument(MASTER_PATH);
+
+        assertMasterIncludesInvoicePromotion(master);
+        Element update = findUpdate(changelog, "FIN-INVOICE-RECONCILIATION");
+        assertThat(columnValue(update, "name")).isEqualTo("开票管理");
+        assertThat(columnValue(update, "category")).isEqualTo("对账");
+        assertThat(columnValue(update, "data_source_type")).isEqualTo("SQL");
+        assertThat(columnValue(update, "target_object")).isEqualTo("authority.finance.invoice_reconciliation");
+        assertThat(columnValue(update, "refresh_policy")).isEqualTo("REALTIME");
+        assertThat(columnText(update, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(update, "spec_json")).contains("\"databaseName\":\"园林业务库\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"projectId\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"status\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"billType\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"code\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"itemTitle\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"applyUserId\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"applyStartTime\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"applyEndTime\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"invoiceStartTime\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"invoiceEndTime\"");
+    }
+
     private static void assertMasterIncludesPromotion(Document master) {
         List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
         int analysisDraftIndex = -1;
@@ -202,6 +278,57 @@ class ReportTemplateBackingPromotionVerificationTest {
         }
         assertThat(lowStockPromotionIndex).isGreaterThanOrEqualTo(0);
         assertThat(advancePromotionIndex).isGreaterThan(lowStockPromotionIndex);
+    }
+
+    private static void assertMasterIncludesProcurementDetailPromotion(Document master) {
+        List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
+        int advancePromotionIndex = -1;
+        int procurementDetailPromotionIndex = -1;
+        for (int i = 0; i < includes.size(); i++) {
+            String file = includes.get(i).getAttribute("file");
+            if (RESOURCE_PATH_ADVANCE.equals(file)) {
+                advancePromotionIndex = i;
+            }
+            if (RESOURCE_PATH_PROC_DETAIL.equals(file)) {
+                procurementDetailPromotionIndex = i;
+            }
+        }
+        assertThat(advancePromotionIndex).isGreaterThanOrEqualTo(0);
+        assertThat(procurementDetailPromotionIndex).isGreaterThan(advancePromotionIndex);
+    }
+
+    private static void assertMasterIncludesReimbursementPromotion(Document master) {
+        List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
+        int procurementDetailPromotionIndex = -1;
+        int reimbursementPromotionIndex = -1;
+        for (int i = 0; i < includes.size(); i++) {
+            String file = includes.get(i).getAttribute("file");
+            if (RESOURCE_PATH_PROC_DETAIL.equals(file)) {
+                procurementDetailPromotionIndex = i;
+            }
+            if (RESOURCE_PATH_REIMBURSEMENT.equals(file)) {
+                reimbursementPromotionIndex = i;
+            }
+        }
+        assertThat(procurementDetailPromotionIndex).isGreaterThanOrEqualTo(0);
+        assertThat(reimbursementPromotionIndex).isGreaterThan(procurementDetailPromotionIndex);
+    }
+
+    private static void assertMasterIncludesInvoicePromotion(Document master) {
+        List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
+        int reimbursementPromotionIndex = -1;
+        int invoicePromotionIndex = -1;
+        for (int i = 0; i < includes.size(); i++) {
+            String file = includes.get(i).getAttribute("file");
+            if (RESOURCE_PATH_REIMBURSEMENT.equals(file)) {
+                reimbursementPromotionIndex = i;
+            }
+            if (RESOURCE_PATH_INVOICE.equals(file)) {
+                invoicePromotionIndex = i;
+            }
+        }
+        assertThat(reimbursementPromotionIndex).isGreaterThanOrEqualTo(0);
+        assertThat(invoicePromotionIndex).isGreaterThan(reimbursementPromotionIndex);
     }
 
     private static Element findUpdate(Document changelog, String templateCode) {

@@ -101,7 +101,7 @@
 
 在继续实现前，已经确认 `dts-copilot` 当前固定报表能力存在 4 个关键缺口：
 
-1. `0040_seed_finance_procurement_templates.xml` 已经种入了 `16` 个 `FIN/PROC/WH` 模板，但除 `FIN-AR-OVERVIEW`、`PROC-SUPPLIER-AMOUNT-RANK`、`WH-STOCK-OVERVIEW` 和 `WH-LOW-STOCK-ALERT` 外，大多数 `target_object` 仍是 `authority.finance.*`、`authority.procurement.*`、`authority.inventory.*` 这类概念型目标，不是已验证的业务取数面。
+1. `0040_seed_finance_procurement_templates.xml` 已经种入了 `16` 个 `FIN/PROC/WH` 模板，但除 `FIN-AR-OVERVIEW`、`FIN-ADVANCE-REQUEST-STATUS`、`PROC-SUPPLIER-AMOUNT-RANK`、`PROC-ORDER-EXECUTION-PROGRESS`、`WH-STOCK-OVERVIEW` 和 `WH-LOW-STOCK-ALERT` 外，大多数 `target_object` 仍是 `authority.finance.*`、`authority.procurement.*`、`authority.inventory.*` 这类概念型目标，不是已验证的业务取数面。
 2. 当前 `rs_cloud_flower` 测试库里没有任何 MySQL VIEW；而 `0036_business_views_metadata.xml` 里登记的 `7` 个 `v_*` 业务视图只存在于 sprint-10 的 SQL 资产，还没有实际落库。
 3. `FixedReportResource` 当前只返回执行计划元数据，不返回真实报表结果，因此“查看固定报表”更多是目录/路由能力，不是已经完成的数据交付能力。
 4. Copilot 模板优先命中的前端体验已经贯通，但它目前只是把用户带到固定报表页，不能保证模板就一定命中到真正可执行的数据面。
@@ -173,6 +173,30 @@
    - `target_object` 已固定到 `authority.inventory.low_stock_alert`
    - `FixedReportRunPage` 现在可直接返回低库存清单预览，而不是占位态
    - 真实权威表仍锁定到 `s_stock_info + b_goods_price`
+14. 财务域第二个真实 backing 接通
+   - 新增 `0048_promote_finance_advance_request_fixed_report.xml`
+   - `FIN-ADVANCE-REQUEST-STATUS` 已提升为真实可执行模板，当前页面名称为 `预支申请`
+   - `target_object` 已固定到 `authority.finance.advance_request_status`
+   - `FixedReportRunPage` 现在可直接返回预支申请状态清单预览，而不是占位态
+   - 真实权威表已锁定到 `f_advance_info`
+15. 采购域第二个真实 backing 接通
+   - 新增 `0049_promote_procurement_detail_fixed_report.xml`
+   - `PROC-ORDER-EXECUTION-PROGRESS` 已提升为真实可执行模板，当前页面名称为 `采购明细-执行进度`
+   - `target_object` 已固定到 `authority.procurement.order_execution_progress`
+   - `FixedReportRunPage` 现在可直接返回采购明细执行进度预览，而不是占位态
+   - 真实权威表已锁定到 `t_purchase_price_item + t_purchase_info + t_plan_purchase_item + t_flower_biz_item + t_flower_biz_info`
+16. 财务域第三个真实 backing 接通
+   - 新增 `0050_promote_finance_reimbursement_fixed_report.xml`
+   - `FIN-REIMBURSEMENT-STATUS` 已提升为真实可执行模板，当前页面名称为 `日常报销`
+   - `target_object` 已固定到 `authority.finance.reimbursement_status`
+   - `FixedReportRunPage` 现在可直接返回日常报销状态清单预览，而不是占位态
+   - 真实权威表已锁定到 `f_expense_account_info`
+17. 财务域第四个真实 backing 接通
+   - 新增 `0051_promote_finance_invoice_fixed_report.xml`
+   - `FIN-INVOICE-RECONCILIATION` 已提升为真实可执行模板，当前页面名称为 `开票管理`
+   - `target_object` 已固定到 `authority.finance.invoice_reconciliation`
+   - `FixedReportRunPage` 现在可直接返回开票管理清单预览，而不是占位态
+   - 真实权威表已锁定到 `a_invoice_info + a_invoice_item`
 
 ## 任务列表
 
@@ -210,7 +234,11 @@
 
 > 当前已接通真实 backing：
 > - `财务结算汇总 (FIN-AR-OVERVIEW)`
+> - `日常报销 (FIN-REIMBURSEMENT-STATUS)`
+> - `开票管理 (FIN-INVOICE-RECONCILIATION)`
+> - `预支申请 (FIN-ADVANCE-REQUEST-STATUS)`
 > - `采购汇总 (PROC-SUPPLIER-AMOUNT-RANK)`
+> - `采购明细-执行进度 (PROC-ORDER-EXECUTION-PROGRESS)`
 > - `库存现量 (WH-STOCK-OVERVIEW)`
 > - `库存现量-低库存预警 (WH-LOW-STOCK-ALERT)`
 

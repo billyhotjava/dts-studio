@@ -49,7 +49,19 @@
 - 已接通模板的第四个仓库域样板
   - 当 Copilot 命中 `WH-LOW-STOCK-ALERT` 时，固定报表页已可直接执行 `authority.inventory.low_stock_alert`
   - `FixedReportRunPage` 已可显示 `库存现量-低库存预警` 的结果预览
+- 已接通模板的第五个财务域样板
+  - 当 Copilot 命中 `FIN-ADVANCE-REQUEST-STATUS` 时，固定报表页已可直接执行 `authority.finance.advance_request_status`
+  - `FixedReportRunPage` 已可显示 `预支申请` 的结果预览
+- 已接通模板的第六个采购域样板
+  - 当 Copilot 命中 `PROC-ORDER-EXECUTION-PROGRESS` 时，固定报表页已可直接执行 `authority.procurement.order_execution_progress`
+  - `FixedReportRunPage` 已可显示 `采购明细-执行进度` 的结果预览
+- 已接通模板的第七个财务域样板
+  - 当 Copilot 命中 `FIN-REIMBURSEMENT-STATUS` 时，固定报表页已可直接执行 `authority.finance.reimbursement_status`
+  - `FixedReportRunPage` 已可显示 `日常报销` 的结果预览
+- 已接通模板的第八个财务域样板
+  - 当 Copilot 命中 `FIN-INVOICE-RECONCILIATION` 时，固定报表页已可直接执行 `authority.finance.invoice_reconciliation`
+  - `FixedReportRunPage` 已可显示 `开票管理` 的结果预览
 
 ## 当前仍未完成
 
-- 还没有把除 `财务结算汇总 / 采购汇总 / 库存现量 / 库存现量-低库存预警` 外的固定报表目录命中结果与真实 backing 执行结果彻底接通
+- 还没有把除 `财务结算汇总 / 日常报销 / 开票管理 / 预支申请 / 采购汇总 / 采购明细-执行进度 / 库存现量 / 库存现量-低库存预警` 外的固定报表目录命中结果与真实 backing 执行结果彻底接通

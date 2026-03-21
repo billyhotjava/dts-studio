@@ -48,7 +48,8 @@ public class AuthorityQueryService {
                     targetObject);
         }
         if (normalizedTargetObject.startsWith("authority.procurement.")) {
-            if (normalizedTargetObject.endsWith(".purchase_summary")) {
+            if (normalizedTargetObject.endsWith(".purchase_summary")
+                    || normalizedTargetObject.endsWith(".order_execution_progress")) {
                 return new AuthorityAdapter(
                         ReportExecutionPlanService.Route.AUTHORITY_SQL,
                         adapterKey,
@@ -78,6 +79,18 @@ public class AuthorityQueryService {
                     adapterKey,
                     targetObject);
         }
+        if (normalizedTargetObject.startsWith("mart.finance.")) {
+            return new AuthorityAdapter(
+                    ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                    "authority.finance",
+                    targetObject);
+        }
+        if (normalizedTargetObject.startsWith("fact.procurement.")) {
+            return new AuthorityAdapter(
+                    ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                    "authority.procurement",
+                    targetObject);
+        }
         return AuthorityAdapter.unresolved();
     }
 
@@ -90,6 +103,12 @@ public class AuthorityQueryService {
         }
         if (normalizedTargetObject.startsWith("authority.inventory.")) {
             return "authority.inventory";
+        }
+        if (normalizedTargetObject.startsWith("mart.finance.")) {
+            return "authority.finance";
+        }
+        if (normalizedTargetObject.startsWith("fact.procurement.")) {
+            return "authority.procurement";
         }
 
         String domain = normalize(template.getDomain());

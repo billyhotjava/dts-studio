@@ -54,6 +54,40 @@ class ReportExecutionPlanServiceTest {
     }
 
     @Test
+    void financeReimbursementStatusTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate financeReimbursementTemplate = template(
+                "FIN-REIMBURSEMENT-STATUS",
+                "财务",
+                "状态",
+                "SQL",
+                "authority.finance.reimbursement_status",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(financeReimbursementTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.finance");
+        assertThat(plan.targetObject()).isEqualTo("authority.finance.reimbursement_status");
+    }
+
+    @Test
+    void financeInvoiceReconciliationTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate financeInvoiceTemplate = template(
+                "FIN-INVOICE-RECONCILIATION",
+                "财务",
+                "对账",
+                "SQL",
+                "authority.finance.invoice_reconciliation",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(financeInvoiceTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.finance");
+        assertThat(plan.targetObject()).isEqualTo("authority.finance.invoice_reconciliation");
+    }
+
+    @Test
     void procurementAndWarehouseRealtimeStateTemplatesShouldPreferAuthorityViews() {
         AnalyticsReportTemplate procurementRealtimeTemplate = template(
                 "PROC-PURCHASE-REQUEST-TODO",
@@ -106,6 +140,23 @@ class ReportExecutionPlanServiceTest {
         assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
         assertThat(plan.adapterKey()).isEqualTo("authority.procurement");
         assertThat(plan.targetObject()).isEqualTo("authority.procurement.purchase_summary");
+    }
+
+    @Test
+    void procurementOrderExecutionProgressTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate procurementDetailTemplate = template(
+                "PROC-ORDER-EXECUTION-PROGRESS",
+                "采购",
+                "明细",
+                "SQL",
+                "authority.procurement.order_execution_progress",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(procurementDetailTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.procurement");
+        assertThat(plan.targetObject()).isEqualTo("authority.procurement.order_execution_progress");
     }
 
     @Test
