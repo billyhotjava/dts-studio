@@ -18,6 +18,7 @@ class ReportTemplateBackingPromotionVerificationTest {
     private static final String RESOURCE_PATH_STOCK = "config/liquibase/changelog/0045_promote_stock_overview_fixed_report.xml";
     private static final String RESOURCE_PATH_FINANCE = "config/liquibase/changelog/0046_promote_finance_settlement_summary_fixed_report.xml";
     private static final String RESOURCE_PATH_LOW_STOCK = "config/liquibase/changelog/0047_promote_low_stock_alert_fixed_report.xml";
+    private static final String RESOURCE_PATH_ADVANCE = "config/liquibase/changelog/0048_promote_finance_advance_request_fixed_report.xml";
     private static final String MASTER_PATH = "config/liquibase/master.xml";
 
     @Test
@@ -99,6 +100,25 @@ class ReportTemplateBackingPromotionVerificationTest {
         assertThat(columnText(update, "parameter_schema_json")).contains("\"status\"");
     }
 
+    @Test
+    void shouldPromoteFinanceAdvanceRequestTemplateAfterWarehouseLowStockAlert() throws Exception {
+        Document changelog = loadDocument(RESOURCE_PATH_ADVANCE);
+        Document master = loadDocument(MASTER_PATH);
+
+        assertMasterIncludesAdvancePromotion(master);
+        Element update = findUpdate(changelog, "FIN-ADVANCE-REQUEST-STATUS");
+        assertThat(columnValue(update, "name")).isEqualTo("预支申请");
+        assertThat(columnValue(update, "category")).isEqualTo("状态");
+        assertThat(columnValue(update, "data_source_type")).isEqualTo("SQL");
+        assertThat(columnValue(update, "target_object")).isEqualTo("authority.finance.advance_request_status");
+        assertThat(columnValue(update, "refresh_policy")).isEqualTo("REALTIME");
+        assertThat(columnText(update, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(update, "spec_json")).contains("\"databaseName\":\"园林业务库\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"code\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"status\"");
+        assertThat(columnText(update, "parameter_schema_json")).contains("\"applyUserId\"");
+    }
+
     private static void assertMasterIncludesPromotion(Document master) {
         List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
         int analysisDraftIndex = -1;
@@ -165,6 +185,23 @@ class ReportTemplateBackingPromotionVerificationTest {
         }
         assertThat(financePromotionIndex).isGreaterThanOrEqualTo(0);
         assertThat(lowStockPromotionIndex).isGreaterThan(financePromotionIndex);
+    }
+
+    private static void assertMasterIncludesAdvancePromotion(Document master) {
+        List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
+        int lowStockPromotionIndex = -1;
+        int advancePromotionIndex = -1;
+        for (int i = 0; i < includes.size(); i++) {
+            String file = includes.get(i).getAttribute("file");
+            if (RESOURCE_PATH_LOW_STOCK.equals(file)) {
+                lowStockPromotionIndex = i;
+            }
+            if (RESOURCE_PATH_ADVANCE.equals(file)) {
+                advancePromotionIndex = i;
+            }
+        }
+        assertThat(lowStockPromotionIndex).isGreaterThanOrEqualTo(0);
+        assertThat(advancePromotionIndex).isGreaterThan(lowStockPromotionIndex);
     }
 
     private static Element findUpdate(Document changelog, String templateCode) {

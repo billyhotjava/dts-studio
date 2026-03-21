@@ -302,6 +302,101 @@ class DefaultFixedReportExecutionServiceTest {
         assertThat(bindingsCaptor.getValue()).containsExactly("202504", "2001", "99", "1");
     }
 
+    @Test
+    void shouldExecuteFinanceAdvanceRequestStatusAgainstConfiguredBusinessDatabase() throws Exception {
+        AnalyticsDatabase database = new AnalyticsDatabase();
+        database.setId(7L);
+        database.setName("园林业务库");
+        when(databaseRepository.findFirstByNameIgnoreCase("园林业务库")).thenReturn(Optional.of(database));
+        when(datasetQueryService.runNative(eq(7L), any(String.class), any(DatasetConstraints.class), any()))
+                .thenReturn(new DatasetResult(
+                        List.of(List.of(
+                                "武延娟",
+                                "YZ202602100273",
+                                "备用金",
+                                new BigDecimal("1000.0000"),
+                                new BigDecimal("1000.0000"),
+                                new BigDecimal("800.0000"),
+                                "已付款",
+                                "有",
+                                "未提供",
+                                "武延娟于20260210152437发起预支",
+                                "2026-02-10 15:24:38",
+                                "2026-02-10 18:00:00")),
+                        List.of(
+                                Map.of("name", "applyUserName", "display_name", "申请人", "base_type", "type/Text"),
+                                Map.of("name", "code", "display_name", "单号", "base_type", "type/Text"),
+                                Map.of("name", "typeName", "display_name", "申请类型", "base_type", "type/Text"),
+                                Map.of("name", "totalAmount", "display_name", "申请金额", "base_type", "type/Number"),
+                                Map.of("name", "payAmount", "display_name", "付款金额", "base_type", "type/Number"),
+                                Map.of("name", "offsetTotalAmount", "display_name", "抵消金额", "base_type", "type/Number"),
+                                Map.of("name", "statusName", "display_name", "状态", "base_type", "type/Text"),
+                                Map.of("name", "invoiceStatusName", "display_name", "发票", "base_type", "type/Text"),
+                                Map.of("name", "invoiceOfferName", "display_name", "发票提供", "base_type", "type/Text"),
+                                Map.of("name", "title", "display_name", "标题", "base_type", "type/Text"),
+                                Map.of("name", "applyTime", "display_name", "申请时间", "base_type", "type/Text"),
+                                Map.of("name", "payTime", "display_name", "付款日期", "base_type", "type/Text")),
+                        List.of(),
+                        "Asia/Shanghai"));
+
+        DefaultFixedReportExecutionService service =
+                new DefaultFixedReportExecutionService(databaseRepository, datasetQueryService);
+
+        Optional<FixedReportExecutionService.ExecutionResult> result = service.execute(
+                financeAdvanceRequestStatusTemplate(),
+                Map.of(
+                        "code", "YZ202602100273",
+                        "status", "7",
+                        "applyUserId", "1001"),
+                new ReportExecutionPlanService.ReportExecutionPlan(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        "FIN-ADVANCE-REQUEST-STATUS",
+                        "authority.finance",
+                        "authority.finance.advance_request_status",
+                        "template uses realtime advance request status sql",
+                        "SQL",
+                        "REALTIME"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().databaseId()).isEqualTo(7L);
+        assertThat(result.get().databaseName()).isEqualTo("园林业务库");
+        assertThat(result.get().rowCount()).isEqualTo(1);
+        assertThat(result.get().columns()).extracting(FixedReportExecutionService.PreviewColumn::key)
+                .containsExactly(
+                        "applyUserName",
+                        "code",
+                        "typeName",
+                        "totalAmount",
+                        "payAmount",
+                        "offsetTotalAmount",
+                        "statusName",
+                        "invoiceStatusName",
+                        "invoiceOfferName",
+                        "title",
+                        "applyTime",
+                        "payTime");
+        assertThat(result.get().rows()).containsExactly(Map.ofEntries(
+                Map.entry("applyUserName", "武延娟"),
+                Map.entry("code", "YZ202602100273"),
+                Map.entry("typeName", "备用金"),
+                Map.entry("totalAmount", new BigDecimal("1000.0000")),
+                Map.entry("payAmount", new BigDecimal("1000.0000")),
+                Map.entry("offsetTotalAmount", new BigDecimal("800.0000")),
+                Map.entry("statusName", "已付款"),
+                Map.entry("invoiceStatusName", "有"),
+                Map.entry("invoiceOfferName", "未提供"),
+                Map.entry("title", "武延娟于20260210152437发起预支"),
+                Map.entry("applyTime", "2026-02-10 15:24:38"),
+                Map.entry("payTime", "2026-02-10 18:00:00")));
+
+        verify(datasetQueryService).runNative(eq(7L), sqlCaptor.capture(), any(DatasetConstraints.class), bindingsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("FROM f_advance_info a");
+        assertThat(sqlCaptor.getValue()).contains("a.code LIKE ?");
+        assertThat(sqlCaptor.getValue()).contains("a.status = ?");
+        assertThat(sqlCaptor.getValue()).contains("a.apply_user_id = ?");
+        assertThat(bindingsCaptor.getValue()).containsExactly("%YZ202602100273%", "7", "1001");
+    }
+
     private static AnalyticsReportTemplate procurementSummaryTemplate() {
         AnalyticsReportTemplate template = new AnalyticsReportTemplate();
         template.setTemplateCode("PROC-SUPPLIER-AMOUNT-RANK");
@@ -394,6 +489,31 @@ class DefaultFixedReportExecutionServiceTest {
                   "queryContract":{
                     "sourceType":"AUTHORITY_SQL",
                     "targetObject":"authority.inventory.low_stock_alert",
+                    "databaseName":"园林业务库"
+                  },
+                  "placeholderReviewRequired":false
+                }
+                """);
+        return template;
+    }
+
+    private static AnalyticsReportTemplate financeAdvanceRequestStatusTemplate() {
+        AnalyticsReportTemplate template = new AnalyticsReportTemplate();
+        template.setTemplateCode("FIN-ADVANCE-REQUEST-STATUS");
+        template.setName("预支申请");
+        template.setDomain("财务");
+        template.setCategory("状态");
+        template.setDataSourceType("SQL");
+        template.setTargetObject("authority.finance.advance_request_status");
+        template.setRefreshPolicy("REALTIME");
+        template.setSpecJson("""
+                {
+                  "templateCode":"FIN-ADVANCE-REQUEST-STATUS",
+                  "reportType":"fixed",
+                  "displayType":"status-board",
+                  "queryContract":{
+                    "sourceType":"AUTHORITY_SQL",
+                    "targetObject":"authority.finance.advance_request_status",
                     "databaseName":"园林业务库"
                   },
                   "placeholderReviewRequired":false

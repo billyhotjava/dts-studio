@@ -60,6 +60,9 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         if ("authority.finance.settlement_summary".equals(normalizedTarget)) {
             return Optional.of(executeFinanceSettlementSummary(contract, parameters));
         }
+        if ("authority.finance.advance_request_status".equals(normalizedTarget)) {
+            return Optional.of(executeFinanceAdvanceRequestStatus(contract, parameters));
+        }
         return Optional.empty();
     }
 
@@ -322,6 +325,85 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
                 ORDER BY a.account_period ASC, a.biz_type ASC, a.biz_id ASC, a.biz_type_name ASC,
                          a.settle_type ASC, a.fee_user_id DESC, a.fee_type ASC, a.fee_user_id ASC
+                """);
+
+        DatasetResult result = datasetQueryService.runNative(
+                database.getId(),
+                sql.toString(),
+                new DatasetConstraints(PREVIEW_LIMIT, QUERY_TIMEOUT_SECONDS, null),
+                bindings);
+        return mapPreview(database, result);
+    }
+
+    private ExecutionResult executeFinanceAdvanceRequestStatus(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    COALESCE(a.apply_user_name, '') AS applyUserName,
+                    COALESCE(a.code, '') AS code,
+                    CASE a.type
+                        WHEN 1 THEN '工资'
+                        WHEN 2 THEN '任务'
+                        WHEN 3 THEN '备用金'
+                        ELSE ''
+                    END AS typeName,
+                    ROUND(COALESCE(a.total_amount, 0), 4) AS totalAmount,
+                    ROUND(COALESCE(a.pay_amount, 0), 4) AS payAmount,
+                    ROUND(COALESCE(a.offset_total_amount, 0), 4) AS offsetTotalAmount,
+                    CASE a.status
+                        WHEN 1 THEN '草稿'
+                        WHEN 2 THEN '审批中'
+                        WHEN 3 THEN '待付款'
+                        WHEN 4 THEN '待冲抵'
+                        WHEN 5 THEN '超额审批中'
+                        WHEN 6 THEN '超额付款中'
+                        WHEN 7 THEN '出纳确认中'
+                        WHEN 9 THEN '待提供发票'
+                        WHEN 10 THEN '已结束'
+                        WHEN 20 THEN '审批拒绝'
+                        WHEN -1 THEN '已作废'
+                        ELSE ''
+                    END AS statusName,
+                    CASE a.invoice_status
+                        WHEN 1 THEN '无'
+                        WHEN 2 THEN '有'
+                        ELSE ''
+                    END AS invoiceStatusName,
+                    CASE a.invoice_offer
+                        WHEN 1 THEN '未提供'
+                        WHEN 2 THEN '已提供'
+                        ELSE ''
+                    END AS invoiceOfferName,
+                    COALESCE(a.title, '') AS title,
+                    DATE_FORMAT(a.apply_time, '%Y-%m-%d %H:%i:%s') AS applyTime,
+                    DATE_FORMAT(a.pay_time, '%Y-%m-%d %H:%i:%s') AS payTime
+                FROM f_advance_info a
+                WHERE 1 = 1
+                """);
+        List<Object> bindings = new ArrayList<>();
+
+        String code = stringParam(parameters, "code");
+        if (code != null) {
+            sql.append(" AND a.code LIKE ?");
+            bindings.add('%' + code + '%');
+        }
+
+        String status = stringParam(parameters, "status");
+        if (status != null) {
+            sql.append(" AND a.status = ?");
+            bindings.add(status);
+        }
+
+        String applyUserId = stringParam(parameters, "applyUserId");
+        if (applyUserId != null) {
+            sql.append(" AND a.apply_user_id = ?");
+            bindings.add(applyUserId);
+        }
+
+        sql.append("""
+
+                ORDER BY a.apply_time DESC, a.id DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
