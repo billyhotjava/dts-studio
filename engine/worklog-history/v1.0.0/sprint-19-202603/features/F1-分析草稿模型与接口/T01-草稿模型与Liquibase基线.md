@@ -1,7 +1,7 @@
 # T01: 草稿模型与 Liquibase 基线
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: 无
 
 ## 目标
@@ -21,10 +21,10 @@
 
 ## 验证
 
-- [ ] Entity 映射测试
-- [ ] Liquibase 基线可编译加载
+- [x] Entity 映射测试
+- [x] Liquibase 基线可编译加载
 
 ## 完成标准
 
-- [ ] `analysis_draft` 表结构稳定
-- [ ] 草稿核心字段齐全
+- [x] `analysis_draft` 表结构稳定
+- [x] 草稿核心字段齐全

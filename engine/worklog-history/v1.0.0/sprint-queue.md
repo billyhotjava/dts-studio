@@ -238,12 +238,12 @@
 
 | Feature | Task 数 | 状态 |
 |---------|---------|------|
-| F1-分析草稿模型与接口 | 3 | READY |
+| F1-分析草稿模型与接口 | 3 | DONE |
 | F2-查询资产中心承接草稿 | 3 | READY |
 | F3-Copilot到查询的协同动作 | 3 | READY |
 | F4-草稿晋升与IT验证 | 3 | READY |
 
-**统计**: READY=12, IN_PROGRESS=0, DONE=0, BLOCKED=0
+**统计**: READY=9, IN_PROGRESS=0, DONE=3, BLOCKED=0
 
 ## Backlog
 
