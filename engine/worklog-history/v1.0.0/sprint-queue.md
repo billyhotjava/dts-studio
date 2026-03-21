@@ -254,9 +254,9 @@
 | F3-Copilot与查询往返协同 | 3 | DONE |
 | F4-多端晋升与来源追溯 | 3 | DONE |
 | F5-IT验证与真人联调基线 | 3 | DONE |
-| F6-采购域语义与查询可靠性收口 | 4 | READY |
+| F6-采购域语义与查询可靠性收口 | 4 | DONE |
 
-**统计**: READY=1, IN_PROGRESS=0, DONE=5, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=6, BLOCKED=0
 
 ## Backlog
 
@@ -266,4 +266,4 @@
 
 ## 总体统计
 
-**READY=79, IN_PROGRESS=3, DONE=43, BLOCKED=0, DEFERRED=1 (总计 126 任务)**
+**READY=78, IN_PROGRESS=3, DONE=44, BLOCKED=0, DEFERRED=1 (总计 126 任务)**

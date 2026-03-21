@@ -37,6 +37,23 @@ class ReportExecutionPlanServiceTest {
     }
 
     @Test
+    void financeSettlementSummaryTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate financeSettlementSummaryTemplate = template(
+                "FIN-AR-OVERVIEW",
+                "财务",
+                "DETAIL",
+                "SQL",
+                "authority.finance.settlement_summary",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(financeSettlementSummaryTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.finance");
+        assertThat(plan.targetObject()).isEqualTo("authority.finance.settlement_summary");
+    }
+
+    @Test
     void procurementAndWarehouseRealtimeStateTemplatesShouldPreferAuthorityViews() {
         AnalyticsReportTemplate procurementRealtimeTemplate = template(
                 "PROC-PURCHASE-REQUEST-TODO",
@@ -72,6 +89,40 @@ class ReportExecutionPlanServiceTest {
         assertThat(inventoryRealtimePlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_VIEW);
         assertThat(inventoryRealtimePlan.adapterKey()).isEqualTo("authority.inventory");
         assertThat(procurementFallbackPlan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+    }
+
+    @Test
+    void procurementSummaryTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate procurementSummaryTemplate = template(
+                "PROC-SUPPLIER-AMOUNT-RANK",
+                "采购",
+                "DETAIL",
+                "SQL",
+                "authority.procurement.purchase_summary",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(procurementSummaryTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.procurement");
+        assertThat(plan.targetObject()).isEqualTo("authority.procurement.purchase_summary");
+    }
+
+    @Test
+    void warehouseStockOverviewTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate warehouseStockOverviewTemplate = template(
+                "WH-STOCK-OVERVIEW",
+                "仓库",
+                "DETAIL",
+                "SQL",
+                "authority.inventory.stock_overview",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(warehouseStockOverviewTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.inventory");
+        assertThat(plan.targetObject()).isEqualTo("authority.inventory.stock_overview");
     }
 
     @Test

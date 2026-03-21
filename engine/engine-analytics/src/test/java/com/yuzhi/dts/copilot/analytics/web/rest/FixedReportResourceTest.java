@@ -10,6 +10,7 @@ import com.yuzhi.dts.copilot.analytics.repository.AnalyticsReportTemplateReposit
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.report.AuthorityQueryService;
 import com.yuzhi.dts.copilot.analytics.service.report.FixedReportPageAnchorService;
+import com.yuzhi.dts.copilot.analytics.service.report.FixedReportExecutionService;
 import com.yuzhi.dts.copilot.analytics.service.report.ReportExecutionPlanService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Field;
@@ -36,14 +37,21 @@ class FixedReportResourceTest {
     private final FixedReportPageAnchorService pageAnchorService = new FixedReportPageAnchorService();
     private MutableSessionService sessionService;
     private InMemoryTemplateRepository templateRepository;
+    private StubFixedReportExecutionService executionService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         sessionService = new MutableSessionService();
         templateRepository = new InMemoryTemplateRepository();
+        executionService = new StubFixedReportExecutionService();
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new FixedReportResource(sessionService, templateRepository.repository(), planService, pageAnchorService))
+                        new FixedReportResource(
+                                sessionService,
+                                templateRepository.repository(),
+                                planService,
+                                pageAnchorService,
+                                executionService))
                 .build();
     }
 
@@ -352,6 +360,69 @@ class FixedReportResourceTest {
                 .andExpect(jsonPath("$.code").value("REPORT_TEMPLATE_NOT_FOUND"));
     }
 
+    @Test
+    void runShouldReturnResultPreviewForBackedFixedReport() throws Exception {
+        sessionService.setResolvedUser(buildUser("biadmin", true));
+        executionService.setNextResult(new FixedReportExecutionService.ExecutionResult(
+                7L,
+                "园林业务库",
+                List.of(
+                        new FixedReportExecutionService.PreviewColumn("purchaseDate", "采购时间", "type/Date"),
+                        new FixedReportExecutionService.PreviewColumn("purchaseUserName", "采购人", "type/Text"),
+                        new FixedReportExecutionService.PreviewColumn("totalAmount", "总金额", "type/Number")),
+                List.of(Map.of(
+                        "purchaseDate", "2025-02-28",
+                        "purchaseUserName", "邹顿顿",
+                        "totalAmount", "11979.50")),
+                1,
+                false));
+        templateRepository.put(template(
+                45L,
+                "PROC-SUPPLIER-AMOUNT-RANK",
+                "采购汇总",
+                "采购",
+                "明细",
+                "SQL",
+                "authority.procurement.purchase_summary",
+                "REALTIME",
+                "{\"params\":[{\"name\":\"purchaseUserId\"},{\"name\":\"startDate\"},{\"name\":\"endDate\"}]}",
+                "{\"roles\":[\"采购员\",\"采购主管\"]}",
+                "CERTIFIED",
+                true,
+                false,
+                Instant.parse("2026-03-21T08:00:00Z"),
+                """
+                {
+                  "templateCode":"PROC-SUPPLIER-AMOUNT-RANK",
+                  "reportType":"fixed",
+                  "displayType":"table",
+                  "queryContract":{
+                    "sourceType":"AUTHORITY_SQL",
+                    "targetObject":"authority.procurement.purchase_summary",
+                    "databaseName":"园林业务库"
+                  },
+                  "placeholderReviewRequired":false
+                }
+                """));
+
+        mockMvc.perform(
+                        post("/api/fixed-reports/PROC-SUPPLIER-AMOUNT-RANK/run")
+                                .header("X-DTS-Roles", "采购员")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"parameters":{"startDate":"2025-02-01","endDate":"2025-02-28"}}
+                                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.templateCode").value("PROC-SUPPLIER-AMOUNT-RANK"))
+                .andExpect(jsonPath("$.route").value("AUTHORITY_SQL"))
+                .andExpect(jsonPath("$.executionStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.supported").value(true))
+                .andExpect(jsonPath("$.resultPreview.databaseName").value("园林业务库"))
+                .andExpect(jsonPath("$.resultPreview.rowCount").value(1))
+                .andExpect(jsonPath("$.resultPreview.columns[0].key").value("purchaseDate"))
+                .andExpect(jsonPath("$.resultPreview.rows[0].purchaseUserName").value("邹顿顿"));
+    }
+
     private static AnalyticsUser buildUser(String username, boolean superuser) {
         AnalyticsUser user = new AnalyticsUser();
         user.setId(superuser ? 1L : 2L);
@@ -528,6 +599,23 @@ class FixedReportResourceTest {
                             AnalyticsReportTemplate::getUpdatedAt,
                             Comparator.nullsLast(Comparator.reverseOrder())))
                     .toList();
+        }
+    }
+
+    private static final class StubFixedReportExecutionService implements FixedReportExecutionService {
+
+        private ExecutionResult nextResult;
+
+        void setNextResult(ExecutionResult nextResult) {
+            this.nextResult = nextResult;
+        }
+
+        @Override
+        public Optional<ExecutionResult> execute(
+                AnalyticsReportTemplate template,
+                Map<String, Object> parameters,
+                ReportExecutionPlanService.ReportExecutionPlan plan) {
+            return Optional.ofNullable(nextResult);
         }
     }
 }

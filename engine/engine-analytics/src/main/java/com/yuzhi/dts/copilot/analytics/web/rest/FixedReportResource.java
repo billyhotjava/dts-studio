@@ -7,6 +7,7 @@ import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsReportTemplateRepository;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.report.FixedReportPageAnchorService;
+import com.yuzhi.dts.copilot.analytics.service.report.FixedReportExecutionService;
 import com.yuzhi.dts.copilot.analytics.service.report.ReportExecutionPlanService;
 import com.yuzhi.dts.copilot.analytics.service.report.ReportExecutionPlanService.ReportExecutionPlan;
 import com.yuzhi.dts.copilot.analytics.web.rest.errors.ApiError;
@@ -14,6 +15,7 @@ import com.yuzhi.dts.copilot.analytics.web.support.MetabaseAuth;
 import com.yuzhi.dts.copilot.analytics.web.support.PlatformContext;
 import com.yuzhi.dts.copilot.analytics.web.support.RequestContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -43,16 +45,19 @@ public class FixedReportResource {
     private final AnalyticsReportTemplateRepository templateRepository;
     private final ReportExecutionPlanService planService;
     private final FixedReportPageAnchorService pageAnchorService;
+    private final FixedReportExecutionService executionService;
 
     public FixedReportResource(
             AnalyticsSessionService sessionService,
             AnalyticsReportTemplateRepository templateRepository,
             ReportExecutionPlanService planService,
-            FixedReportPageAnchorService pageAnchorService) {
+            FixedReportPageAnchorService pageAnchorService,
+            FixedReportExecutionService executionService) {
         this.sessionService = sessionService;
         this.templateRepository = templateRepository;
         this.planService = planService;
         this.pageAnchorService = pageAnchorService;
+        this.executionService = executionService;
     }
 
     @PostMapping(path = "/{templateCode}/run", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -126,15 +131,20 @@ public class FixedReportResource {
             }
         }
 
-        ReportExecutionPlan plan = planService.planFor(template.get());
+        AnalyticsReportTemplate selectedTemplate = template.get();
+        ReportExecutionPlan plan = planService.planFor(selectedTemplate);
         boolean placeholderReviewRequired = isPlaceholderReviewRequired(template.get().getSpecJson());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> parameterMap = parametersNode == null || parametersNode.isMissingNode()
+                ? Map.of()
+                : OBJECT_MAPPER.convertValue(parametersNode, Map.class);
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("templateCode", safeText(template.get().getTemplateCode(), templateCode));
-        response.put("templateName", template.get().getName());
-        response.put("domain", template.get().getDomain());
-        response.put("freshness", template.get().getRefreshPolicy());
-        response.put("sourceType", template.get().getDataSourceType());
-        response.put("targetObject", template.get().getTargetObject());
+        response.put("templateCode", safeText(selectedTemplate.getTemplateCode(), templateCode));
+        response.put("templateName", selectedTemplate.getName());
+        response.put("domain", selectedTemplate.getDomain());
+        response.put("freshness", selectedTemplate.getRefreshPolicy());
+        response.put("sourceType", selectedTemplate.getDataSourceType());
+        response.put("targetObject", selectedTemplate.getTargetObject());
         response.put("route", plan.route().name());
         response.put("adapterKey", plan.adapterKey());
         response.put("rationale", plan.rationale());
@@ -147,13 +157,50 @@ public class FixedReportResource {
                         : plan.route() == ReportExecutionPlanService.Route.EXPLORATION
                                 ? "PLANNED"
                                 : "READY");
-        pageAnchorService.resolve(template.get().getTemplateCode()).ifPresent(anchor -> {
+        if (!placeholderReviewRequired && plan.route() != ReportExecutionPlanService.Route.EXPLORATION) {
+            try {
+                executionService.execute(selectedTemplate, parameterMap, plan).ifPresent(result -> {
+                    response.put("executionStatus", "COMPLETED");
+                    List<Map<String, Object>> columns = new ArrayList<>();
+                    result.columns().forEach(column -> {
+                        Map<String, Object> columnRow = new LinkedHashMap<>();
+                        columnRow.put("key", column.key());
+                        columnRow.put("label", column.label());
+                        columnRow.put("baseType", column.baseType());
+                        columns.add(columnRow);
+                    });
+                    Map<String, Object> resultPreview = new LinkedHashMap<>();
+                    resultPreview.put("databaseId", result.databaseId());
+                    resultPreview.put("databaseName", result.databaseName());
+                    resultPreview.put("columns", columns);
+                    resultPreview.put("rows", result.rows());
+                    resultPreview.put("rowCount", result.rowCount());
+                    resultPreview.put("truncated", result.truncated());
+                    response.put(
+                            "resultPreview",
+                            resultPreview);
+                });
+            } catch (IllegalArgumentException ex) {
+                return buildApiError(
+                        HttpStatus.BAD_REQUEST,
+                        "REQ_INVALID_ARGUMENT",
+                        ex.getMessage(),
+                        false,
+                        request);
+            } catch (SQLException ex) {
+                return buildApiError(
+                        HttpStatus.BAD_GATEWAY,
+                        "FIXED_REPORT_EXECUTION_FAILED",
+                        ex.getMessage(),
+                        true,
+                        request);
+            }
+        }
+        pageAnchorService.resolve(selectedTemplate.getTemplateCode()).ifPresent(anchor -> {
             response.put("legacyPageTitle", anchor.title());
             response.put("legacyPagePath", anchor.path());
         });
-        response.put("parameters", parametersNode == null || parametersNode.isMissingNode()
-                ? Map.of()
-                : OBJECT_MAPPER.convertValue(parametersNode, Map.class));
+        response.put("parameters", parameterMap);
         return ResponseEntity.ok(response);
     }
 

@@ -30,6 +30,12 @@ public class AuthorityQueryService {
         }
 
         if (normalizedTargetObject.startsWith("authority.finance.")) {
+            if (normalizedTargetObject.endsWith(".settlement_summary")) {
+                return new AuthorityAdapter(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        adapterKey,
+                        targetObject);
+            }
             if (realtime && normalizedTargetObject.endsWith(".receivable_overview")) {
                 return new AuthorityAdapter(
                         ReportExecutionPlanService.Route.AUTHORITY_VIEW,
@@ -42,12 +48,24 @@ public class AuthorityQueryService {
                     targetObject);
         }
         if (normalizedTargetObject.startsWith("authority.procurement.")) {
+            if (normalizedTargetObject.endsWith(".purchase_summary")) {
+                return new AuthorityAdapter(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        adapterKey,
+                        targetObject);
+            }
             return new AuthorityAdapter(
                     realtime ? ReportExecutionPlanService.Route.AUTHORITY_VIEW : ReportExecutionPlanService.Route.AUTHORITY_SQL,
                     adapterKey,
                     targetObject);
         }
         if (normalizedTargetObject.startsWith("authority.inventory.")) {
+            if (normalizedTargetObject.endsWith(".stock_overview")) {
+                return new AuthorityAdapter(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        adapterKey,
+                        targetObject);
+            }
             return new AuthorityAdapter(
                     realtime ? ReportExecutionPlanService.Route.AUTHORITY_VIEW : ReportExecutionPlanService.Route.AUTHORITY_SQL,
                     adapterKey,

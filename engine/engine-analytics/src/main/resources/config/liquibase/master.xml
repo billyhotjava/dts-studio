@@ -48,4 +48,7 @@
     <include file="config/liquibase/changelog/0041_refresh_fixed_report_page_labels.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0042_backfill_placeholder_review_flags.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0043_analysis_drafts.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0044_promote_procurement_summary_fixed_report.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0045_promote_stock_overview_fixed_report.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0046_promote_finance_settlement_summary_fixed_report.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

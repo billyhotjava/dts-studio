@@ -618,7 +618,9 @@ public class TemplateMatcherService {
         long now = System.currentTimeMillis();
         if (cachedTemplates == null || (now - cacheTimestamp) > CACHE_TTL_MS) {
             List<Nl2SqlQueryTemplate> loaded = new ArrayList<>(templateRepository.findByIsActiveTrueOrderByPriorityDesc());
-            loaded.sort(Comparator.comparingInt(template -> template.getPriority() == null ? 0 : template.getPriority()).reversed());
+            loaded.sort(Comparator.comparingInt(
+                    (Nl2SqlQueryTemplate template) -> template.getPriority() == null ? 0 : template.getPriority()
+            ).reversed());
             cachedTemplates = List.copyOf(loaded);
             cacheTimestamp = now;
             log.debug("Refreshed query template cache, loaded {} templates", cachedTemplates.size());

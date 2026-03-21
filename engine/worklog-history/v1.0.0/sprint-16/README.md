@@ -101,7 +101,7 @@
 
 在继续实现前，已经确认 `dts-copilot` 当前固定报表能力存在 4 个关键缺口：
 
-1. `0040_seed_finance_procurement_templates.xml` 已经种入了 `16` 个 `FIN/PROC/WH` 模板，但大多数 `target_object` 仍是 `authority.finance.*`、`authority.procurement.*`、`authority.inventory.*` 这类概念型目标，不是已验证的业务取数面。
+1. `0040_seed_finance_procurement_templates.xml` 已经种入了 `16` 个 `FIN/PROC/WH` 模板，但除 `FIN-AR-OVERVIEW`、`PROC-SUPPLIER-AMOUNT-RANK` 和 `WH-STOCK-OVERVIEW` 外，大多数 `target_object` 仍是 `authority.finance.*`、`authority.procurement.*`、`authority.inventory.*` 这类概念型目标，不是已验证的业务取数面。
 2. 当前 `rs_cloud_flower` 测试库里没有任何 MySQL VIEW；而 `0036_business_views_metadata.xml` 里登记的 `7` 个 `v_*` 业务视图只存在于 sprint-10 的 SQL 资产，还没有实际落库。
 3. `FixedReportResource` 当前只返回执行计划元数据，不返回真实报表结果，因此“查看固定报表”更多是目录/路由能力，不是已经完成的数据交付能力。
 4. Copilot 模板优先命中的前端体验已经贯通，但它目前只是把用户带到固定报表页，不能保证模板就一定命中到真正可执行的数据面。
@@ -145,6 +145,24 @@
 8. 浏览器级多入口验收
    - 已新增 `it/test_multi_surface_fixed_report_reuse.sh`
    - 实测通过 `固定报表目录 / Dashboard / Report Factory / Screens` 四处入口与 handoff 一致性
+9. 首个真实 backing 接通
+   - 新增 `0044_promote_procurement_summary_fixed_report.xml`
+   - `PROC-SUPPLIER-AMOUNT-RANK` 已提升为真实可执行模板，当前页面名称为 `采购汇总`
+   - `target_object` 已固定到 `authority.procurement.purchase_summary`
+   - `FixedReportResource` 现在可直接返回结果预览，而不是只返回执行计划
+   - `FixedReportRunPage` 已能展示 `databaseName / rowCount / preview table`
+10. 仓库域首个真实 backing 接通
+   - 新增 `0045_promote_stock_overview_fixed_report.xml`
+   - `WH-STOCK-OVERVIEW` 已提升为真实可执行模板，当前页面名称为 `库存现量`
+   - `target_object` 已固定到 `authority.inventory.stock_overview`
+   - `FixedReportResource` 现在可直接返回库存现量结果预览
+   - 真实权威表已锁定到 `s_stock_info + b_goods_price`
+11. 财务域首个真实 backing 接通
+   - 新增 `0046_promote_finance_settlement_summary_fixed_report.xml`
+   - `FIN-AR-OVERVIEW` 已提升为真实可执行模板，当前页面名称为 `财务结算汇总`
+   - `target_object` 已固定到 `authority.finance.settlement_summary`
+   - `FixedReportResource` 现在可直接返回财务结算汇总结果预览
+   - 真实权威表已锁定到 `f_settled_items`
 
 ## 任务列表
 
@@ -179,6 +197,11 @@
 - 采购计划明细
 - 采购驳回
 - 配送记录
+
+> 当前已接通真实 backing：
+> - `财务结算汇总 (FIN-AR-OVERVIEW)`
+> - `采购汇总 (PROC-SUPPLIER-AMOUNT-RANK)`
+> - `库存现量 (WH-STOCK-OVERVIEW)`
 
 ### 仓库
 

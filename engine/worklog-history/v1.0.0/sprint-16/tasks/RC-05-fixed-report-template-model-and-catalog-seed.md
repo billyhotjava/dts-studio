@@ -62,11 +62,49 @@
 5. 现网页面锚点
    - 目录详情和运行接口已开始暴露 `legacyPageTitle / legacyPagePath`
    - `FixedReportRunPage` 可先回落到 `app.xycyl.com` 的真实业务页，而不是只停在占位运行页
+6. 首个真实 backing promotion
+   - 已新增 `0044_promote_procurement_summary_fixed_report.xml`
+   - `PROC-SUPPLIER-AMOUNT-RANK`
+     - 页面名称已固化为 `采购汇总`
+     - `queryContract.targetObject` 已提升为 `authority.procurement.purchase_summary`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面筛选：
+     - `purchaseUserId`
+     - `startDate`
+     - `endDate`
+7. 第二个真实 backing promotion
+   - 已新增 `0045_promote_stock_overview_fixed_report.xml`
+   - `WH-STOCK-OVERVIEW`
+     - 页面名称已固化为 `库存现量`
+     - `queryContract.targetObject` 已提升为 `authority.inventory.stock_overview`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面筛选：
+     - `storehouseInfoId`
+     - `status`
+     - `goodType`
+     - `goodName`
+     - `goodSpecs`
+     - `passNumber`
+     - `underNumber`
+8. 第三个真实 backing promotion
+   - 已新增 `0046_promote_finance_settlement_summary_fixed_report.xml`
+   - `FIN-AR-OVERVIEW`
+     - 页面名称已固化为 `财务结算汇总`
+     - `queryContract.targetObject` 已提升为 `authority.finance.settlement_summary`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `accountPeriod`
+     - `projectId`
+     - `feeUserId`
+     - `status`
 
 ## 当前仍未完成
 
 - 还没有把当前 `FIN/PROC/WH` 模板编码整体换成完全页面化的新编码
-- 还没有把 page-aligned 模板与真实 L0/L1 backing 一一接通
+- 目前只有 `财务结算汇总`、`采购汇总` 和 `库存现量` 完成真实 backing，其他 page-aligned 模板仍未与真实 L0/L1 backing 一一接通
 - 还没有把 Dashboard / Screen / Report Factory 复用接到这批 page-aligned 模板上
 
 ## 首批建议 seed 包
@@ -113,3 +151,4 @@
 - 可被固定报表目录直接展示
 - 可被 Copilot 模板优先命中
 - 可被 Dashboard / Screen / Report Factory 复用
+- 对已接通的模板，运行接口必须直接返回结果预览，而不是只返回执行计划

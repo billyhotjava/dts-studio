@@ -5,6 +5,7 @@
 ## 自动化 smoke
 
 - 脚本：`it/test_analysis_workspace_peer_entry.sh`
+- 脚本：`it/test_procurement_query_regression.sh`
 - 覆盖：
   - 统一来源上下文组件
   - 查询资产中心增强
@@ -12,11 +13,15 @@
   - 多端来源追溯
   - 前端 `typecheck`
   - 前端 `build`
+  - 采购域远程 authority 数据回归
 
 运行方式：
 
 ```bash
 bash worklog/v1.0.0/sprint-20-202603/it/test_analysis_workspace_peer_entry.sh
+
+FLOWER_DB_PASSWORD='***' \
+bash worklog/v1.0.0/sprint-20-202603/it/test_procurement_query_regression.sh
 ```
 
 ## 验收矩阵
@@ -74,7 +79,7 @@ bash worklog/v1.0.0/sprint-20-202603/it/test_analysis_workspace_peer_entry.sh
 
 重点验证：
 
-1. 问句：`查询2026年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计`
+1. 问句：`查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计`
 2. 环境：`ai.yuzhicloud.com`
 3. 数据源：`rs_cloud_flower`
 4. 口径：精确匹配 `good_name='绿萝'`
@@ -82,8 +87,12 @@ bash worklog/v1.0.0/sprint-20-202603/it/test_analysis_workspace_peer_entry.sh
    - 不再错误命中 `title like '%绿萝%'`
    - 不再错误走 `i_pendulum_purchase*`
    - 聚合结果可对齐：
-     - `佟玉华 = 5170.50`
-     - `聂良辉 = 1190.00`
+     - `邹顿顿 = 11979.50`
+     - `王果 = 9555.00`
+   - 精确口径总量：
+     - `158 / 191 / 21534.50`
+   - 模糊 `%绿萝%` 对照：
+     - `359 / 1628 / 30191.79`
 
 ## 输出要求
 

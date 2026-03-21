@@ -13,7 +13,7 @@
 | 大屏保留来源追溯 | `/screens?...` / `/screens/:id/edit?...` | 创建后查看设计页 | 可回到草稿/来源查询/固定报表 | `tests/analysisAssetProvenanceEntry.test.ts` |
 | 已发布资产来源统一编码 | published assets | 读取 query params | `analysisDraft / fixedReportTemplate / sourceCard` 编码一致 | `tests/analysisDraftSurfaceEntry.test.ts`, `tests/analysisAssetProvenanceEntry.test.ts` |
 | 双入口前端基线 | repo root | 执行 smoke | node 契约测试、typecheck、build 全通过 | `it/test_analysis_workspace_peer_entry.sh` |
-| 采购域业务回归 | Copilot | 询问 `2026年2月绿萝采购详细情况` | 不再走错误表链，结果对齐回归基线 | `it/procurement-query-regression.md` + 真人联调 |
+| 采购域业务回归 | Copilot | 询问 `2025年2月绿萝采购详细情况` | 不再走错误表链，结果对齐回归基线 | `it/procurement-query-regression.md` + `it/test_procurement_query_regression.sh` + 真人联调 |
 
 ## 自动化证据
 

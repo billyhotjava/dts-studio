@@ -36,7 +36,17 @@
 - 聊天区候选入口
   - `CopilotChat`
     - 已可把 `FIXED_REPORT_CANDIDATES` 响应渲染为可点击的固定报表候选链接
+- 已接通模板的直达执行
+  - 当 Copilot 命中 `PROC-SUPPLIER-AMOUNT-RANK` 时，后续固定报表页不再只展示计划元数据
+  - `FixedReportResource` 已可直接执行 `authority.procurement.purchase_summary`
+  - `FixedReportRunPage` 已可显示 `采购汇总` 的结果预览
+- 已接通模板的第二个仓库域样板
+  - 当 Copilot 命中 `WH-STOCK-OVERVIEW` 时，固定报表页已可直接执行 `authority.inventory.stock_overview`
+  - `FixedReportRunPage` 已可显示 `库存现量` 的结果预览
+- 已接通模板的第三个财务域样板
+  - 当 Copilot 命中 `FIN-AR-OVERVIEW` 时，固定报表页已可直接执行 `authority.finance.settlement_summary`
+  - `FixedReportRunPage` 已可显示 `财务结算汇总` 的结果预览
 
 ## 当前仍未完成
 
-- 还没有把固定报表目录命中结果和真实 backing 执行结果彻底接通
+- 还没有把除 `财务结算汇总 / 采购汇总 / 库存现量` 外的固定报表目录命中结果与真实 backing 执行结果彻底接通
