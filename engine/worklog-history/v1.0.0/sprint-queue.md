@@ -239,11 +239,23 @@
 | Feature | Task 数 | 状态 |
 |---------|---------|------|
 | F1-分析草稿模型与接口 | 3 | DONE |
-| F2-查询资产中心承接草稿 | 3 | READY |
-| F3-Copilot到查询的协同动作 | 3 | READY |
-| F4-草稿晋升与IT验证 | 3 | READY |
+| F2-查询资产中心承接草稿 | 3 | DONE |
+| F3-Copilot到查询的协同动作 | 3 | DONE |
+| F4-草稿晋升与IT验证 | 3 | DONE |
 
-**统计**: READY=9, IN_PROGRESS=0, DONE=3, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=4, BLOCKED=0
+
+## Sprint-20: 分析工作台双入口产品化 (202603)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-分析来源上下文组件化 | 3 | DONE |
+| F2-查询资产中心交互深化 | 3 | DONE |
+| F3-Copilot与查询往返协同 | 3 | READY |
+| F4-多端晋升与来源追溯 | 3 | READY |
+| F5-IT验证与真人联调基线 | 3 | READY |
+
+**统计**: READY=3, IN_PROGRESS=0, DONE=2, BLOCKED=0
 
 ## Backlog
 
@@ -253,4 +265,4 @@
 
 ## 总体统计
 
-**READY=78, IN_PROGRESS=4, DONE=33, BLOCKED=0, DEFERRED=1 (总计 116 任务)**
+**READY=81, IN_PROGRESS=3, DONE=40, BLOCKED=0, DEFERRED=1 (总计 125 任务)**
