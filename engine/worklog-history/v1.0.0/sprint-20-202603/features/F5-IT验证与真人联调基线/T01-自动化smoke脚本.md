@@ -1,7 +1,7 @@
 # T01: 自动化 smoke 脚本
 
 **优先级**: P1
-**状态**: READY
+**状态**: DONE
 **依赖**: F1~F4
 
 ## 目标
@@ -19,8 +19,12 @@
 
 ## 验证
 
-- [ ] smoke 脚本执行成功
+- [x] smoke 脚本执行成功
 
 ## 完成标准
 
-- [ ] 一条命令可复现关键验证
+- [x] 一条命令可复现关键验证
+
+## 实际验证
+
+- `bash worklog/v1.0.0/sprint-20-202603/it/test_analysis_workspace_peer_entry.sh`
