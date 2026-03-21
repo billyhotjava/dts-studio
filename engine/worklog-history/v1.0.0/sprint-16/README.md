@@ -101,7 +101,7 @@
 
 在继续实现前，已经确认 `dts-copilot` 当前固定报表能力存在 4 个关键缺口：
 
-1. `0040_seed_finance_procurement_templates.xml` 已经种入了 `16` 个 `FIN/PROC/WH` 模板，但除 `FIN-AR-OVERVIEW`、`PROC-SUPPLIER-AMOUNT-RANK` 和 `WH-STOCK-OVERVIEW` 外，大多数 `target_object` 仍是 `authority.finance.*`、`authority.procurement.*`、`authority.inventory.*` 这类概念型目标，不是已验证的业务取数面。
+1. `0040_seed_finance_procurement_templates.xml` 已经种入了 `16` 个 `FIN/PROC/WH` 模板，但除 `FIN-AR-OVERVIEW`、`PROC-SUPPLIER-AMOUNT-RANK`、`WH-STOCK-OVERVIEW` 和 `WH-LOW-STOCK-ALERT` 外，大多数 `target_object` 仍是 `authority.finance.*`、`authority.procurement.*`、`authority.inventory.*` 这类概念型目标，不是已验证的业务取数面。
 2. 当前 `rs_cloud_flower` 测试库里没有任何 MySQL VIEW；而 `0036_business_views_metadata.xml` 里登记的 `7` 个 `v_*` 业务视图只存在于 sprint-10 的 SQL 资产，还没有实际落库。
 3. `FixedReportResource` 当前只返回执行计划元数据，不返回真实报表结果，因此“查看固定报表”更多是目录/路由能力，不是已经完成的数据交付能力。
 4. Copilot 模板优先命中的前端体验已经贯通，但它目前只是把用户带到固定报表页，不能保证模板就一定命中到真正可执行的数据面。
@@ -167,6 +167,12 @@
    - 当 `analytics_database.details_json` 仍引用 `dataSourceId`，但 `analytics -> copilot-ai` 的详情接口暂时不可达时
    - `PlatformInfraClient` 会回退到本地 `copilot_ai.data_source` 读取 JDBC/账号信息
    - 固定报表运行不再因为 `未返回数据源详情` 直接失败
+13. 仓库域第二个真实 backing 接通
+   - 新增 `0047_promote_low_stock_alert_fixed_report.xml`
+   - `WH-LOW-STOCK-ALERT` 已提升为真实可执行模板，当前页面名称为 `库存现量-低库存预警`
+   - `target_object` 已固定到 `authority.inventory.low_stock_alert`
+   - `FixedReportRunPage` 现在可直接返回低库存清单预览，而不是占位态
+   - 真实权威表仍锁定到 `s_stock_info + b_goods_price`
 
 ## 任务列表
 
@@ -206,6 +212,7 @@
 > - `财务结算汇总 (FIN-AR-OVERVIEW)`
 > - `采购汇总 (PROC-SUPPLIER-AMOUNT-RANK)`
 > - `库存现量 (WH-STOCK-OVERVIEW)`
+> - `库存现量-低库存预警 (WH-LOW-STOCK-ALERT)`
 
 ### 仓库
 

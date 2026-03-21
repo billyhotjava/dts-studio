@@ -151,6 +151,71 @@ class DefaultFixedReportExecutionServiceTest {
     }
 
     @Test
+    void shouldExecuteWarehouseLowStockAlertAgainstConfiguredBusinessDatabase() throws Exception {
+        AnalyticsDatabase database = new AnalyticsDatabase();
+        database.setId(7L);
+        database.setName("园林业务库");
+        when(databaseRepository.findFirstByNameIgnoreCase("园林业务库")).thenReturn(Optional.of(database));
+        when(datasetQueryService.runNative(eq(7L), any(String.class), any(DatasetConstraints.class), any()))
+                .thenReturn(new DatasetResult(
+                        List.of(List.of("中石油缓养库", "白塑料盆", "小", "10X12", 0, new BigDecimal("2.3000"), new BigDecimal("4.50"), "李四")),
+                        List.of(
+                                Map.of("name", "storehouseName", "display_name", "所属库房", "base_type", "type/Text"),
+                                Map.of("name", "goodName", "display_name", "物品名称", "base_type", "type/Text"),
+                                Map.of("name", "goodNorms", "display_name", "物品规格", "base_type", "type/Text"),
+                                Map.of("name", "goodSpecs", "display_name", "物品属性", "base_type", "type/Text"),
+                                Map.of("name", "goodNumber", "display_name", "可用数量", "base_type", "type/Number"),
+                                Map.of("name", "outCost", "display_name", "出库单价", "base_type", "type/Number"),
+                                Map.of("name", "salePrice", "display_name", "销售单价", "base_type", "type/Number"),
+                                Map.of("name", "leaderUserName", "display_name", "负责人", "base_type", "type/Text")),
+                        List.of(),
+                        "Asia/Shanghai"));
+
+        DefaultFixedReportExecutionService service =
+                new DefaultFixedReportExecutionService(databaseRepository, datasetQueryService);
+
+        Optional<FixedReportExecutionService.ExecutionResult> result = service.execute(
+                warehouseLowStockAlertTemplate(),
+                Map.of(
+                        "storehouseInfoId", "1001",
+                        "goodType", "2",
+                        "goodName", "白塑料盆",
+                        "goodSpecs", "10X12",
+                        "underNumber", "10",
+                        "status", "0"),
+                new ReportExecutionPlanService.ReportExecutionPlan(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        "WH-LOW-STOCK-ALERT",
+                        "authority.inventory",
+                        "authority.inventory.low_stock_alert",
+                        "template uses realtime low stock alert sql",
+                        "SQL",
+                        "REALTIME"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().databaseId()).isEqualTo(7L);
+        assertThat(result.get().databaseName()).isEqualTo("园林业务库");
+        assertThat(result.get().rowCount()).isEqualTo(1);
+        assertThat(result.get().columns()).extracting(FixedReportExecutionService.PreviewColumn::key)
+                .containsExactly("storehouseName", "goodName", "goodNorms", "goodSpecs", "goodNumber", "outCost", "salePrice", "leaderUserName");
+        assertThat(result.get().rows()).containsExactly(Map.of(
+                "storehouseName", "中石油缓养库",
+                "goodName", "白塑料盆",
+                "goodNorms", "小",
+                "goodSpecs", "10X12",
+                "goodNumber", 0,
+                "outCost", new BigDecimal("2.3000"),
+                "salePrice", new BigDecimal("4.50"),
+                "leaderUserName", "李四"));
+
+        verify(datasetQueryService).runNative(eq(7L), sqlCaptor.capture(), any(DatasetConstraints.class), bindingsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("FROM s_stock_info a");
+        assertThat(sqlCaptor.getValue()).contains("a.good_number <= ?");
+        assertThat(sqlCaptor.getValue()).contains("a.status = ?");
+        assertThat(bindingsCaptor.getValue()).containsExactly("1001", "2", "%白塑料盆%", "%10X12%", "10", "0");
+    }
+
+    @Test
     void shouldExecuteFinanceSettlementSummaryAgainstConfiguredBusinessDatabase() throws Exception {
         AnalyticsDatabase database = new AnalyticsDatabase();
         database.setId(7L);
@@ -304,6 +369,31 @@ class DefaultFixedReportExecutionServiceTest {
                   "queryContract":{
                     "sourceType":"AUTHORITY_SQL",
                     "targetObject":"authority.finance.settlement_summary",
+                    "databaseName":"园林业务库"
+                  },
+                  "placeholderReviewRequired":false
+                }
+                """);
+        return template;
+    }
+
+    private static AnalyticsReportTemplate warehouseLowStockAlertTemplate() {
+        AnalyticsReportTemplate template = new AnalyticsReportTemplate();
+        template.setTemplateCode("WH-LOW-STOCK-ALERT");
+        template.setName("库存现量-低库存预警");
+        template.setDomain("仓库");
+        template.setCategory("预警");
+        template.setDataSourceType("SQL");
+        template.setTargetObject("authority.inventory.low_stock_alert");
+        template.setRefreshPolicy("REALTIME");
+        template.setSpecJson("""
+                {
+                  "templateCode":"WH-LOW-STOCK-ALERT",
+                  "reportType":"fixed",
+                  "displayType":"alert-list",
+                  "queryContract":{
+                    "sourceType":"AUTHORITY_SQL",
+                    "targetObject":"authority.inventory.low_stock_alert",
                     "databaseName":"园林业务库"
                   },
                   "placeholderReviewRequired":false

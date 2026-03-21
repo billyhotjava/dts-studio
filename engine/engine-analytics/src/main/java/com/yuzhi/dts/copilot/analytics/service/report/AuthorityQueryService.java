@@ -60,7 +60,8 @@ public class AuthorityQueryService {
                     targetObject);
         }
         if (normalizedTargetObject.startsWith("authority.inventory.")) {
-            if (normalizedTargetObject.endsWith(".stock_overview")) {
+            if (normalizedTargetObject.endsWith(".stock_overview")
+                    || normalizedTargetObject.endsWith(".low_stock_alert")) {
                 return new AuthorityAdapter(
                         ReportExecutionPlanService.Route.AUTHORITY_SQL,
                         adapterKey,

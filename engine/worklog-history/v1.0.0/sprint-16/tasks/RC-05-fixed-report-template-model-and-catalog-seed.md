@@ -100,11 +100,25 @@
      - `projectId`
      - `feeUserId`
      - `status`
+9. 第四个真实 backing promotion
+   - 已新增 `0047_promote_low_stock_alert_fixed_report.xml`
+   - `WH-LOW-STOCK-ALERT`
+     - 页面名称已固化为 `库存现量-低库存预警`
+     - `queryContract.targetObject` 已提升为 `authority.inventory.low_stock_alert`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `storehouseInfoId`
+     - `goodType`
+     - `goodName`
+     - `goodSpecs`
+     - `underNumber`
+     - `status`
 
 ## 当前仍未完成
 
 - 还没有把当前 `FIN/PROC/WH` 模板编码整体换成完全页面化的新编码
-- 目前只有 `财务结算汇总`、`采购汇总` 和 `库存现量` 完成真实 backing，其他 page-aligned 模板仍未与真实 L0/L1 backing 一一接通
+- 目前只有 `财务结算汇总`、`采购汇总`、`库存现量` 和 `库存现量-低库存预警` 完成真实 backing，其他 page-aligned 模板仍未与真实 L0/L1 backing 一一接通
 - 还没有把 Dashboard / Screen / Report Factory 复用接到这批 page-aligned 模板上
 
 ## 首批建议 seed 包

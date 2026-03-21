@@ -54,6 +54,9 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         if ("authority.inventory.stock_overview".equals(normalizedTarget)) {
             return Optional.of(executeWarehouseStockOverview(contract, parameters));
         }
+        if ("authority.inventory.low_stock_alert".equals(normalizedTarget)) {
+            return Optional.of(executeWarehouseLowStockAlert(contract, parameters));
+        }
         if ("authority.finance.settlement_summary".equals(normalizedTarget)) {
             return Optional.of(executeFinanceSettlementSummary(contract, parameters));
         }
@@ -176,6 +179,75 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         sql.append("""
 
                 ORDER BY a.good_name DESC, a.good_norms DESC, a.good_specs DESC, a.good_number DESC
+                """);
+
+        DatasetResult result = datasetQueryService.runNative(
+                database.getId(),
+                sql.toString(),
+                new DatasetConstraints(PREVIEW_LIMIT, QUERY_TIMEOUT_SECONDS, null),
+                bindings);
+        return mapPreview(database, result);
+    }
+
+    private ExecutionResult executeWarehouseLowStockAlert(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    a.storehouse_name AS storehouseName,
+                    a.good_name AS goodName,
+                    COALESCE(a.good_norms, '') AS goodNorms,
+                    COALESCE(a.good_specs, '') AS goodSpecs,
+                    a.good_number AS goodNumber,
+                    ROUND(COALESCE(a.out_cost, 0), 4) AS outCost,
+                    ROUND(COALESCE(gp.guidance_price, 0), 2) AS salePrice,
+                    COALESCE(a.leader_user_name, '') AS leaderUserName
+                FROM s_stock_info a
+                LEFT JOIN b_goods_price gp ON gp.id = a.good_price_id
+                WHERE a.del_flag = '0'
+                """);
+        List<Object> bindings = new ArrayList<>();
+
+        String storehouseInfoId = stringParam(parameters, "storehouseInfoId");
+        if (storehouseInfoId != null) {
+            sql.append(" AND a.storehouse_info_id = ?");
+            bindings.add(storehouseInfoId);
+        }
+
+        String goodType = stringParam(parameters, "goodType");
+        if (goodType != null) {
+            sql.append(" AND a.good_type = ?");
+            bindings.add(goodType);
+        }
+
+        String goodName = stringParam(parameters, "goodName");
+        if (goodName != null) {
+            sql.append(" AND a.good_name LIKE ?");
+            bindings.add('%' + goodName + '%');
+        }
+
+        String goodSpecs = stringParam(parameters, "goodSpecs");
+        if (goodSpecs != null) {
+            sql.append(" AND a.good_specs LIKE ?");
+            bindings.add('%' + goodSpecs + '%');
+        }
+
+        String underNumber = stringParam(parameters, "underNumber");
+        if (underNumber == null) {
+            underNumber = "10";
+        }
+        sql.append(" AND a.good_number <= ?");
+        bindings.add(underNumber);
+
+        String status = stringParam(parameters, "status");
+        if (status != null) {
+            sql.append(" AND a.status = ?");
+            bindings.add(status);
+        }
+
+        sql.append("""
+
+                ORDER BY a.good_number ASC, a.storehouse_name ASC, a.good_name ASC, a.good_specs ASC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(

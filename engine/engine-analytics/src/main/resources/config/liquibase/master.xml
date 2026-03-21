@@ -51,4 +51,5 @@
     <include file="config/liquibase/changelog/0044_promote_procurement_summary_fixed_report.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0045_promote_stock_overview_fixed_report.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0046_promote_finance_settlement_summary_fixed_report.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0047_promote_low_stock_alert_fixed_report.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

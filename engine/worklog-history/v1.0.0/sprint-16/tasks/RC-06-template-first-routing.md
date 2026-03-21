@@ -46,7 +46,10 @@
 - 已接通模板的第三个财务域样板
   - 当 Copilot 命中 `FIN-AR-OVERVIEW` 时，固定报表页已可直接执行 `authority.finance.settlement_summary`
   - `FixedReportRunPage` 已可显示 `财务结算汇总` 的结果预览
+- 已接通模板的第四个仓库域样板
+  - 当 Copilot 命中 `WH-LOW-STOCK-ALERT` 时，固定报表页已可直接执行 `authority.inventory.low_stock_alert`
+  - `FixedReportRunPage` 已可显示 `库存现量-低库存预警` 的结果预览
 
 ## 当前仍未完成
 
-- 还没有把除 `财务结算汇总 / 采购汇总 / 库存现量` 外的固定报表目录命中结果与真实 backing 执行结果彻底接通
+- 还没有把除 `财务结算汇总 / 采购汇总 / 库存现量 / 库存现量-低库存预警` 外的固定报表目录命中结果与真实 backing 执行结果彻底接通

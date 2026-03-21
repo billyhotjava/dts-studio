@@ -126,6 +126,23 @@ class ReportExecutionPlanServiceTest {
     }
 
     @Test
+    void warehouseLowStockAlertTemplateShouldUseAuthoritySqlEvenWhenRealtime() {
+        AnalyticsReportTemplate warehouseLowStockAlertTemplate = template(
+                "WH-LOW-STOCK-ALERT",
+                "仓库",
+                "预警",
+                "SQL",
+                "authority.inventory.low_stock_alert",
+                "REALTIME");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(warehouseLowStockAlertTemplate);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.AUTHORITY_SQL);
+        assertThat(plan.adapterKey()).isEqualTo("authority.inventory");
+        assertThat(plan.targetObject()).isEqualTo("authority.inventory.low_stock_alert");
+    }
+
+    @Test
     void trendAndRankingTemplatesShouldRouteToMartOrCachePlans() {
         AnalyticsReportTemplate martTemplate = template(
                 "FIN-CUSTOMER-AR-RANK",
