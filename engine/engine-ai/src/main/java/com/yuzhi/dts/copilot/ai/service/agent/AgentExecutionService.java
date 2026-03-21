@@ -104,11 +104,10 @@ public class AgentExecutionService {
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
         }
-        if (conversationPlan.mode() == PlanMode.TEMPLATE_FAST_PATH
-                && StringUtils.hasText(conversationPlan.templateCode())
-                && StringUtils.hasText(conversationPlan.resolvedSql())) {
-            String response = formatTemplateResponse(conversationPlan);
-            return new ChatExecutionResult(response, conversationPlan.resolvedSql(), conversationPlan, null);
+        if (isTemplateFastPath(conversationPlan)) {
+            String response = formatFastPathResponse(conversationPlan);
+            String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -165,21 +164,20 @@ public class AgentExecutionService {
                                                  OutputStream sseOutput) {
         ConversationPlan conversationPlan = conversationPlannerService.plan(userMessage, martHealthSnapshot);
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
-            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null);
+            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan);
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
         }
-        if (conversationPlan.mode() == PlanMode.TEMPLATE_FAST_PATH
-                && StringUtils.hasText(conversationPlan.templateCode())
-                && StringUtils.hasText(conversationPlan.resolvedSql())) {
-            String response = formatTemplateResponse(conversationPlan);
-            writeTokenAndDone(sseOutput, response, conversationPlan.resolvedSql());
-            return new ChatExecutionResult(response, conversationPlan.resolvedSql(), conversationPlan, null);
+        if (isTemplateFastPath(conversationPlan)) {
+            String response = formatFastPathResponse(conversationPlan);
+            String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
+            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null);
         }
 
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
             String message = "No AI provider is configured. Please configure a provider in the settings.";
-            writeTokenAndDone(sseOutput, message, null);
+            writeTokenAndDone(sseOutput, message, null, conversationPlan);
             return new ChatExecutionResult(message, null, conversationPlan, null);
         }
 
@@ -207,7 +205,7 @@ public class AgentExecutionService {
                 provider.getMaxTokens(),
                 sseOutput);
         String sql = resolveGeneratedSql(response, conversationPlan);
-        writeDoneEvent(sseOutput, sql);
+        writeDoneEvent(sseOutput, sql, conversationPlan);
 
         return new ChatExecutionResult(
                 response,
@@ -276,6 +274,25 @@ public class AgentExecutionService {
         return StringUtils.hasText(sql) ? sql : null;
     }
 
+    private boolean isTemplateFastPath(ConversationPlan conversationPlan) {
+        return conversationPlan.mode() == PlanMode.TEMPLATE_FAST_PATH
+                && StringUtils.hasText(conversationPlan.templateCode());
+    }
+
+    private String resolveFastPathGeneratedSql(ConversationPlan plan) {
+        if (plan.responseKind() == ConversationPlannerService.ResponseKind.FIXED_REPORT) {
+            return null;
+        }
+        return StringUtils.hasText(plan.resolvedSql()) ? plan.resolvedSql() : null;
+    }
+
+    private String formatFastPathResponse(ConversationPlan plan) {
+        if (plan.responseKind() == ConversationPlannerService.ResponseKind.FIXED_REPORT) {
+            return formatFixedReportResponse(plan);
+        }
+        return formatTemplateResponse(plan);
+    }
+
     private String formatTemplateResponse(ConversationPlan plan) {
         StringBuilder sb = new StringBuilder();
         if (plan.routedDomain() != null) {
@@ -290,6 +307,22 @@ public class AgentExecutionService {
         if (plan.primaryTarget() != null) {
             sb.append("\n查询目标视图：`").append(plan.primaryTarget()).append("`");
         }
+        return sb.toString();
+    }
+
+    private String formatFixedReportResponse(ConversationPlan plan) {
+        StringBuilder sb = new StringBuilder("根据您的问题，已命中固定报表模板");
+        if (StringUtils.hasText(plan.templateCode())) {
+            sb.append(" `").append(plan.templateCode()).append("`");
+        }
+        sb.append("。\n\n");
+        if (StringUtils.hasText(plan.routedDomain())) {
+            sb.append("- 业务域：").append(plan.routedDomain()).append("\n");
+        }
+        if (StringUtils.hasText(plan.primaryTarget())) {
+            sb.append("- 数据目标：`").append(plan.primaryTarget()).append("`\n");
+        }
+        sb.append("- 已切换到固定报表快路径，可直接打开报表查看结果。");
         return sb.toString();
     }
 
@@ -309,22 +342,36 @@ public class AgentExecutionService {
         }
     }
 
-    private void writeTokenAndDone(OutputStream out, String text, String sql) {
+    private void writeTokenAndDone(OutputStream out, String text, String sql, ConversationPlan conversationPlan) {
         try {
             String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
-            writeDoneEvent(out, sql);
+            writeDoneEvent(out, sql, conversationPlan);
             out.flush();
         } catch (IOException e) {
             log.debug("SSE write failed: {}", e.getMessage());
         }
     }
 
-    private void writeDoneEvent(OutputStream out, String sql) {
+    private void writeDoneEvent(OutputStream out, String sql, ConversationPlan conversationPlan) {
         try {
             ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
                 done.put("generatedSql", sql);
+            }
+            if (conversationPlan != null) {
+                if (StringUtils.hasText(conversationPlan.templateCode())) {
+                    done.put("templateCode", conversationPlan.templateCode());
+                }
+                if (conversationPlan.responseKind() != null) {
+                    done.put("responseKind", conversationPlan.responseKind().name());
+                }
+                if (StringUtils.hasText(conversationPlan.routedDomain())) {
+                    done.put("routedDomain", conversationPlan.routedDomain());
+                }
+                if (StringUtils.hasText(conversationPlan.primaryTarget())) {
+                    done.put("targetView", conversationPlan.primaryTarget());
+                }
             }
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();

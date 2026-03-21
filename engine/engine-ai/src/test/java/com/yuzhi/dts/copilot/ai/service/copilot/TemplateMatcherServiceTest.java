@@ -134,6 +134,36 @@ class TemplateMatcherServiceTest {
         assertThat(result.resolvedSql()).contains("settlement_type_name");
     }
 
+    @Test
+    @DisplayName("固定报表意图: 财务结算汇总命中固定模板")
+    void matchFixedReportSettlementSummaryPageLabel() {
+        TemplateMatchResult result = matcherService.match("打开财务结算汇总");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("FIN-AR-OVERVIEW");
+        assertThat(result.resolvedSql()).isNull();
+    }
+
+    @Test
+    @DisplayName("固定报表意图: 采购汇总命中固定模板")
+    void matchFixedReportPurchaseSummaryPageLabel() {
+        TemplateMatchResult result = matcherService.match("查看采购汇总");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("PROC-SUPPLIER-AMOUNT-RANK");
+        assertThat(result.resolvedSql()).isNull();
+    }
+
+    @Test
+    @DisplayName("固定报表意图: 库存现量命中固定模板")
+    void matchFixedReportStockListPageLabel() {
+        TemplateMatchResult result = matcherService.match("库存现量");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("WH-STOCK-OVERVIEW");
+        assertThat(result.resolvedSql()).isNull();
+    }
+
     // ===================== No match =====================
 
     @Test
@@ -227,6 +257,26 @@ class TemplateMatcherServiceTest {
             assertThat(q.domain()).isNotBlank();
             assertThat(q.question()).isNotBlank();
         }
+    }
+
+    @Test
+    @DisplayName("getSuggestedQuestions 优先包含当前页面语言的固定报表建议")
+    void suggestedQuestionsIncludeCurrentPagePhrases() {
+        List<SuggestedQuestion> suggestions = matcherService.getSuggestedQuestions(12);
+
+        assertThat(suggestions)
+                .extracting(SuggestedQuestion::question)
+                .contains("财务结算汇总", "采购汇总", "库存现量");
+    }
+
+    @Test
+    @DisplayName("getFixedReportSuggestionsByDomain 返回同域页面化固定报表候选")
+    void fixedReportSuggestionsByDomainUseCurrentPagePhrases() {
+        List<SuggestedQuestion> suggestions = matcherService.getFixedReportSuggestionsByDomain("财务", 3);
+
+        assertThat(suggestions)
+                .extracting(SuggestedQuestion::question)
+                .containsExactly("财务结算汇总", "财务结算汇总客户欠款排行", "财务结算列表项目回款进度");
     }
 
     // ===================== Helper: build mock templates =====================

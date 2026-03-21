@@ -48,6 +48,8 @@ public class ConversationPlannerService {
 
     public enum ResponseKind {
         BUSINESS_DIRECT_RESPONSE,
+        FIXED_REPORT,
+        FIXED_REPORT_CANDIDATES,
         SCHEMA_EXPLORATION,
         BUSINESS_ANALYSIS,
         BUSINESS_CLARIFICATION,

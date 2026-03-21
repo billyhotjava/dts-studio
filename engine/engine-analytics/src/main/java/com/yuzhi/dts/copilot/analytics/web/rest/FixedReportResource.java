@@ -2,30 +2,28 @@ package com.yuzhi.dts.copilot.analytics.web.rest;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsReportTemplate;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsReportTemplateRepository;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
+import com.yuzhi.dts.copilot.analytics.service.report.FixedReportPageAnchorService;
 import com.yuzhi.dts.copilot.analytics.service.report.ReportExecutionPlanService;
 import com.yuzhi.dts.copilot.analytics.service.report.ReportExecutionPlanService.ReportExecutionPlan;
 import com.yuzhi.dts.copilot.analytics.web.rest.errors.ApiError;
 import com.yuzhi.dts.copilot.analytics.web.support.MetabaseAuth;
+import com.yuzhi.dts.copilot.analytics.web.support.PlatformContext;
 import com.yuzhi.dts.copilot.analytics.web.support.RequestContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.slf4j.MDC;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -40,19 +38,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class FixedReportResource {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final int TEMPLATE_SCAN_LIMIT = 200;
 
     private final AnalyticsSessionService sessionService;
     private final AnalyticsReportTemplateRepository templateRepository;
     private final ReportExecutionPlanService planService;
+    private final FixedReportPageAnchorService pageAnchorService;
 
     public FixedReportResource(
             AnalyticsSessionService sessionService,
             AnalyticsReportTemplateRepository templateRepository,
-            ReportExecutionPlanService planService) {
+            ReportExecutionPlanService planService,
+            FixedReportPageAnchorService pageAnchorService) {
         this.sessionService = sessionService;
         this.templateRepository = templateRepository;
         this.planService = planService;
+        this.pageAnchorService = pageAnchorService;
     }
 
     @PostMapping(path = "/{templateCode}/run", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -104,8 +104,17 @@ public class FixedReportResource {
                     request);
         }
 
+        String rawParameterSchema = trimToNull(template.get().getParameterSchemaJson());
         Set<String> allowedParameterNames = allowedParameterNames(template.get().getParameterSchemaJson());
-        if (!allowedParameterNames.isEmpty() && parametersNode != null && parametersNode.isObject()) {
+        if (parametersNode != null && parametersNode.isObject()) {
+            if (rawParameterSchema != null && allowedParameterNames.isEmpty() && parametersNode.size() > 0) {
+                return buildApiError(
+                        HttpStatus.BAD_REQUEST,
+                        "REQ_INVALID_ARGUMENT",
+                        "parameterSchemaJson does not define any named params",
+                        false,
+                        request);
+            }
             List<String> unsupported = unsupportedParameterNames(parametersNode, allowedParameterNames);
             if (!unsupported.isEmpty()) {
                 return buildApiError(
@@ -118,6 +127,7 @@ public class FixedReportResource {
         }
 
         ReportExecutionPlan plan = planService.planFor(template.get());
+        boolean placeholderReviewRequired = isPlaceholderReviewRequired(template.get().getSpecJson());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("templateCode", safeText(template.get().getTemplateCode(), templateCode));
         response.put("templateName", template.get().getName());
@@ -128,8 +138,19 @@ public class FixedReportResource {
         response.put("route", plan.route().name());
         response.put("adapterKey", plan.adapterKey());
         response.put("rationale", plan.rationale());
-        response.put("supported", plan.route() != ReportExecutionPlanService.Route.EXPLORATION);
-        response.put("executionStatus", plan.route() == ReportExecutionPlanService.Route.EXPLORATION ? "PLANNED" : "READY");
+        response.put("placeholderReviewRequired", placeholderReviewRequired);
+        response.put("supported", !placeholderReviewRequired && plan.route() != ReportExecutionPlanService.Route.EXPLORATION);
+        response.put(
+                "executionStatus",
+                placeholderReviewRequired
+                        ? "BACKING_REQUIRED"
+                        : plan.route() == ReportExecutionPlanService.Route.EXPLORATION
+                                ? "PLANNED"
+                                : "READY");
+        pageAnchorService.resolve(template.get().getTemplateCode()).ifPresent(anchor -> {
+            response.put("legacyPageTitle", anchor.title());
+            response.put("legacyPagePath", anchor.path());
+        });
         response.put("parameters", parametersNode == null || parametersNode.isMissingNode()
                 ? Map.of()
                 : OBJECT_MAPPER.convertValue(parametersNode, Map.class));
@@ -141,13 +162,8 @@ public class FixedReportResource {
         if (normalizedTemplateCode == null) {
             return Optional.empty();
         }
-
-        Pageable page = PageRequest.of(0, TEMPLATE_SCAN_LIMIT);
-        return templateRepository.findAllByArchivedFalseOrderByUpdatedAtDesc(page).stream()
-                .filter(template -> matchesTemplateCode(template.getTemplateCode(), normalizedTemplateCode))
-                .filter(AnalyticsReportTemplate::isPublished)
-                .filter(template -> "certified".equalsIgnoreCase(trimToNull(template.getCertificationStatus())))
-                .findFirst();
+        return templateRepository.findLatestRunnableTemplateByTemplateCode(
+                normalizedTemplateCode.toLowerCase(Locale.ROOT));
     }
 
     private ResponseEntity<?> enforcePermission(
@@ -172,6 +188,46 @@ public class FixedReportResource {
             for (JsonNode node : allowedUsernames) {
                 String candidate = trimToNull(node.asText(null));
                 if (candidate != null && candidate.equalsIgnoreCase(user.getUsername())) {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed) {
+                return buildApiError(
+                        HttpStatus.FORBIDDEN,
+                        "SEC_FORBIDDEN",
+                        "Fixed report permission denied",
+                        false,
+                        request);
+            }
+        }
+
+        JsonNode allowedUserIds = policy.get("allowedUserIds");
+        if (allowedUserIds != null && allowedUserIds.isArray()) {
+            boolean allowed = false;
+            for (JsonNode node : allowedUserIds) {
+                if (user.getId() != null && node.canConvertToLong() && user.getId().equals(node.longValue())) {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed) {
+                return buildApiError(
+                        HttpStatus.FORBIDDEN,
+                        "SEC_FORBIDDEN",
+                        "Fixed report permission denied",
+                        false,
+                        request);
+            }
+        }
+
+        JsonNode requiredRoles = policy.get("roles");
+        if (requiredRoles != null && requiredRoles.isArray() && requiredRoles.size() > 0 && !user.isSuperuser()) {
+            Set<String> userRoles = resolveRequestRoles(request);
+            boolean allowed = false;
+            for (JsonNode node : requiredRoles) {
+                String requiredRole = trimToNull(node.asText(null));
+                if (requiredRole != null && userRoles.contains(requiredRole.toLowerCase(Locale.ROOT))) {
                     allowed = true;
                     break;
                 }
@@ -234,9 +290,45 @@ public class FixedReportResource {
         }
     }
 
-    private static boolean matchesTemplateCode(String candidate, String expected) {
-        String normalizedCandidate = trimToNull(candidate);
-        return normalizedCandidate != null && normalizedCandidate.equalsIgnoreCase(expected);
+    private static boolean isPlaceholderReviewRequired(String specJson) {
+        JsonNode spec = parseJson(specJson);
+        return spec != null && spec.path("placeholderReviewRequired").asBoolean(false);
+    }
+
+    private static Set<String> resolveRequestRoles(HttpServletRequest request) {
+        PlatformContext context = PlatformContext.from(request);
+        String rawRoles = trimToNull(context.roles());
+        if (rawRoles == null) {
+            return Set.of();
+        }
+
+        List<String> candidates = new ArrayList<>();
+        if (rawRoles.startsWith("[") && rawRoles.endsWith("]")) {
+            JsonNode parsed = parseJson(rawRoles);
+            if (parsed != null && parsed.isArray()) {
+                parsed.forEach(node -> {
+                    String value = trimToNull(node.asText(null));
+                    if (value != null) {
+                        candidates.add(value);
+                    }
+                });
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            for (String token : rawRoles.split("[,，;；|]")) {
+                String value = trimToNull(token);
+                if (value != null) {
+                    candidates.add(value);
+                }
+            }
+        }
+
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String candidate : candidates) {
+            normalized.add(candidate.toLowerCase(Locale.ROOT));
+        }
+        return normalized;
     }
 
     private ResponseEntity<ApiError> buildApiError(

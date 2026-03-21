@@ -5,13 +5,14 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.22.xsd">
 
     <changeSet id="0040-01-fin-ar-overview" author="dts">
+        <validCheckSum>9:4ea7e3f4eab2fe2e5c8c9f18589ad741</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(1) from analytics_report_template where template_code = 'FIN-AR-OVERVIEW'</sqlCheck>
         </preConditions>
         <insert tableName="analytics_report_template">
             <column name="name" value="应收总览看板"/>
             <column name="description" value="财务负责人实时查看客户与项目应收、已收、未收的总览看板。"/>
-            <column name="spec_json"><![CDATA[{"templateCode":"FIN-AR-OVERVIEW","reportType":"fixed","displayType":"kpi-table","queryContract":{"sourceType":"VIEW","targetObject":"authority.finance.receivable_overview"}}]]></column>
+            <column name="spec_json"><![CDATA[{"templateCode":"FIN-AR-OVERVIEW","reportType":"fixed","displayType":"kpi-table","queryContract":{"sourceType":"VIEW","targetObject":"authority.finance.receivable_overview"},"placeholderReviewRequired":true}]]></column>
             <column name="template_code" value="FIN-AR-OVERVIEW"/>
             <column name="domain" value="财务"/>
             <column name="category" value="看板"/>
@@ -33,13 +34,14 @@
     </changeSet>
 
     <changeSet id="0040-02-fin-customer-ar-rank" author="dts">
+        <validCheckSum>9:f25a58a1fc985825667e61535863c11c</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(1) from analytics_report_template where template_code = 'FIN-CUSTOMER-AR-RANK'</sqlCheck>
         </preConditions>
         <insert tableName="analytics_report_template">
             <column name="name" value="客户欠款排行"/>
             <column name="description" value="按客户汇总应收未收金额的准实时排行，用于销售和财务跟进欠款。"/>
-            <column name="spec_json"><![CDATA[{"templateCode":"FIN-CUSTOMER-AR-RANK","reportType":"fixed","displayType":"bar-chart","queryContract":{"sourceType":"MART","targetObject":"mart.finance.customer_ar_rank_daily"}}]]></column>
+            <column name="spec_json"><![CDATA[{"templateCode":"FIN-CUSTOMER-AR-RANK","reportType":"fixed","displayType":"bar-chart","queryContract":{"sourceType":"MART","targetObject":"mart.finance.customer_ar_rank_daily"},"placeholderReviewRequired":true}]]></column>
             <column name="template_code" value="FIN-CUSTOMER-AR-RANK"/>
             <column name="domain" value="财务"/>
             <column name="category" value="排行"/>
@@ -61,13 +63,14 @@
     </changeSet>
 
     <changeSet id="0040-03-fin-project-collection-progress" author="dts">
+        <validCheckSum>9:6c823fed19147109c4a17c4dcc73f6d5</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(1) from analytics_report_template where template_code = 'FIN-PROJECT-COLLECTION-PROGRESS'</sqlCheck>
         </preConditions>
         <insert tableName="analytics_report_template">
             <column name="name" value="项目回款进度"/>
             <column name="description" value="项目经理查看合同应收、实际回款和回款节点完成率。"/>
-            <column name="spec_json"><![CDATA[{"templateCode":"FIN-PROJECT-COLLECTION-PROGRESS","reportType":"fixed","displayType":"funnel-table","queryContract":{"sourceType":"VIEW","targetObject":"authority.finance.project_collection_progress"}}]]></column>
+            <column name="spec_json"><![CDATA[{"templateCode":"FIN-PROJECT-COLLECTION-PROGRESS","reportType":"fixed","displayType":"funnel-table","queryContract":{"sourceType":"VIEW","targetObject":"authority.finance.project_collection_progress"},"placeholderReviewRequired":true}]]></column>
             <column name="template_code" value="FIN-PROJECT-COLLECTION-PROGRESS"/>
             <column name="domain" value="财务"/>
             <column name="category" value="进度"/>
@@ -89,13 +92,14 @@
     </changeSet>
 
     <changeSet id="0040-04-fin-pending-receipts-detail" author="dts">
+        <validCheckSum>9:cfacc5122aa2b2dcc1becb83ebd0769f</validCheckSum>
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">select count(1) from analytics_report_template where template_code = 'FIN-PENDING-RECEIPTS-DETAIL'</sqlCheck>
         </preConditions>
         <insert tableName="analytics_report_template">
             <column name="name" value="待收款明细"/>
             <column name="description" value="财务专员实时查看待收款明细和催收优先级。"/>
-            <column name="spec_json"><![CDATA[{"templateCode":"FIN-PENDING-RECEIPTS-DETAIL","reportType":"fixed","displayType":"table","queryContract":{"sourceType":"VIEW","targetObject":"authority.finance.pending_receipts_detail"}}]]></column>
+            <column name="spec_json"><![CDATA[{"templateCode":"FIN-PENDING-RECEIPTS-DETAIL","reportType":"fixed","displayType":"table","queryContract":{"sourceType":"VIEW","targetObject":"authority.finance.pending_receipts_detail"},"placeholderReviewRequired":true}]]></column>
             <column name="template_code" value="FIN-PENDING-RECEIPTS-DETAIL"/>
             <column name="domain" value="财务"/>
             <column name="category" value="明细"/>

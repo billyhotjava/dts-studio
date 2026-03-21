@@ -66,6 +66,95 @@ public class TemplateMatcherService {
             String description
     ) {}
 
+    private record FixedReportIntent(
+            String templateCode,
+            String domain,
+            String targetObject,
+            String description,
+            List<String> questionSamples,
+            List<String> patterns
+    ) {}
+
+    private static final List<FixedReportIntent> FIXED_REPORT_INTENTS = List.of(
+            new FixedReportIntent(
+                    "FIN-AR-OVERVIEW",
+                    "财务",
+                    "authority.finance.receivable_overview",
+                    "财务结算汇总",
+                    List.of("财务结算汇总", "应收总览", "应收已收未收总览"),
+                    List.of(".*(财务结算汇总|应收.*(总览|概览|看板)|已收.*未收|未收.*已收).*")),
+            new FixedReportIntent(
+                    "FIN-CUSTOMER-AR-RANK",
+                    "财务",
+                    "mart.finance.customer_ar_rank_daily",
+                    "财务结算汇总-客户欠款排行",
+                    List.of("客户欠款排行", "客户应收排行", "财务结算汇总客户欠款排行"),
+                    List.of(".*(财务结算汇总.*客户.*(欠款|应收)|客户.*(欠款|应收).*(排行|排名)).*")),
+            new FixedReportIntent(
+                    "FIN-PROJECT-COLLECTION-PROGRESS",
+                    "财务",
+                    "authority.finance.project_collection_progress",
+                    "财务结算列表-项目回款进度",
+                    List.of("项目回款进度", "项目回款完成率", "财务结算列表项目回款进度"),
+                    List.of(".*(财务结算列表.*项目.*回款|项目.*回款.*(进度|完成率)).*")),
+            new FixedReportIntent(
+                    "FIN-PENDING-RECEIPTS-DETAIL",
+                    "财务",
+                    "authority.finance.pending_receipts_detail",
+                    "财务结算列表-待收款明细",
+                    List.of("待收款明细", "待收款清单", "财务结算列表待收款明细"),
+                    List.of(".*(财务结算列表.*待收款|待收款.*(明细|清单|列表)).*")),
+            new FixedReportIntent(
+                    "PROC-PURCHASE-REQUEST-TODO",
+                    "采购",
+                    "authority.procurement.request_todo",
+                    "采购计划明细-待处理",
+                    List.of("采购申请待办", "待处理采购申请", "采购计划明细待处理"),
+                    List.of(".*(采购计划明细.*待处理|采购申请.*(待办|待处理)).*")),
+            new FixedReportIntent(
+                    "PROC-SUPPLIER-AMOUNT-RANK",
+                    "采购",
+                    "fact.procurement.order_event",
+                    "采购汇总",
+                    List.of("采购汇总", "供应商采购金额排行"),
+                    List.of(".*(采购汇总|供应商.*采购金额.*(排行|排名)).*")),
+            new FixedReportIntent(
+                    "PROC-ARRIVAL-ONTIME-RATE",
+                    "采购",
+                    "fact.procurement.order_event",
+                    "配送记录-到货及时率",
+                    List.of("采购到货及时率", "配送记录到货及时率"),
+                    List.of(".*(配送记录.*到货.*及时率|采购.*到货.*及时率).*")),
+            new FixedReportIntent(
+                    "PROC-PENDING-INBOUND-LIST",
+                    "采购",
+                    "authority.procurement.pending_inbound_list",
+                    "入库管理-待入库清单",
+                    List.of("待入库采购清单", "入库管理待入库清单"),
+                    List.of(".*(入库管理.*待入库|待入库.*采购.*(清单|列表)).*")),
+            new FixedReportIntent(
+                    "PROC-INTRANSIT-BOARD",
+                    "采购",
+                    "authority.procurement.intransit_board",
+                    "配送记录-在途采购",
+                    List.of("采购在途看板", "配送记录在途采购"),
+                    List.of(".*(配送记录.*在途采购|采购.*在途.*(看板|情况)).*")),
+            new FixedReportIntent(
+                    "WH-STOCK-OVERVIEW",
+                    "仓库",
+                    "authority.inventory.stock_overview",
+                    "库存现量",
+                    List.of("库存现量", "库存现量看板", "当前库存总览"),
+                    List.of(".*(库存现量|当前库存|库存总览|库存看板).*")),
+            new FixedReportIntent(
+                    "WH-LOW-STOCK-ALERT",
+                    "仓库",
+                    "authority.inventory.low_stock_alert",
+                    "库存现量-低库存预警",
+                    List.of("低库存预警", "低库存清单", "库存现量低库存预警"),
+                    List.of(".*(库存现量.*低库存|低库存|缺货).*(预警|告警|清单|列表).*"))
+    );
+
     /**
      * Match a user question against all active templates.
      *
@@ -75,6 +164,11 @@ public class TemplateMatcherService {
     public TemplateMatchResult match(String userQuestion) {
         if (userQuestion == null || userQuestion.isBlank()) {
             return new TemplateMatchResult(false, null, null, null);
+        }
+
+        TemplateMatchResult fixedReportMatch = matchFixedReportIntent(userQuestion);
+        if (fixedReportMatch.matched()) {
+            return fixedReportMatch;
         }
 
         List<Nl2SqlQueryTemplate> templates = loadActiveTemplates();
@@ -118,9 +212,14 @@ public class TemplateMatcherService {
      * @return list of suggested questions
      */
     public List<SuggestedQuestion> getSuggestedQuestions(int limit) {
+        List<SuggestedQuestion> suggestions = new ArrayList<>(buildFixedReportSuggestedQuestions(limit));
+        if (suggestions.size() >= limit) {
+            return suggestions.subList(0, limit);
+        }
+
         List<Nl2SqlQueryTemplate> templates = loadActiveTemplates();
         if (templates.isEmpty()) {
-            return Collections.emptyList();
+            return suggestions;
         }
 
         // Group templates by domain
@@ -130,8 +229,10 @@ public class TemplateMatcherService {
         }
 
         // Pick 1-2 questions from each domain, round-robin
-        List<SuggestedQuestion> suggestions = new ArrayList<>();
         int perDomain = Math.max(1, limit / Math.max(1, byDomain.size()));
+        List<String> existingQuestions = suggestions.stream()
+                .map(SuggestedQuestion::question)
+                .toList();
 
         for (Map.Entry<String, List<Nl2SqlQueryTemplate>> entry : byDomain.entrySet()) {
             int picked = 0;
@@ -140,13 +241,18 @@ public class TemplateMatcherService {
 
                 List<String> samples = parseJsonArray(t.getQuestionSamples());
                 if (!samples.isEmpty()) {
-                    suggestions.add(new SuggestedQuestion(
+                    SuggestedQuestion suggestion = new SuggestedQuestion(
                             t.getTemplateCode(),
                             t.getDomain(),
                             t.getRoleHint(),
                             samples.get(0),
                             t.getDescription()
-                    ));
+                    );
+                    if (existingQuestions.contains(suggestion.question())
+                            || suggestions.stream().anyMatch(item -> item.templateCode().equals(suggestion.templateCode()))) {
+                        continue;
+                    }
+                    suggestions.add(suggestion);
                     picked++;
                 }
             }
@@ -157,6 +263,79 @@ public class TemplateMatcherService {
             return suggestions.subList(0, limit);
         }
         return suggestions;
+    }
+
+    public List<SuggestedQuestion> getFixedReportSuggestionsByDomain(String domain, int limit) {
+        if (limit <= 0) {
+            return Collections.emptyList();
+        }
+        String normalizedDomain = normalizeFixedReportDomain(domain);
+        if (normalizedDomain.isBlank()) {
+            return Collections.emptyList();
+        }
+        return FIXED_REPORT_INTENTS.stream()
+                .filter(intent -> normalizeFixedReportDomain(intent.domain()).equals(normalizedDomain))
+                .limit(limit)
+                .map(intent -> new SuggestedQuestion(
+                        intent.templateCode(),
+                        intent.domain(),
+                        intent.domain(),
+                        buildPageAlignedFixedReportQuestion(intent),
+                        intent.description()
+                ))
+                .toList();
+    }
+
+    private List<SuggestedQuestion> buildFixedReportSuggestedQuestions(int limit) {
+        if (limit <= 0) {
+            return Collections.emptyList();
+        }
+        Map<String, Integer> perDomainCount = new HashMap<>();
+        List<SuggestedQuestion> suggestions = new ArrayList<>();
+        for (FixedReportIntent intent : FIXED_REPORT_INTENTS) {
+            if (suggestions.size() >= limit) {
+                break;
+            }
+            int count = perDomainCount.getOrDefault(intent.domain(), 0);
+            if (count >= 2 || intent.questionSamples().isEmpty()) {
+                continue;
+            }
+            suggestions.add(new SuggestedQuestion(
+                    intent.templateCode(),
+                    intent.domain(),
+                    intent.domain(),
+                    intent.questionSamples().get(0),
+                    intent.description()
+            ));
+            perDomainCount.put(intent.domain(), count + 1);
+        }
+        return suggestions;
+    }
+
+    private String buildPageAlignedFixedReportQuestion(FixedReportIntent intent) {
+        if (intent == null) {
+            return "";
+        }
+        String description = intent.description();
+        if (description != null && !description.isBlank()) {
+            return description.replace("-", "").trim();
+        }
+        if (intent.questionSamples() != null && !intent.questionSamples().isEmpty()) {
+            return intent.questionSamples().get(0);
+        }
+        return intent.templateCode();
+    }
+
+    private String normalizeFixedReportDomain(String domain) {
+        if (domain == null || domain.isBlank()) {
+            return "";
+        }
+        return switch (domain.trim().toLowerCase()) {
+            case "settlement", "finance", "financial", "finace", "财务" -> "财务";
+            case "procurement", "purchase", "采购" -> "采购";
+            case "warehouse", "inventory", "stock", "仓库", "库存" -> "仓库";
+            default -> domain.trim();
+        };
     }
 
     // ========== Parameter extraction ==========
@@ -355,6 +534,29 @@ public class TemplateMatcherService {
         }
     }
 
+    private TemplateMatchResult matchFixedReportIntent(String userQuestion) {
+        for (FixedReportIntent intent : FIXED_REPORT_INTENTS) {
+            for (String patternStr : intent.patterns()) {
+                try {
+                    Pattern pattern = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE);
+                    if (pattern.matcher(userQuestion).find()) {
+                        log.debug("Matched fixed report {} with pattern {}", intent.templateCode(), patternStr);
+                        return new TemplateMatchResult(
+                                true,
+                                buildSyntheticFixedReportTemplate(intent),
+                                Collections.emptyMap(),
+                                null
+                        );
+                    }
+                } catch (Exception e) {
+                    log.warn("Invalid fixed report pattern '{}' in {}: {}",
+                            patternStr, intent.templateCode(), e.getMessage());
+                }
+            }
+        }
+        return new TemplateMatchResult(false, null, null, null);
+    }
+
     // ========== Cache and JSON helpers ==========
 
     private List<Nl2SqlQueryTemplate> loadActiveTemplates() {
@@ -377,5 +579,25 @@ public class TemplateMatcherService {
             log.warn("Failed to parse JSON array: {}", json, e);
             return Collections.emptyList();
         }
+    }
+
+    private Nl2SqlQueryTemplate buildSyntheticFixedReportTemplate(FixedReportIntent intent) {
+        Nl2SqlQueryTemplate template = new Nl2SqlQueryTemplate();
+        template.setTemplateCode(intent.templateCode());
+        template.setDomain(intent.domain());
+        template.setRoleHint(null);
+        template.setIntentPatterns("[]");
+        try {
+            template.setQuestionSamples(objectMapper.writeValueAsString(intent.questionSamples()));
+        } catch (Exception ignored) {
+            template.setQuestionSamples("[]");
+        }
+        template.setSqlTemplate("-- fixed report fast path --");
+        template.setParameters("{}");
+        template.setTargetView(intent.targetObject());
+        template.setDescription(intent.description());
+        template.setPriority(1000);
+        template.setIsActive(true);
+        return template;
     }
 }

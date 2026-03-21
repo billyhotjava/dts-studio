@@ -12,11 +12,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
 public class AssetBackedPlannerPolicy implements PlannerPolicy {
+
+    private static final Set<String> GENERIC_REPORT_KEYWORDS = Set.of(
+            "报表", "汇总", "明细", "列表", "清单", "排行", "排名", "看板", "台账", "统计"
+    );
 
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
@@ -85,6 +90,40 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                     extendedRouting.martTable(),
                     buildBusinessRoutingPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode,
                             templateMatch.resolvedSql()));
+        }
+
+        if (templateMatch.matched() && StringUtils.hasText(templateCode)) {
+            return new ConversationPlan(
+                    PlanMode.TEMPLATE_FAST_PATH,
+                    ResponseKind.FIXED_REPORT,
+                    null,
+                    domain,
+                    primaryTarget,
+                    secondaryTargets,
+                    templateCode,
+                    null,
+                    extendedRouting.dataLayer().name(),
+                    extendedRouting.martTable(),
+                    buildBusinessRoutingPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode,
+                            null));
+        }
+
+        String fixedReportDomain = resolveFixedReportSuggestionDomain(userQuestion, domain);
+        List<SuggestedQuestion> fixedReportCandidates = resolveFixedReportCandidates(userQuestion, fixedReportDomain);
+        if (!fixedReportCandidates.isEmpty()) {
+            return new ConversationPlan(
+                    PlanMode.DIRECT_RESPONSE,
+                    ResponseKind.FIXED_REPORT_CANDIDATES,
+                    buildFixedReportCandidatesResponse(fixedReportDomain, fixedReportCandidates),
+                    StringUtils.hasText(fixedReportDomain) ? fixedReportDomain : domain,
+                    primaryTarget,
+                    secondaryTargets,
+                    null,
+                    null,
+                    extendedRouting.dataLayer().name(),
+                    extendedRouting.martTable(),
+                    ""
+            );
         }
 
         if (routing == null || routing.needsClarification()) {
@@ -229,5 +268,55 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             prompt.append("\n- tentative domain: ").append(domain);
         }
         return prompt.toString();
+    }
+
+    private List<SuggestedQuestion> resolveFixedReportCandidates(String userQuestion, String fixedReportDomain) {
+        if (!StringUtils.hasText(fixedReportDomain) || !isGenericReportQuestion(userQuestion)) {
+            return List.of();
+        }
+        return templateMatcherService.getFixedReportSuggestionsByDomain(fixedReportDomain, 3);
+    }
+
+    private boolean isGenericReportQuestion(String userQuestion) {
+        if (!StringUtils.hasText(userQuestion)) {
+            return false;
+        }
+        return GENERIC_REPORT_KEYWORDS.stream().anyMatch(userQuestion::contains);
+    }
+
+    private String resolveFixedReportSuggestionDomain(String userQuestion, String routedDomain) {
+        if (StringUtils.hasText(userQuestion)) {
+            if (userQuestion.contains("财务")) {
+                return "财务";
+            }
+            if (userQuestion.contains("采购")) {
+                return "采购";
+            }
+            if (userQuestion.contains("仓库") || userQuestion.contains("库存")) {
+                return "仓库";
+            }
+        }
+        if (!StringUtils.hasText(routedDomain)) {
+            return null;
+        }
+        return switch (routedDomain) {
+            case "settlement" -> "财务";
+            case "procurement", "purchase" -> "采购";
+            case "warehouse", "inventory", "stock" -> "仓库";
+            default -> null;
+        };
+    }
+
+    private String buildFixedReportCandidatesResponse(String domain, List<SuggestedQuestion> suggestions) {
+        StringBuilder sb = new StringBuilder("当前更适合先查看已沉淀的固定报表");
+        if (StringUtils.hasText(domain)) {
+            sb.append("（").append(domain).append("）");
+        }
+        sb.append("，可以先试这几个：\n");
+        for (SuggestedQuestion suggestion : suggestions) {
+            sb.append("- ").append(suggestion.question()).append("\n");
+        }
+        sb.append("\n如果这些都不符合，再继续进入探索式分析。");
+        return sb.toString().trim();
     }
 }

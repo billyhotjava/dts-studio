@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.analytics.security;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -31,6 +32,7 @@ public class AnalyticsSecurityConfiguration {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.FORWARD).permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/health", "/api/info").permitAll()
                 .requestMatchers("/api/public/**").permitAll()

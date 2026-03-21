@@ -9,6 +9,7 @@ import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsReportTemplateRepository;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.ReportTemplateCatalogService;
+import com.yuzhi.dts.copilot.analytics.service.report.FixedReportPageAnchorService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 @ExtendWith(MockitoExtension.class)
 class ReportTemplateCatalogResourceTest {
 
+    private static final FixedReportPageAnchorService PAGE_ANCHOR_SERVICE = new FixedReportPageAnchorService();
+
     @Mock
     private AnalyticsSessionService sessionService;
 
@@ -36,7 +39,8 @@ class ReportTemplateCatalogResourceTest {
 
     @Test
     void listTemplatesShouldRequireAuthenticatedSession() {
-        ReportTemplateCatalogService service = new ReportTemplateCatalogService(templateRepository);
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
         ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
 
         ResponseEntity<?> response = resource.listTemplates(null, null, 100, null);
@@ -102,7 +106,8 @@ class ReportTemplateCatalogResourceTest {
                         false,
                         Instant.parse("2026-03-20T11:00:00Z"))));
 
-        ReportTemplateCatalogService service = new ReportTemplateCatalogService(templateRepository);
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
         ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
 
         ResponseEntity<?> response = resource.listTemplates(null, null, 100, request);
@@ -126,7 +131,8 @@ class ReportTemplateCatalogResourceTest {
                 row(202L, "客户欠款排行", "财务", "RANK", "FIN-02", "MART", "mart_finance_ar_rank", "5m", "certified", true, false, Instant.parse("2026-03-20T09:00:00Z")),
                 row(203L, "采购申请待办", "采购", "DETAIL", "PROC-01", "VIEW", "v_procurement_todo", "real-time", "certified", true, false, Instant.parse("2026-03-20T10:00:00Z"))));
 
-        ReportTemplateCatalogService service = new ReportTemplateCatalogService(templateRepository);
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
         ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
 
         ResponseEntity<?> response = resource.listTemplates("财务", "RANK", 1, request);
@@ -173,7 +179,8 @@ class ReportTemplateCatalogResourceTest {
         }
         stubCatalogTemplates(rows);
 
-        ReportTemplateCatalogService service = new ReportTemplateCatalogService(templateRepository);
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
         ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
 
         ResponseEntity<?> response = resource.listTemplates(null, null, 1, request);
@@ -183,6 +190,119 @@ class ReportTemplateCatalogResourceTest {
         List<Map<String, Object>> responseRows = (List<Map<String, Object>>) response.getBody();
         assertThat(responseRows).hasSize(1);
         assertThat(responseRows.get(0)).containsEntry("templateCode", "FIN-01");
+    }
+
+    @Test
+    void getTemplateShouldResolveLatestPublishedCertifiedVersionByTemplateCode() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        when(sessionService.resolveUser(request)).thenReturn(Optional.of(buildUser()));
+        when(templateRepository.findLatestRunnableTemplateByTemplateCode("fin-ar-overview"))
+                .thenReturn(Optional.of(toEntity(row(
+                        501L,
+                        "应收总览看板",
+                        "财务",
+                        "KPI",
+                        "FIN-AR-OVERVIEW",
+                        "VIEW",
+                        "authority.finance.receivable_overview",
+                        "REALTIME",
+                        "certified",
+                        true,
+                        false,
+                        Instant.parse("2026-03-20T10:00:00Z")))));
+
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
+        ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
+
+        ResponseEntity<?> response = resource.getTemplate("FIN-AR-OVERVIEW", request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = (Map<String, Object>) response.getBody();
+        assertThat(row).containsEntry("templateCode", "FIN-AR-OVERVIEW");
+        assertThat(row).containsEntry("targetObject", "authority.finance.receivable_overview");
+    }
+
+    @Test
+    void getTemplateShouldExposeLegacyPageAnchorForKnownTemplate() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        when(sessionService.resolveUser(request)).thenReturn(Optional.of(buildUser()));
+        when(templateRepository.findLatestRunnableTemplateByTemplateCode("fin-ar-overview"))
+                .thenReturn(Optional.of(toEntity(row(
+                        511L,
+                        "财务结算汇总",
+                        "财务",
+                        "KPI",
+                        "FIN-AR-OVERVIEW",
+                        "VIEW",
+                        "authority.finance.receivable_overview",
+                        "REALTIME",
+                        "certified",
+                        true,
+                        false,
+                        Instant.parse("2026-03-20T10:00:00Z")))));
+
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
+        ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
+
+        ResponseEntity<?> response = resource.getTemplate("FIN-AR-OVERVIEW", request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = (Map<String, Object>) response.getBody();
+        assertThat(row).containsEntry("legacyPagePath", "/operate/settlement");
+        assertThat(row).containsEntry("legacyPageTitle", "财务结算");
+    }
+
+    @Test
+    void getTemplateShouldExposePlaceholderReviewFlagFromSpecJson() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        when(sessionService.resolveUser(request)).thenReturn(Optional.of(buildUser()));
+
+        AnalyticsReportTemplate entity = new AnalyticsReportTemplate();
+        entity.setTemplateCode("PROC-PURCHASE-REQUEST-TODO");
+        entity.setName("采购申请待办");
+        entity.setDescription("desc-PROC-PURCHASE-REQUEST-TODO");
+        entity.setDomain("采购");
+        entity.setCategory("待办");
+        entity.setDataSourceType("VIEW");
+        entity.setTargetObject("authority.procurement.request_todo");
+        entity.setRefreshPolicy("REALTIME");
+        entity.setCertificationStatus("certified");
+        entity.setPublished(true);
+        entity.setArchived(false);
+        entity.setSpecJson("""
+                {"placeholderReviewRequired":true}
+                """);
+        entity.setCreatorId(1L);
+        try {
+            var idField = entity.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(entity, 601L);
+            var updatedField = entity.getClass().getDeclaredField("updatedAt");
+            updatedField.setAccessible(true);
+            updatedField.set(entity, Instant.parse("2026-03-20T10:00:00Z"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        when(templateRepository.findLatestRunnableTemplateByTemplateCode("proc-purchase-request-todo"))
+                .thenReturn(Optional.of(entity));
+
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
+        ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
+
+        ResponseEntity<?> response = resource.getTemplate("PROC-PURCHASE-REQUEST-TODO", request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = (Map<String, Object>) response.getBody();
+        assertThat(row).containsEntry("templateCode", "PROC-PURCHASE-REQUEST-TODO");
+        assertThat(row).containsEntry("placeholderReviewRequired", true);
     }
 
     private void stubCatalogTemplates(List<AnalyticsReportTemplateRow> rows) {

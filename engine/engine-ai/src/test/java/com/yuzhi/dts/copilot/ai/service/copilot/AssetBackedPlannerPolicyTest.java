@@ -126,6 +126,34 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
+    void fixedReportTemplateMatchUsesFixedReportFastPathWithoutResolvedSql() {
+        String question = "客户欠款排行";
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(
+                        true,
+                        buildTemplate("FIN-CUSTOMER-AR-RANK", "财务", "mart.finance.customer_ar_rank_daily"),
+                        Map.of(),
+                        null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("财务", "v_monthly_settlement", List.of(), 0.95, false),
+                        DataLayer.MART,
+                        "mart.finance.customer_ar_rank_daily",
+                        false,
+                        null));
+        when(semanticPackService.getContextForDomain("财务")).thenReturn("finance semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
+        assertThat(plan.templateCode()).isEqualTo("FIN-CUSTOMER-AR-RANK");
+        assertThat(plan.resolvedSql()).isNull();
+        assertThat(plan.primaryTarget()).isEqualTo("mart.finance.customer_ar_rank_daily");
+    }
+
+    @Test
     void ambiguousBusinessQuestionUsesAgentWorkflowInsteadOfHardClarification() {
         when(templateMatcherService.match("帮我做个统计"))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));
@@ -143,6 +171,33 @@ class AssetBackedPlannerPolicyTest {
         assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_CLARIFICATION);
         assertThat(plan.promptContext()).contains("不要直接返回固定的业务范围清单");
+    }
+
+    @Test
+    void genericFinanceReportQuestionReturnsFixedReportCandidatesBeforeExploration() {
+        String question = "看下财务报表";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("settlement", "v_monthly_settlement", List.of(), 0.18, true),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(templateMatcherService.getFixedReportSuggestionsByDomain("财务", 3)).thenReturn(List.of(
+                new SuggestedQuestion("FIN-AR-OVERVIEW", "财务", "财务", "财务结算汇总", "desc"),
+                new SuggestedQuestion("FIN-PENDING-RECEIPTS-DETAIL", "财务", "财务", "财务结算列表待收款明细", "desc"),
+                new SuggestedQuestion("FIN-INVOICE-RECONCILIATION", "财务", "财务", "开票管理", "desc")
+        ));
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.DIRECT_RESPONSE);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT_CANDIDATES);
+        assertThat(plan.directResponse()).contains("财务结算汇总");
+        assertThat(plan.directResponse()).contains("开票管理");
     }
 
     private Nl2SqlQueryTemplate buildTemplate(String templateCode, String domain, String targetView) {

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,7 @@ class ReportTemplateSeedVerificationTest {
         assertThat(financeRows).hasSize(8);
         assertThat(procurementWarehouseRows).hasSize(8);
         assertEachChangeSetGuardsSingleTemplate(changeSets);
+        assertPlaceholderReviewFlagPresentForAllSeedTemplates(inserts);
     }
 
     private static void assertRequiredSeedFields(Element insert) {
@@ -119,6 +121,16 @@ class ReportTemplateSeedVerificationTest {
             String normalizedSql = sqlCheck.getTextContent().replaceAll("\\s+", " ").trim().toLowerCase();
             assertThat(sqlCheck.getAttribute("expectedResult")).isEqualTo("0");
             assertThat(normalizedSql).contains("template_code = '" + templateCode.toLowerCase() + "'");
+        }
+    }
+
+    private static void assertPlaceholderReviewFlagPresentForAllSeedTemplates(List<Element> inserts) {
+        for (Element insert : inserts) {
+            String templateCode = columnValue(insert, "template_code");
+            String specJson = columnValue(insert, "spec_json");
+            assertThat(specJson)
+                    .as("Expected %s spec_json to keep placeholderReviewRequired=true until real backing lands", templateCode)
+                    .contains("\"placeholderReviewRequired\":true");
         }
     }
 

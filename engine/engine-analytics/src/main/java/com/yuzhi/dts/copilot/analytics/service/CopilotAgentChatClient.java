@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -141,8 +142,19 @@ public class CopilotAgentChatClient {
                     "Streaming chat interrupted", e);
         } catch (IOException e) {
             throw new org.springframework.web.client.RestClientException(
-                    "Streaming chat failed: " + e.getMessage(), e);
+                    "Streaming chat failed: " + describeStreamTransportFailure(e), e);
         }
+    }
+
+    static String describeStreamTransportFailure(IOException exception) {
+        if (exception == null) {
+            return "stream transport error";
+        }
+        String message = exception.getMessage();
+        if (StringUtils.hasText(message)) {
+            return message.trim();
+        }
+        return "stream transport error";
     }
 
     public void deleteSession(String userId, String sessionId) {

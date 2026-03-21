@@ -21,6 +21,7 @@ import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
+import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -116,6 +117,61 @@ class AgentExecutionServiceTest {
         assertThat(result.response()).isEqualTo("请确认统计口径");
         verify(clientFactory).create(any(AiProviderConfig.class));
         verify(reActEngine).execute(eq(llmProviderClient), eq("qwen-plus"), anyList(), any(ToolContext.class), eq(0.2), eq(4096));
+    }
+
+    @Test
+    void executeChatFixedReportFastPathBypassesReactEngineWithoutResolvedSql() {
+        when(conversationPlannerService.plan("客户欠款排行", Map.of()))
+                .thenReturn(new ConversationPlan(
+                        PlanMode.TEMPLATE_FAST_PATH,
+                        ResponseKind.FIXED_REPORT,
+                        null,
+                        "财务",
+                        "mart.finance.customer_ar_rank_daily",
+                        List.of(),
+                        "FIN-CUSTOMER-AR-RANK",
+                        null,
+                        "MART",
+                        "mart.finance.customer_ar_rank_daily",
+                        "finance grounding"));
+
+        AgentExecutionService.ChatExecutionResult result = service.executeChat(
+                "sess-1", "alice", "客户欠款排行", Collections.emptyList(), 7L, Map.of());
+
+        assertThat(result.response()).contains("FIN-CUSTOMER-AR-RANK");
+        assertThat(result.response()).contains("固定报表");
+        assertThat(result.generatedSql()).isNull();
+        verify(reActEngine, never()).execute(any(), anyString(), anyList(), any(ToolContext.class), anyDouble(), anyInt());
+    }
+
+    @Test
+    void executeChatStreamFixedReportFastPathWritesDoneMetadata() {
+        when(conversationPlannerService.plan("待收款明细", Map.of()))
+                .thenReturn(new ConversationPlan(
+                        PlanMode.TEMPLATE_FAST_PATH,
+                        ResponseKind.FIXED_REPORT,
+                        null,
+                        "财务",
+                        "authority.finance.pending_receipts_detail",
+                        List.of(),
+                        "FIN-PENDING-RECEIPTS-DETAIL",
+                        null,
+                        "VIEW",
+                        null,
+                        "finance grounding"));
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        AgentExecutionService.ChatExecutionResult result = service.executeChatStream(
+                "sess-1", "alice", "待收款明细", Collections.emptyList(), 7L, Map.of(), output);
+
+        String sse = output.toString();
+        assertThat(result.response()).contains("FIN-PENDING-RECEIPTS-DETAIL");
+        assertThat(sse).contains("\"templateCode\":\"FIN-PENDING-RECEIPTS-DETAIL\"");
+        assertThat(sse).contains("\"responseKind\":\"FIXED_REPORT\"");
+        assertThat(sse).contains("\"routedDomain\":\"财务\"");
+        assertThat(sse).contains("\"targetView\":\"authority.finance.pending_receipts_detail\"");
+        verify(reActEngine, never()).executeStreaming(any(), anyString(), anyList(), any(ToolContext.class), anyDouble(), anyInt(), any());
     }
 
     private AiProviderConfig buildProvider() {

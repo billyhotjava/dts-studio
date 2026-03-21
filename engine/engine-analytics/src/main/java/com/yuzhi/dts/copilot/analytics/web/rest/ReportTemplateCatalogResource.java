@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,5 +39,18 @@ public class ReportTemplateCatalogResource {
             return ResponseEntity.status(401).contentType(MediaType.TEXT_PLAIN).body("Unauthenticated");
         }
         return ResponseEntity.ok(catalogService.listTemplates(domain, category, limit));
+    }
+
+    @GetMapping(path = "/{templateCode}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getTemplate(
+            @PathVariable("templateCode") String templateCode,
+            HttpServletRequest request) {
+        Optional<AnalyticsUser> user = MetabaseAuth.currentUser(sessionService, request);
+        if (user.isEmpty()) {
+            return ResponseEntity.status(401).contentType(MediaType.TEXT_PLAIN).body("Unauthenticated");
+        }
+        return catalogService.getTemplate(templateCode)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

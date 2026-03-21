@@ -202,7 +202,37 @@
 | VI-05 | 后端 ASR 降级接口（可选） | P2 | READY | VI-03 |
 | VI-06 | IT 测试与兼容性验证 | P2 | READY | VI-01~04 |
 
-**统计**: READY=6, IN_PROGRESS=0, DONE=0, BLOCKED=0
+**统计**: READY=2, IN_PROGRESS=2, DONE=5, BLOCKED=0
+
+## Sprint-16: 业务页面盘点、数据库对照与固定报表实施基线 (RC)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| RC-01 | 现网页面盘点与 `adminweb/app` 报表型页面识别 | P0 | DONE | 真实登录态 |
+| RC-02 | 业务库扫描与 `adminapi/adminweb/app` 对照 | P0 | DONE | RC-01 |
+| RC-03 | 固定报表 Top 30 候选目录 | P0 | DONE | RC-01, RC-02 |
+| RC-04 | 受控取数面策略（L0 / L1） | P0 | DONE | RC-02, RC-03 |
+| RC-05 | 固定报表模板模型与目录种子 | P1 | IN_PROGRESS | RC-03, RC-04 |
+| RC-06 | 模板优先 Copilot 路由接入 | P1 | IN_PROGRESS | RC-05 |
+| RC-07 | Dashboard / Screen / Report Factory 模板复用 | P2 | DONE | RC-05 |
+| RC-08 | IT 验收与性能基线 | P2 | DONE | RC-04~RC-07 |
+| RC-09 | 固定报表 backing 审计与占位模板退役 | P0 | DONE | RC-03, RC-04 |
+
+**统计**: READY=0, IN_PROGRESS=2, DONE=7, BLOCKED=0
+
+## Sprint-17: 主数据优先治理与业务锚点收口 (MD)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| MD-01 | 主数据盘点与归属审计 | P0 | DONE | `adminapi/adminweb/app`、业务库 |
+| MD-02 | 项目轴 canonical model | P0 | DONE | MD-01 |
+| MD-03 | 物品轴 canonical model | P0 | DONE | MD-01 |
+| MD-04 | 共享参考主数据模型 | P1 | DONE | MD-01 |
+| MD-05 | 主数据与交易事实边界表 | P0 | DONE | MD-01~04 |
+| MD-06 | 主数据消费规则（固定报表 / Copilot） | P1 | DONE | MD-02~05 |
+| MD-07 | 迁移顺序与验收基线 | P1 | DONE | MD-01~06 |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=7, BLOCKED=0
 
 ## Backlog
 
@@ -212,4 +242,4 @@
 
 ## 总体统计
 
-**READY=78, IN_PROGRESS=1, DONE=20, BLOCKED=0, DEFERRED=1 (总计 100 任务)**
+**READY=78, IN_PROGRESS=4, DONE=33, BLOCKED=0, DEFERRED=1 (总计 116 任务)**
