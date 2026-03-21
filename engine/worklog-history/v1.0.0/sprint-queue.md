@@ -251,11 +251,11 @@
 |---------|---------|------|
 | F1-分析来源上下文组件化 | 3 | DONE |
 | F2-查询资产中心交互深化 | 3 | DONE |
-| F3-Copilot与查询往返协同 | 3 | READY |
+| F3-Copilot与查询往返协同 | 3 | DONE |
 | F4-多端晋升与来源追溯 | 3 | READY |
 | F5-IT验证与真人联调基线 | 3 | READY |
 
-**统计**: READY=3, IN_PROGRESS=0, DONE=2, BLOCKED=0
+**统计**: READY=2, IN_PROGRESS=0, DONE=3, BLOCKED=0
 
 ## Backlog
 
@@ -265,4 +265,4 @@
 
 ## 总体统计
 
-**READY=81, IN_PROGRESS=3, DONE=40, BLOCKED=0, DEFERRED=1 (总计 125 任务)**
+**READY=80, IN_PROGRESS=3, DONE=41, BLOCKED=0, DEFERRED=1 (总计 125 任务)**

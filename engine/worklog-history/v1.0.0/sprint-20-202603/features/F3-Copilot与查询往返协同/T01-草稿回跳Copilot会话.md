@@ -1,7 +1,7 @@
 # T01: 草稿回跳 Copilot 会话
 
 **优先级**: P1
-**状态**: READY
+**状态**: DONE
 **依赖**: 无
 
 ## 目标
@@ -20,8 +20,8 @@
 
 ## 验证
 
-- [ ] `node --experimental-strip-types --test dts-copilot-webapp/tests/queryDraftHandoff.test.ts`
+- [x] `node --experimental-strip-types --test dts-copilot-webapp/tests/queryDraftHandoff.test.ts`
 
 ## 完成标准
 
-- [ ] 草稿可明确回到来源会话
+- [x] 草稿可明确回到来源会话
