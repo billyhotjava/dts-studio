@@ -890,7 +890,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
                     ei.status AS status,
                     ei.remark AS remark
                 FROM f_expense_account_info ei
-                WHERE ei.del_flag = '0'
+                WHERE 1=1
                 """);
         List<Object> bindings = new ArrayList<>();
 
@@ -925,11 +925,13 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         StringBuilder sql = new StringBuilder("""
                 SELECT
                     wi.code AS warehousingCode,
-                    wi.storehouse_name AS storehouseName,
+                    wi.title AS warehousingTitle,
+                    sh.name AS storehouseName,
                     wi.create_time AS createTime,
                     wi.status AS status,
                     wi.remark AS remark
                 FROM t_warehousing_info wi
+                LEFT JOIN s_storehouse_info sh ON sh.id = wi.storehouse_info_id
                 WHERE wi.del_flag = '0'
                 """);
         List<Object> bindings = new ArrayList<>();
@@ -942,7 +944,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
         String storehouseName = stringParam(parameters, "storehouseName");
         if (storehouseName != null) {
-            sql.append(" AND wi.storehouse_name LIKE ?");
+            sql.append(" AND sh.name LIKE ?");
             bindings.add('%' + storehouseName + '%');
         }
 
@@ -964,18 +966,20 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         AnalyticsDatabase database = resolveDatabase(contract.databaseName());
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    pi.code AS planCode,
+                    ppi.code AS planCode,
+                    ppi.project_name AS projectName,
+                    ppi.purchase_user_name AS purchaseUserName,
+                    ppi.plant_purchase_time AS planPurchaseTime,
+                    ppi.status AS planStatus,
                     pi.good_name AS goodName,
                     pi.good_norms AS goodNorms,
-                    pi.good_number AS planNumber,
-                    pi.purchase_number AS purchaseNumber,
-                    pi.status AS status,
-                    pi.create_time AS createTime,
-                    fi.project_name AS projectName
+                    pi.good_specs AS goodSpecs,
+                    pi.plan_purchase_number AS planNumber,
+                    pi.real_purchase_number AS purchaseNumber,
+                    pi.status AS itemStatus
                 FROM t_plan_purchase_item pi
-                LEFT JOIN t_flower_biz_item fbi ON fbi.id = pi.flower_item_id
-                LEFT JOIN t_flower_biz_info fi ON fi.id = fbi.flower_biz_id
-                WHERE pi.del_flag = '0'
+                LEFT JOIN t_plan_purchase_info ppi ON ppi.id = pi.plan_purchase_info_id
+                WHERE ppi.del_flag = '0'
                 """);
         List<Object> bindings = new ArrayList<>();
 
@@ -993,13 +997,13 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
         String projectName = stringParam(parameters, "projectName");
         if (projectName != null) {
-            sql.append(" AND fi.project_name LIKE ?");
+            sql.append(" AND ppi.project_name LIKE ?");
             bindings.add('%' + projectName + '%');
         }
 
         sql.append("""
 
-                ORDER BY pi.create_time DESC
+                ORDER BY ppi.create_time DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
