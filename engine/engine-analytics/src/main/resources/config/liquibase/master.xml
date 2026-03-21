@@ -47,4 +47,5 @@
     <include file="config/liquibase/changelog/0040_seed_finance_procurement_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0041_refresh_fixed_report_page_labels.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0042_backfill_placeholder_review_flags.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0043_analysis_drafts.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

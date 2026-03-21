@@ -234,6 +234,17 @@
 
 **统计**: READY=0, IN_PROGRESS=0, DONE=7, BLOCKED=0
 
+## Sprint-19: Copilot 与查询资产中心协同工作流 (202603)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-分析草稿模型与接口 | 3 | READY |
+| F2-查询资产中心承接草稿 | 3 | READY |
+| F3-Copilot到查询的协同动作 | 3 | READY |
+| F4-草稿晋升与IT验证 | 3 | READY |
+
+**统计**: READY=12, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
