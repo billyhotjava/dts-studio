@@ -39,3 +39,6 @@ dist/
 # Dev runtime
 .dev-logs/
 .dev-pids/
+
+# Local git worktrees
+.worktrees/
