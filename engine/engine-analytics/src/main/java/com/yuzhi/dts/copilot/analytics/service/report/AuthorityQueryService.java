@@ -73,6 +73,18 @@ public class AuthorityQueryService {
                     adapterKey,
                     targetObject);
         }
+        if (normalizedTargetObject.startsWith("authority.flowerbiz.")) {
+            return new AuthorityAdapter(
+                    ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                    adapterKey,
+                    targetObject);
+        }
+        if (normalizedTargetObject.startsWith("authority.project.")) {
+            return new AuthorityAdapter(
+                    ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                    adapterKey,
+                    targetObject);
+        }
         if (normalizedTargetObject.startsWith("authority.")) {
             return new AuthorityAdapter(
                     realtime ? ReportExecutionPlanService.Route.AUTHORITY_VIEW : ReportExecutionPlanService.Route.AUTHORITY_SQL,
@@ -104,6 +116,12 @@ public class AuthorityQueryService {
         if (normalizedTargetObject.startsWith("authority.inventory.")) {
             return "authority.inventory";
         }
+        if (normalizedTargetObject.startsWith("authority.flowerbiz.")) {
+            return "authority.flowerbiz";
+        }
+        if (normalizedTargetObject.startsWith("authority.project.")) {
+            return "authority.project";
+        }
         if (normalizedTargetObject.startsWith("mart.finance.")) {
             return "authority.finance";
         }
@@ -120,6 +138,12 @@ public class AuthorityQueryService {
         }
         if ("仓库".equals(domain) || domain.contains("warehouse") || domain.contains("inventory")) {
             return "authority.inventory";
+        }
+        if ("报花".equals(domain) || domain.contains("flowerbiz") || domain.contains("flower")) {
+            return "authority.flowerbiz";
+        }
+        if ("项目".equals(domain) || domain.contains("project")) {
+            return "authority.project";
         }
         return null;
     }

@@ -56,4 +56,5 @@
     <include file="config/liquibase/changelog/0049_promote_procurement_detail_fixed_report.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0050_promote_finance_reimbursement_fixed_report.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0051_promote_finance_invoice_fixed_report.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0052_promote_batch2_reports.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

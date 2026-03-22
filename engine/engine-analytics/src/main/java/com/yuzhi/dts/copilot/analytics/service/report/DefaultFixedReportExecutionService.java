@@ -96,6 +96,28 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         if ("fact.procurement.order_event".equals(normalizedTarget)) {
             return Optional.of(executeProcurementArrivalOntimeRate(contract, parameters));
         }
+        // ── Batch 2 reports ──
+        if ("authority.flowerbiz.biz_document_summary".equals(normalizedTarget)) {
+            return Optional.of(executeFlowerBizDocumentSummary(contract, parameters));
+        }
+        if ("authority.procurement.delivery_record".equals(normalizedTarget)) {
+            return Optional.of(executeProcurementDeliveryRecord(contract, parameters));
+        }
+        if ("authority.finance.reimbursement_list".equals(normalizedTarget)) {
+            return Optional.of(executeFinanceReimbursementList(contract, parameters));
+        }
+        if ("authority.inventory.inout_record".equals(normalizedTarget)) {
+            return Optional.of(executeWarehouseInOutRecord(contract, parameters));
+        }
+        if ("authority.project.contract_list".equals(normalizedTarget)) {
+            return Optional.of(executeProjectContractList(contract, parameters));
+        }
+        if ("authority.project.supervision_check_summary".equals(normalizedTarget)) {
+            return Optional.of(executeProjectSupervisionCheckSummary(contract, parameters));
+        }
+        if ("authority.project.fulfillment_summary".equals(normalizedTarget)) {
+            return Optional.of(executeProjectFulfillmentSummary(contract, parameters));
+        }
         return Optional.empty();
     }
 
@@ -1196,6 +1218,262 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
     private static String firstNonBlank(String first, String second) {
         return trimToNull(first) != null ? first.trim() : trimToNull(second);
+    }
+
+    // ── Batch 2: 报花单据汇总 ─────────────────────────────────────────
+
+    private ExecutionResult executeFlowerBizDocumentSummary(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    a.project_name AS projectName,
+                    CASE a.biz_type
+                        WHEN 1 THEN '加花' WHEN 2 THEN '减花' WHEN 3 THEN '换花'
+                        WHEN 4 THEN '调花' WHEN 5 THEN '初摆' WHEN 10 THEN '售花'
+                        WHEN 11 THEN '内购' ELSE '其他'
+                    END AS bizTypeName,
+                    a.code,
+                    a.title,
+                    CASE a.status
+                        WHEN 1 THEN '草稿' WHEN 2 THEN '审核中' WHEN 3 THEN '已通过'
+                        WHEN 4 THEN '已完成' WHEN -1 THEN '已作废' ELSE '未知'
+                    END AS statusName,
+                    CASE a.urgent WHEN 1 THEN '是' ELSE '否' END AS urgentName,
+                    COALESCE(a.apply_use_name, '') AS applyUserName,
+                    COALESCE(a.curing_user_name, '') AS curingUserName,
+                    DATE_FORMAT(a.apply_time, '%Y-%m-%d %H:%i') AS applyTime,
+                    DATE_FORMAT(a.finish_time, '%Y-%m-%d %H:%i') AS finishTime
+                FROM t_flower_biz_info a
+                WHERE (a.del_flag IS NULL OR a.del_flag = '0')
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendIfPresent(sql, bindings, parameters, "projectId", " AND a.project_id = ?");
+        appendIfPresent(sql, bindings, parameters, "bizType", " AND a.biz_type = ?");
+        appendIfPresent(sql, bindings, parameters, "status", " AND a.status = ?");
+        appendDateRange(sql, bindings, parameters, "a.apply_time");
+        sql.append(" ORDER BY a.apply_time DESC, a.id DESC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2: 配送记录 ───────────────────────────────────────────
+
+    private ExecutionResult executeProcurementDeliveryRecord(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    a.code,
+                    a.title,
+                    CASE a.status WHEN 1 THEN '配送中' WHEN 2 THEN '已结束' ELSE '未知' END AS statusName,
+                    CASE a.delivery_mode
+                        WHEN 1 THEN '市场->项目点' WHEN 2 THEN '库房->项目点'
+                        WHEN 3 THEN '库房->库房' ELSE '其他'
+                    END AS deliveryModeName,
+                    COALESCE(a.source_address, '') AS sourceAddress,
+                    COALESCE(a.destination, '') AS destination,
+                    COALESCE(a.delivery_user_name, '') AS deliveryUserName,
+                    COALESCE(a.receive_user_name, '') AS receiveUserName,
+                    DATE_FORMAT(a.start_delivery_time, '%Y-%m-%d %H:%i') AS deliveryTime,
+                    DATE_FORMAT(a.receive_time, '%Y-%m-%d %H:%i') AS receiveTime
+                FROM t_delivery_info a
+                WHERE (a.del_flag IS NULL OR a.del_flag = '0')
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendIfPresent(sql, bindings, parameters, "status", " AND a.status = ?");
+        appendDateRange(sql, bindings, parameters, "a.start_delivery_time");
+        sql.append(" ORDER BY a.start_delivery_time DESC, a.id DESC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2: 日常报销 ───────────────────────────────────────────
+
+    private ExecutionResult executeFinanceReimbursementList(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    a.code,
+                    a.title,
+                    COALESCE(a.apply_user_name, '') AS applyUserName,
+                    ROUND(COALESCE(a.total_amount, 0), 2) AS totalAmount,
+                    CASE a.status
+                        WHEN 1 THEN '草稿' WHEN 2 THEN '审核中' WHEN 3 THEN '待付款'
+                        WHEN 4 THEN '已付款' WHEN -1 THEN '已作废' ELSE '未知'
+                    END AS statusName,
+                    CASE a.invoice_status WHEN 1 THEN '无' WHEN 2 THEN '有' ELSE '' END AS invoiceStatusName,
+                    COALESCE(a.collect_name, '') AS collectName,
+                    DATE_FORMAT(a.apply_time, '%Y-%m-%d %H:%i') AS applyTime,
+                    DATE_FORMAT(a.pay_time, '%Y-%m-%d %H:%i') AS payTime
+                FROM f_expense_account_info a
+                WHERE 1 = 1
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendLikeIfPresent(sql, bindings, parameters, "code", " AND a.code LIKE ?");
+        appendIfPresent(sql, bindings, parameters, "status", " AND a.status = ?");
+        appendIfPresent(sql, bindings, parameters, "applyUserId", " AND a.apply_user_id = ?");
+        sql.append(" ORDER BY a.apply_time DESC, a.id DESC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2: 出入库记录 ─────────────────────────────────────────
+
+    private ExecutionResult executeWarehouseInOutRecord(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT * FROM (
+                    SELECT '入库' AS direction, wi.code, sh.name AS storehouseName,
+                           a.good_name AS goodName, COALESCE(a.good_specs, '') AS goodSpecs,
+                           a.good_number AS quantity, ROUND(COALESCE(a.price, 0), 2) AS unitPrice,
+                           DATE_FORMAT(wi.warehousing_time, '%Y-%m-%d') AS recordDate
+                    FROM t_warehousing_item a
+                    JOIN t_warehousing_info wi ON wi.id = a.warehousing_info_id
+                    JOIN s_storehouse_info sh ON sh.id = wi.storehouse_info_id
+                    UNION ALL
+                    SELECT '出库', ei.code, sh.name,
+                           a.good_name, COALESCE(a.good_specs, ''),
+                           a.good_number, ROUND(COALESCE(a.price, 0), 2),
+                           DATE_FORMAT(ei.ex_warehouse_time, '%Y-%m-%d')
+                    FROM t_ex_warehouse_item a
+                    JOIN t_ex_warehouse_info ei ON ei.id = a.ex_warehouse_info_id
+                    JOIN s_storehouse_info sh ON sh.id = ei.storehouse_info_id
+                ) t WHERE 1 = 1
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendLikeIfPresent(sql, bindings, parameters, "goodName", " AND t.goodName LIKE ?");
+        String startDate = stringParam(parameters, "startDate");
+        if (startDate != null) { sql.append(" AND t.recordDate >= ?"); bindings.add(startDate); }
+        String endDate = stringParam(parameters, "endDate");
+        if (endDate != null) { sql.append(" AND t.recordDate <= ?"); bindings.add(endDate); }
+        sql.append(" ORDER BY t.recordDate DESC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2: 合同管理 ───────────────────────────────────────────
+
+    private ExecutionResult executeProjectContractList(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    a.code,
+                    a.title,
+                    COALESCE(b.name, '') AS customerName,
+                    CASE a.status WHEN 1 THEN '执行中' WHEN 2 THEN '已结束' ELSE '未知' END AS statusName,
+                    DATE_FORMAT(a.signing_time, '%Y-%m-%d') AS signDate,
+                    DATE_FORMAT(a.start_date, '%Y-%m-%d') AS startDate,
+                    DATE_FORMAT(a.end_date, '%Y-%m-%d') AS endDate,
+                    COALESCE(a.settlement_period, '') AS settlePeriod,
+                    COALESCE(a.business_personnel_name, '') AS bizPersonnelName
+                FROM p_contract a
+                LEFT JOIN p_customer b ON b.id = a.customer_id
+                WHERE (a.del_flag IS NULL OR a.del_flag = '0')
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendLikeIfPresent(sql, bindings, parameters, "customerName", " AND b.name LIKE ?");
+        appendIfPresent(sql, bindings, parameters, "status", " AND a.status = ?");
+        sql.append(" ORDER BY a.signing_time DESC, a.id DESC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2: 监管盘点汇总 ───────────────────────────────────────
+
+    private ExecutionResult executeProjectSupervisionCheckSummary(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    a.project_name AS projectName,
+                    a.title AS checkPeriod,
+                    COALESCE(a.supervise_user_name, '') AS checkUserName,
+                    CASE a.status WHEN 1 THEN '盘点中' WHEN 2 THEN '已结束' ELSE '未知' END AS statusName,
+                    COALESCE(a.total_group_number, 0) AS totalGroupCount,
+                    COALESCE(a.finish_check_number, 0) AS checkedGroupCount,
+                    COALESCE(a.total_position_number, 0) AS totalPositionCount,
+                    COALESCE(a.finishcheck_position_number, 0) AS checkedPositionCount,
+                    CASE WHEN a.total_position_number > 0
+                         THEN ROUND(a.finishcheck_position_number * 100.0 / a.total_position_number, 1)
+                         ELSE 0
+                    END AS progressPct
+                FROM t_supervise_check_batch a
+                WHERE 1 = 1
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendIfPresent(sql, bindings, parameters, "projectId", " AND a.project_id = ?");
+        appendIfPresent(sql, bindings, parameters, "status", " AND a.status = ?");
+        sql.append(" ORDER BY a.start_time DESC, a.project_name ASC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2: 项目点经营汇总 ─────────────────────────────────────
+
+    private ExecutionResult executeProjectFulfillmentSummary(QueryContract contract, Map<String, Object> parameters)
+            throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(contract.databaseName());
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    p.name AS projectName,
+                    COALESCE(cu.name, '') AS customerName,
+                    COALESCE(p.manager_name, '') AS managerName,
+                    COALESCE(p.biz_user_name, '') AS bizUserName,
+                    CASE p.status WHEN 1 THEN '正常' WHEN 2 THEN '暂停' WHEN 3 THEN '结束' ELSE '未知' END AS statusName,
+                    COALESCE(ct.title, '') AS contractTitle,
+                    (SELECT COUNT(*) FROM p_project_green pg WHERE pg.project_id = p.id AND (pg.del_flag IS NULL OR pg.del_flag = '0')) AS greenCount,
+                    (SELECT COUNT(*) FROM p_position pp WHERE pp.project_id = p.id AND (pp.del_flag IS NULL OR pp.del_flag = '0')) AS positionCount,
+                    (SELECT COUNT(*) FROM t_flower_biz_info fb WHERE fb.project_id = p.id AND (fb.del_flag IS NULL OR fb.del_flag = '0') AND fb.status = 4) AS completedBizCount
+                FROM p_project p
+                LEFT JOIN p_contract ct ON ct.id = p.contract_id
+                LEFT JOIN p_customer cu ON cu.id = ct.customer_id
+                WHERE (p.del_flag IS NULL OR p.del_flag = '0')
+                """);
+        List<Object> bindings = new ArrayList<>();
+        appendIfPresent(sql, bindings, parameters, "projectId", " AND p.id = ?");
+        appendIfPresent(sql, bindings, parameters, "status", " AND p.status = ?");
+        sql.append(" ORDER BY p.name ASC");
+        return runAndMap(database, sql, bindings);
+    }
+
+    // ── Batch 2 helpers ─────────────────────────────────────────────
+
+    private ExecutionResult runAndMap(AnalyticsDatabase database, StringBuilder sql, List<Object> bindings)
+            throws SQLException {
+        DatasetResult result = datasetQueryService.runNative(
+                database.getId(), sql.toString(),
+                new DatasetConstraints(PREVIEW_LIMIT, QUERY_TIMEOUT_SECONDS, null), bindings);
+        return mapPreview(database, result);
+    }
+
+    private void appendIfPresent(StringBuilder sql, List<Object> bindings,
+                                  Map<String, Object> parameters, String paramName, String clause) {
+        String value = stringParam(parameters, paramName);
+        if (value != null) {
+            sql.append(clause);
+            bindings.add(value);
+        }
+    }
+
+    private void appendLikeIfPresent(StringBuilder sql, List<Object> bindings,
+                                      Map<String, Object> parameters, String paramName, String clause) {
+        String value = stringParam(parameters, paramName);
+        if (value != null) {
+            sql.append(clause);
+            bindings.add('%' + value + '%');
+        }
+    }
+
+    private void appendDateRange(StringBuilder sql, List<Object> bindings,
+                                  Map<String, Object> parameters, String column) {
+        String startDate = stringParam(parameters, "startDate");
+        if (startDate != null) {
+            sql.append(" AND ").append(column).append(" >= CONCAT(?, ' 00:00:00')");
+            bindings.add(startDate);
+        }
+        String endDate = stringParam(parameters, "endDate");
+        if (endDate != null) {
+            sql.append(" AND ").append(column).append(" <= CONCAT(?, ' 23:59:59')");
+            bindings.add(endDate);
+        }
     }
 
     private record QueryContract(String sourceType, String targetObject, String databaseName) {}
