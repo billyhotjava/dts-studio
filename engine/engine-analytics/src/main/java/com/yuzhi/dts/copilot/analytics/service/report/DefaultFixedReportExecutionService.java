@@ -1120,9 +1120,22 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
     private AnalyticsDatabase resolveDatabase(String preferredDatabaseName) {
         String databaseName = trimToNull(preferredDatabaseName) == null ? DEFAULT_DATABASE_NAME : preferredDatabaseName.trim();
-        return databaseRepository
-                .findFirstByNameIgnoreCase(databaseName)
+        AnalyticsDatabase preferred = databaseRepository.findFirstByNameIgnoreCase(databaseName).orElse(null);
+        if (isBusinessOperationalDatabase(preferred)) {
+            return preferred;
+        }
+        return databaseRepository.findAll().stream()
+                .filter(this::isBusinessOperationalDatabase)
+                .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Fixed report database not found: " + databaseName));
+    }
+
+    private boolean isBusinessOperationalDatabase(AnalyticsDatabase database) {
+        if (database == null) {
+            return false;
+        }
+        String engine = normalize(database.getEngine());
+        return engine.isEmpty() || "mysql".equals(engine);
     }
 
     private ExecutionResult mapPreview(AnalyticsDatabase database, DatasetResult result) {

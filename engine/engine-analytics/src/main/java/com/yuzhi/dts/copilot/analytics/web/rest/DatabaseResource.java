@@ -32,6 +32,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
@@ -111,7 +112,10 @@ public class DatabaseResource {
             return auth.get();
         }
 
-        List<Map<String, Object>> data = databaseRepository.findAll().stream().map(this::toDatabaseListItem).toList();
+        List<Map<String, Object>> data = databaseRepository.findAll().stream()
+                .filter(this::isVisibleDatabase)
+                .map(this::toDatabaseListItem)
+                .toList();
         return ResponseEntity.ok(Map.of("data", data, "total", data.size()));
     }
 
@@ -567,6 +571,54 @@ public class DatabaseResource {
         return databaseRepository.findAll().stream()
                 .filter(db -> dataSourceId.equals(resolveDataSourceId(db.getDetailsJson())))
                 .findFirst();
+    }
+
+    private boolean isVisibleDatabase(AnalyticsDatabase database) {
+        return !isSystemRuntimeDatabase(database);
+    }
+
+    private boolean isSystemRuntimeDatabase(AnalyticsDatabase database) {
+        if (database == null) {
+            return false;
+        }
+        String engine = database.getEngine() == null ? "" : database.getEngine().trim().toLowerCase(Locale.ROOT);
+        if (!"postgres".equals(engine) && !"postgresql".equals(engine)) {
+            return false;
+        }
+        Long dataSourceId = resolveDataSourceId(database.getDetailsJson());
+        if (dataSourceId == null) {
+            return false;
+        }
+        try {
+            PlatformInfraClient.DataSourceDetail detail = platformInfraClient.fetchDataSourceDetail(dataSourceId);
+            String jdbcUrl = detail.jdbcUrl();
+            if (!StringUtils.hasText(jdbcUrl)) {
+                return false;
+            }
+            return isSystemRuntimeJdbcUrl(jdbcUrl);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean isSystemRuntimeJdbcUrl(String jdbcUrl) {
+        String normalized = jdbcUrl.trim().toLowerCase(Locale.ROOT);
+        boolean localHost = normalized.startsWith("jdbc:postgresql://localhost:5432/")
+                || normalized.startsWith("jdbc:postgresql://127.0.0.1:5432/")
+                || normalized.startsWith("jdbc:postgresql://copilot-postgres:5432/");
+        if (!localHost) {
+            return false;
+        }
+        int slashIndex = normalized.lastIndexOf('/');
+        if (slashIndex < 0 || slashIndex >= normalized.length() - 1) {
+            return false;
+        }
+        String databaseName = normalized.substring(slashIndex + 1);
+        int queryIndex = databaseName.indexOf('?');
+        if (queryIndex >= 0) {
+            databaseName = databaseName.substring(0, queryIndex);
+        }
+        return "garden".equals(databaseName) || "copilot".equals(databaseName);
     }
 
     private void applyDataSourceDetail(

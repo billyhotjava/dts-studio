@@ -9,6 +9,7 @@ import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -59,6 +60,10 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
         for (DatabaseEntry entry : entries) {
             if (entry.name() == null || entry.name().isBlank()) {
                 LOG.warn("Skipping default database entry with empty name");
+                continue;
+            }
+            if (isSystemRuntimeDatabase(entry)) {
+                LOG.info("Skipping system runtime database '{}' from auto-registration", entry.name());
                 continue;
             }
 
@@ -204,6 +209,22 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
         }
     }
 
+    private static boolean isSystemRuntimeDatabase(DatabaseEntry entry) {
+        String engine = mapEngine(entry.engine());
+        if (!"postgres".equals(engine)) {
+            return false;
+        }
+        String host = normalize(entry.host());
+        if (!("localhost".equals(host) || "127.0.0.1".equals(host) || "copilot-postgres".equals(host))) {
+            return false;
+        }
+        if (entry.port() != 5432) {
+            return false;
+        }
+        String db = normalize(entry.db());
+        return "garden".equals(db) || "copilot".equals(db);
+    }
+
     private static String mapEngine(String engine) {
         if (engine == null) {
             return "postgres";
@@ -212,5 +233,12 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
             case "postgresql", "pg" -> "postgres";
             default -> engine.toLowerCase();
         };
+    }
+
+    private static String normalize(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 }

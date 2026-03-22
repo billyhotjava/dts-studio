@@ -6,6 +6,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsAlert;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCard;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
@@ -29,6 +30,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.Properties;
 import java.util.logging.Logger;
 import org.junit.jupiter.api.AfterAll;
@@ -210,6 +212,85 @@ class DatabaseResourceTest {
         inOrder.verify(tableRepository).deleteAllByDatabaseId(5L);
         inOrder.verify(synonymRepository).deleteAllByDatabaseId(5L);
         inOrder.verify(databaseRepository).deleteById(5L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listHidesSystemRuntimePostgresDatabases() throws Exception {
+        DatabaseResource resource = new DatabaseResource(
+                sessionService,
+                databaseRepository,
+                tableRepository,
+                fieldRepository,
+                cardRepository,
+                dashboardCardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                synonymRepository,
+                metadataSyncService,
+                jdbcDetailsResolver,
+                platformInfraClient,
+                MAPPER);
+
+        AnalyticsUser user = new AnalyticsUser();
+        user.setId(1L);
+        user.setUsername("admin");
+        user.setPasswordHash("secret");
+        user.setSuperuser(true);
+        user.setActive(true);
+        when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
+
+        AnalyticsDatabase copilotDatabase = new AnalyticsDatabase();
+        copilotDatabase.setId(6L);
+        copilotDatabase.setName("Copilot业务库");
+        copilotDatabase.setEngine("postgres");
+        copilotDatabase.setDetailsJson("{\"dataSourceId\":7}");
+
+        AnalyticsDatabase runtimeDatabase = new AnalyticsDatabase();
+        runtimeDatabase.setId(9L);
+        runtimeDatabase.setName("园林业务库");
+        runtimeDatabase.setEngine("postgres");
+        runtimeDatabase.setDetailsJson("{\"dataSourceId\":10}");
+
+        AnalyticsDatabase businessDatabase = new AnalyticsDatabase();
+        businessDatabase.setId(8L);
+        businessDatabase.setName("新业务测试库1");
+        businessDatabase.setEngine("mysql");
+        businessDatabase.setDetailsJson("{\"dataSourceId\":9}");
+
+        when(databaseRepository.findAll()).thenReturn(List.of(copilotDatabase, businessDatabase, runtimeDatabase));
+        when(platformInfraClient.fetchDataSourceDetail(7L)).thenReturn(new PlatformInfraClient.DataSourceDetail(
+                "7",
+                "Copilot业务库",
+                "postgres",
+                "jdbc:postgresql://localhost:5432/copilot",
+                "copilot",
+                null,
+                null,
+                Map.of(),
+                Map.of(),
+                "ACTIVE",
+                null));
+        when(platformInfraClient.fetchDataSourceDetail(10L)).thenReturn(new PlatformInfraClient.DataSourceDetail(
+                "10",
+                "园林业务库",
+                "postgres",
+                "jdbc:postgresql://copilot-postgres:5432/garden",
+                "readonly",
+                null,
+                null,
+                Map.of(),
+                Map.of(),
+                "ACTIVE",
+                null));
+        ResponseEntity<?> response = resource.list(new MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertThat(body).isNotNull();
+        List<Map<String, Object>> data = (List<Map<String, Object>>) body.get("data");
+        assertThat(data).extracting(item -> item.get("id")).containsExactly(8L);
+        assertThat(data).extracting(item -> item.get("name")).containsExactly("新业务测试库1");
     }
 
     private static void setEntityId(Object entity, Long id) throws Exception {
