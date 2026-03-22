@@ -22,6 +22,7 @@ class ReportTemplateBackingPromotionVerificationTest {
     private static final String RESOURCE_PATH_PROC_DETAIL = "config/liquibase/changelog/0049_promote_procurement_detail_fixed_report.xml";
     private static final String RESOURCE_PATH_REIMBURSEMENT = "config/liquibase/changelog/0050_promote_finance_reimbursement_fixed_report.xml";
     private static final String RESOURCE_PATH_INVOICE = "config/liquibase/changelog/0051_promote_finance_invoice_fixed_report.xml";
+    private static final String RESOURCE_PATH_PENDING = "config/liquibase/changelog/0054_promote_pending_fixed_reports.xml";
     private static final String MASTER_PATH = "config/liquibase/master.xml";
 
     @Test
@@ -195,6 +196,73 @@ class ReportTemplateBackingPromotionVerificationTest {
         assertThat(columnText(update, "parameter_schema_json")).contains("\"invoiceEndTime\"");
     }
 
+    @Test
+    void shouldPromotePendingProcurementAndFinanceTemplatesAfterSystemDatabaseCleanup() throws Exception {
+        Document changelog = loadDocument(RESOURCE_PATH_PENDING);
+        Document master = loadDocument(MASTER_PATH);
+
+        assertMasterIncludesPendingPromotion(master);
+
+        Element purchaseTodo = findUpdate(changelog, "PROC-PURCHASE-REQUEST-TODO");
+        assertThat(columnValue(purchaseTodo, "target_object")).isEqualTo("authority.procurement.request_todo");
+        assertThat(columnText(purchaseTodo, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(purchaseTodo, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(purchaseTodo, "parameter_schema_json")).contains("\"status\"");
+        assertThat(columnText(purchaseTodo, "parameter_schema_json")).contains("\"projectId\"");
+        assertThat(columnText(purchaseTodo, "parameter_schema_json")).contains("\"goodName\"");
+
+        Element pendingInbound = findUpdate(changelog, "PROC-PENDING-INBOUND-LIST");
+        assertThat(columnValue(pendingInbound, "target_object")).isEqualTo("authority.procurement.pending_inbound_list");
+        assertThat(columnText(pendingInbound, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(pendingInbound, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(pendingInbound, "parameter_schema_json")).contains("\"status\"");
+        assertThat(columnText(pendingInbound, "parameter_schema_json")).contains("\"storehouseInfoId\"");
+        assertThat(columnText(pendingInbound, "parameter_schema_json")).contains("\"bizCode\"");
+
+        Element pendingPayment = findUpdate(changelog, "FIN-PENDING-PAYMENT-APPROVAL");
+        assertThat(columnValue(pendingPayment, "target_object")).isEqualTo("authority.finance.pending_payment_approval");
+        assertThat(columnText(pendingPayment, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(pendingPayment, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(pendingPayment, "parameter_schema_json")).contains("\"businessType\"");
+        assertThat(columnText(pendingPayment, "parameter_schema_json")).contains("\"invoiceStatus\"");
+
+        Element pendingReceipts = findUpdate(changelog, "FIN-PENDING-RECEIPTS-DETAIL");
+        assertThat(columnValue(pendingReceipts, "target_object")).isEqualTo("authority.finance.pending_receipts_detail");
+        assertThat(columnText(pendingReceipts, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(pendingReceipts, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(pendingReceipts, "parameter_schema_json")).contains("\"yearAndMonth\"");
+        assertThat(columnText(pendingReceipts, "parameter_schema_json")).contains("\"companyName\"");
+
+        Element collectionProgress = findUpdate(changelog, "FIN-PROJECT-COLLECTION-PROGRESS");
+        assertThat(columnValue(collectionProgress, "target_object")).isEqualTo("authority.finance.project_collection_progress");
+        assertThat(columnText(collectionProgress, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(collectionProgress, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(collectionProgress, "parameter_schema_json")).contains("\"yearAndMonth\"");
+        assertThat(columnText(collectionProgress, "parameter_schema_json")).contains("\"projectName\"");
+
+        Element intransitBoard = findUpdate(changelog, "PROC-INTRANSIT-BOARD");
+        assertThat(columnValue(intransitBoard, "target_object")).isEqualTo("authority.procurement.intransit_board");
+        assertThat(columnText(intransitBoard, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(intransitBoard, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(intransitBoard, "parameter_schema_json")).contains("\"projectId\"");
+        assertThat(columnText(intransitBoard, "parameter_schema_json")).contains("\"status\"");
+        assertThat(columnText(intransitBoard, "parameter_schema_json")).contains("\"bizCode\"");
+
+        Element arrivalOntime = findUpdate(changelog, "PROC-ARRIVAL-ONTIME-RATE");
+        assertThat(columnValue(arrivalOntime, "target_object")).isEqualTo("authority.procurement.arrival_ontime_rate");
+        assertThat(columnText(arrivalOntime, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(arrivalOntime, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(arrivalOntime, "parameter_schema_json")).contains("\"startDate\"");
+        assertThat(columnText(arrivalOntime, "parameter_schema_json")).contains("\"endDate\"");
+
+        Element customerArRank = findUpdate(changelog, "FIN-CUSTOMER-AR-RANK");
+        assertThat(columnValue(customerArRank, "target_object")).isEqualTo("authority.finance.customer_ar_rank");
+        assertThat(columnText(customerArRank, "spec_json")).contains("\"placeholderReviewRequired\":false");
+        assertThat(columnText(customerArRank, "spec_json")).doesNotContain("\"databaseName\"");
+        assertThat(columnText(customerArRank, "parameter_schema_json")).contains("\"yearAndMonth\"");
+        assertThat(columnText(customerArRank, "parameter_schema_json")).contains("\"companyName\"");
+    }
+
     private static void assertMasterIncludesPromotion(Document master) {
         List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
         int analysisDraftIndex = -1;
@@ -329,6 +397,23 @@ class ReportTemplateBackingPromotionVerificationTest {
         }
         assertThat(reimbursementPromotionIndex).isGreaterThanOrEqualTo(0);
         assertThat(invoicePromotionIndex).isGreaterThan(reimbursementPromotionIndex);
+    }
+
+    private static void assertMasterIncludesPendingPromotion(Document master) {
+        List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
+        int cleanupIndex = -1;
+        int pendingPromotionIndex = -1;
+        for (int i = 0; i < includes.size(); i++) {
+            String file = includes.get(i).getAttribute("file");
+            if ("config/liquibase/changelog/0053_remove_hardcoded_fixed_report_database_name.xml".equals(file)) {
+                cleanupIndex = i;
+            }
+            if (RESOURCE_PATH_PENDING.equals(file)) {
+                pendingPromotionIndex = i;
+            }
+        }
+        assertThat(cleanupIndex).isGreaterThanOrEqualTo(0);
+        assertThat(pendingPromotionIndex).isGreaterThan(cleanupIndex);
     }
 
     private static Element findUpdate(Document changelog, String templateCode) {

@@ -78,7 +78,8 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         if ("authority.finance.project_collection_progress".equals(normalizedTarget)) {
             return Optional.of(executeFinanceProjectCollectionProgress(contract, parameters));
         }
-        if ("mart.finance.customer_ar_rank_daily".equals(normalizedTarget)) {
+        if ("mart.finance.customer_ar_rank_daily".equals(normalizedTarget)
+                || "authority.finance.customer_ar_rank".equals(normalizedTarget)) {
             return Optional.of(executeFinanceCustomerArRank(contract, parameters));
         }
         if ("authority.finance.pending_payment_approval".equals(normalizedTarget)) {
@@ -93,7 +94,8 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         if ("authority.procurement.intransit_board".equals(normalizedTarget)) {
             return Optional.of(executeProcurementIntransitBoard(contract, parameters));
         }
-        if ("fact.procurement.order_event".equals(normalizedTarget)) {
+        if ("fact.procurement.order_event".equals(normalizedTarget)
+                || "authority.procurement.arrival_ontime_rate".equals(normalizedTarget)) {
             return Optional.of(executeProcurementArrivalOntimeRate(contract, parameters));
         }
         // ── Batch 2 reports ──
@@ -784,6 +786,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         StringBuilder sql = new StringBuilder("""
                 SELECT
                     ma.year_and_month AS accountPeriod,
+                    ma.company_name AS customerName,
                     ma.project_name AS projectName,
                     ma.receivable_total_amount AS receivableAmount,
                     ma.net_receipt_total_amount AS receiptAmount,
@@ -793,6 +796,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
                     ma.biz_user_name AS bizUserName
                 FROM a_month_accounting ma
                 WHERE ma.status = 1
+                  AND (COALESCE(ma.receivable_total_amount, 0) - COALESCE(ma.net_receipt_total_amount, 0)) > 0
                 """);
         List<Object> bindings = new ArrayList<>();
 
@@ -808,9 +812,15 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
             bindings.add(yearAndMonth);
         }
 
+        String companyName = stringParam(parameters, "companyName");
+        if (companyName != null) {
+            sql.append(" AND ma.company_name LIKE ?");
+            bindings.add('%' + companyName + '%');
+        }
+
         sql.append("""
 
-                ORDER BY ma.year_and_month DESC, arrearsAmount DESC
+                ORDER BY ma.year_and_month DESC, arrearsAmount DESC, ma.project_name ASC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
@@ -834,8 +844,21 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
                     CASE WHEN COALESCE(ma.receivable_total_amount, 0) > 0
                          THEN ROUND(COALESCE(ma.net_receipt_total_amount, 0) / ma.receivable_total_amount * 100, 1)
                          ELSE 0 END AS collectionRate,
+                    COALESCE(cr.collectionRecordCount, 0) AS collectionRecordCount,
+                    DATE_FORMAT(cr.lastCollectionTime, '%Y-%m-%d %H:%i:%s') AS lastCollectionTime,
                     ma.project_manage_user_name AS managerName
                 FROM a_month_accounting ma
+                LEFT JOIN (
+                    SELECT
+                        cr.project_id,
+                        DATE_FORMAT(cr.pay_time, '%Y%m') AS accountPeriod,
+                        COUNT(1) AS collectionRecordCount,
+                        MAX(cr.pay_time) AS lastCollectionTime
+                    FROM a_collection_record cr
+                    WHERE cr.status = 1
+                    GROUP BY cr.project_id, DATE_FORMAT(cr.pay_time, '%Y%m')
+                ) cr ON cr.project_id = ma.project_id
+                    AND cr.accountPeriod = ma.year_and_month
                 WHERE 1 = 1
                 """);
         List<Object> bindings = new ArrayList<>();
@@ -880,11 +903,13 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
                 """);
         List<Object> bindings = new ArrayList<>();
 
-        String companyName = stringParam(parameters, "companyName");
-        if (companyName != null) {
-            sql.append(" AND ma.company_name LIKE ?");
-            bindings.add('%' + companyName + '%');
+        String yearAndMonth = stringParam(parameters, "yearAndMonth");
+        if (yearAndMonth != null) {
+            sql.append(" AND ma.year_and_month = ?");
+            bindings.add(yearAndMonth);
         }
+
+        appendLikeIfPresent(sql, bindings, parameters, "companyName", " AND ma.company_name LIKE ?");
 
         sql.append("""
 
@@ -905,32 +930,118 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         AnalyticsDatabase database = resolveDatabase(contract.databaseName());
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    ei.code AS expenseCode,
-                    ei.title AS expenseTitle,
-                    ei.total_amount AS totalAmount,
-                    ei.create_time AS createTime,
-                    ei.status AS status,
-                    ei.remark AS remark
-                FROM f_expense_account_info ei
-                WHERE 1=1
+                    a.code AS code,
+                    a.title AS title,
+                    CASE a.business_type
+                        WHEN 1 THEN '报销支出'
+                        WHEN 2 THEN '工资支出'
+                        WHEN 3 THEN '任务支出'
+                        WHEN 4 THEN '备用金支出'
+                        WHEN 7 THEN '采购报销支出'
+                        ELSE ''
+                    END AS businessTypeName,
+                    CASE a.status
+                        WHEN 1 THEN '未确认'
+                        WHEN 2 THEN '已确认'
+                        ELSE ''
+                    END AS statusName,
+                    a.drawee_user_name AS draweeUserName,
+                    DATE_FORMAT(a.drawee_date, '%Y-%m-%d %H:%i:%s') AS draweeDate,
+                    a.drawee_price AS draweePrice,
+                    a.collection_name AS collectionName,
+                    a.pay_bank_name AS payBankName,
+                    CASE (
+                        CASE a.business_type
+                            WHEN 1 THEN c.invoice_status
+                            WHEN 2 THEN b.invoice_status
+                            WHEN 3 THEN b.invoice_status
+                            WHEN 4 THEN b.invoice_status
+                            WHEN 7 THEN c.invoice_status
+                        END
+                    )
+                        WHEN 1 THEN '无'
+                        WHEN 2 THEN '有'
+                        ELSE ''
+                    END AS invoiceStatusName,
+                    CASE (
+                        CASE a.business_type
+                            WHEN 1 THEN c.invoice_offer
+                            WHEN 2 THEN b.invoice_offer
+                            WHEN 3 THEN b.invoice_offer
+                            WHEN 4 THEN b.invoice_offer
+                            WHEN 7 THEN c.invoice_offer
+                        END
+                    )
+                        WHEN 1 THEN '未提供'
+                        WHEN 2 THEN '已提供'
+                        ELSE ''
+                    END AS invoiceOfferName
+                FROM f_pay_record a
+                LEFT JOIN f_advance_info b on b.id=a.business_id
+                LEFT JOIN f_expense_account_info c on c.id=a.business_id
+                WHERE a.status = 1
                 """);
         List<Object> bindings = new ArrayList<>();
 
-        String status = stringParam(parameters, "status");
-        if (status != null) {
-            sql.append(" AND ei.status = ?");
-            bindings.add(status);
-        }
-
         String code = stringParam(parameters, "code");
         if (code != null) {
-            sql.append(" AND ei.code LIKE ?");
+            sql.append(" AND a.code LIKE ?");
             bindings.add('%' + code + '%');
+        }
+
+        String businessType = stringParam(parameters, "businessType");
+        if (businessType != null) {
+            sql.append(" AND a.business_type = ?");
+            bindings.add(businessType);
+        }
+
+        String draweeId = stringParam(parameters, "draweeId");
+        if (draweeId != null) {
+            sql.append(" AND a.drawee_id = ?");
+            bindings.add(draweeId);
+        }
+
+        String payBankName = stringParam(parameters, "payBankName");
+        if (payBankName != null) {
+            sql.append(" AND a.pay_bank_name LIKE ?");
+            bindings.add('%' + payBankName + '%');
+        }
+
+        String invoiceStatus = stringParam(parameters, "invoiceStatus");
+        if (invoiceStatus != null) {
+            sql.append("""
+                     AND (
+                        CASE a.business_type
+                            WHEN 1 THEN c.invoice_status
+                            WHEN 2 THEN b.invoice_status
+                            WHEN 3 THEN b.invoice_status
+                            WHEN 4 THEN b.invoice_status
+                            WHEN 7 THEN c.invoice_status
+                        END
+                     ) = ?
+                    """);
+            bindings.add(invoiceStatus);
+        }
+
+        String invoiceOffer = stringParam(parameters, "invoiceOffer");
+        if (invoiceOffer != null) {
+            sql.append("""
+                     AND (
+                        CASE a.business_type
+                            WHEN 1 THEN c.invoice_offer
+                            WHEN 2 THEN b.invoice_offer
+                            WHEN 3 THEN b.invoice_offer
+                            WHEN 4 THEN b.invoice_offer
+                            WHEN 7 THEN c.invoice_offer
+                        END
+                     ) = ?
+                    """);
+            bindings.add(invoiceOffer);
         }
 
         sql.append("""
 
-                ORDER BY ei.create_time DESC
+                ORDER BY a.drawee_date DESC, a.id DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
@@ -946,33 +1057,92 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         AnalyticsDatabase database = resolveDatabase(contract.databaseName());
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    wi.code AS warehousingCode,
-                    wi.title AS warehousingTitle,
                     sh.name AS storehouseName,
-                    wi.create_time AS createTime,
-                    wi.status AS status,
-                    wi.remark AS remark
-                FROM t_warehousing_info wi
-                LEFT JOIN s_storehouse_info sh ON sh.id = wi.storehouse_info_id
-                WHERE wi.del_flag = '0'
+                    a.code AS code,
+                    a.title AS title,
+                    (SELECT SUM(b.good_number) FROM t_warehousing_item b WHERE a.id = b.warehousing_info_id) AS totalNumber,
+                    CASE a.warehousing_type
+                        WHEN 1 THEN '调花入库'
+                        WHEN 2 THEN '报花入库'
+                        WHEN 3 THEN '自主采购入库'
+                        WHEN 4 THEN '回收入库'
+                        WHEN 5 THEN '初摆采购入库'
+                        WHEN 6 THEN '库存调整入库'
+                        WHEN 7 THEN '其他入库'
+                        ELSE ''
+                    END AS warehousingTypeName,
+                    COALESCE(
+                        (SELECT b.code FROM t_allocation b WHERE a.biz_id = b.id LIMIT 1),
+                        (SELECT b.code FROM t_flower_biz_info b WHERE a.biz_id = b.id LIMIT 1),
+                        (SELECT b.code FROM t_self_mining_info b WHERE a.biz_id = b.id LIMIT 1),
+                        (SELECT b.code FROM t_ex_warehouse_info b WHERE a.biz_id = b.id LIMIT 1)
+                    ) AS realBizCode,
+                    CASE a.status
+                        WHEN 1 THEN '待入库'
+                        WHEN 2 THEN '已入库'
+                        WHEN -1 THEN '已作废'
+                        ELSE ''
+                    END AS statusName,
+                    a.warehousing_user_name AS warehousingUserName,
+                    DATE_FORMAT(a.warehousing_time, '%Y-%m-%d %H:%i:%s') AS warehousingTime,
+                    DATE_FORMAT(a.create_time, '%Y-%m-%d %H:%i:%s') AS createTime,
+                    CASE a.print_status
+                        WHEN 1 THEN '已打印'
+                        ELSE '未打印'
+                    END AS printStatusName,
+                    a.remark AS remark
+                FROM t_warehousing_info a
+                LEFT JOIN s_storehouse_info sh ON sh.id = a.storehouse_info_id
+                WHERE a.del_flag = '0'
                 """);
         List<Object> bindings = new ArrayList<>();
 
         String status = stringParam(parameters, "status");
         if (status != null) {
-            sql.append(" AND wi.status = ?");
+            sql.append(" AND a.status = ?");
             bindings.add(status);
         }
 
-        String storehouseName = stringParam(parameters, "storehouseName");
-        if (storehouseName != null) {
-            sql.append(" AND sh.name LIKE ?");
-            bindings.add('%' + storehouseName + '%');
+        String storehouseInfoId = stringParam(parameters, "storehouseInfoId");
+        if (storehouseInfoId != null) {
+            sql.append(" AND a.storehouse_info_id = ?");
+            bindings.add(storehouseInfoId);
+        }
+
+        String code = stringParam(parameters, "code");
+        if (code != null) {
+            sql.append(" AND a.code LIKE ?");
+            bindings.add('%' + code + '%');
+        }
+
+        String goodName = stringParam(parameters, "goodName");
+        if (goodName != null) {
+            sql.append(" AND EXISTS(select * from t_warehousing_item b where a.id=b.warehousing_info_id and b.good_name like ?)");
+            bindings.add('%' + goodName + '%');
+        }
+
+        String goodSpecs = stringParam(parameters, "goodSpecs");
+        if (goodSpecs != null) {
+            sql.append(" AND EXISTS(select * from t_warehousing_item b where a.id=b.warehousing_info_id and b.good_specs like ?)");
+            bindings.add('%' + goodSpecs + '%');
+        }
+
+        String bizCode = stringParam(parameters, "bizCode");
+        if (bizCode != null) {
+            sql.append("""
+                     AND COALESCE(
+                        (SELECT b.code FROM t_allocation b WHERE a.biz_id = b.id LIMIT 1),
+                        (SELECT b.code FROM t_flower_biz_info b WHERE a.biz_id = b.id LIMIT 1),
+                        (SELECT b.code FROM t_self_mining_info b WHERE a.biz_id = b.id LIMIT 1),
+                        (SELECT b.code FROM t_ex_warehouse_info b WHERE a.biz_id = b.id LIMIT 1)
+                     ) LIKE ?
+                    """);
+            bindings.add('%' + bizCode + '%');
         }
 
         sql.append("""
 
-                ORDER BY wi.create_time DESC
+                ORDER BY a.create_time DESC, a.id DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
@@ -988,44 +1158,68 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         AnalyticsDatabase database = resolveDatabase(contract.databaseName());
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    ppi.code AS planCode,
-                    ppi.project_name AS projectName,
-                    ppi.purchase_user_name AS purchaseUserName,
-                    ppi.plant_purchase_time AS planPurchaseTime,
-                    ppi.status AS planStatus,
-                    pi.good_name AS goodName,
-                    pi.good_norms AS goodNorms,
-                    pi.good_specs AS goodSpecs,
-                    pi.plan_purchase_number AS planNumber,
-                    pi.real_purchase_number AS purchaseNumber,
-                    pi.status AS itemStatus
-                FROM t_plan_purchase_item pi
-                LEFT JOIN t_plan_purchase_info ppi ON ppi.id = pi.plan_purchase_info_id
-                WHERE ppi.del_flag = '0'
+                    b.project_name AS projectName,
+                    COALESCE(fi.position_full_name, p.region_full, p.region, fi.position_name, '') AS positionFullName,
+                    c.code AS flowerCode,
+                    c.title AS flowerTitle,
+                    a.good_name AS goodName,
+                    a.good_specs AS goodSpecs,
+                    a.plan_purchase_number AS planPurchaseNumber,
+                    a.real_purchase_number AS realPurchaseNumber,
+                    pp.parchase_price AS purchasePrice,
+                    DATE_FORMAT(pp.purchase_time, '%Y-%m-%d %H:%i:%s') AS purchaseTime,
+                    CASE a.status
+                        WHEN 1 THEN '待采购'
+                        WHEN 2 THEN '已采购'
+                        ELSE ''
+                    END AS statusName,
+                    b.purchase_user_name AS purchaseUserName,
+                    DATE_FORMAT(b.plant_purchase_time, '%Y-%m-%d %H:%i:%s') AS planPurchaseTime,
+                    b.distribution_user_name AS distributionUserName,
+                    DATE_FORMAT(b.distribution_time, '%Y-%m-%d %H:%i:%s') AS distributionTime
+                FROM t_plan_purchase_item a
+                LEFT JOIN t_plan_purchase_info b ON b.id = a.plan_purchase_info_id
+                LEFT JOIN t_flower_biz_info c ON c.id = b.flower_biz_info_id
+                LEFT JOIN t_flower_biz_item fi ON fi.id = a.flower_item_id
+                LEFT JOIN p_position p ON p.id = fi.position_id
+                LEFT JOIN t_purchase_price_item pp ON pp.id = a.purchase_price_id
+                WHERE b.del_flag = '0'
                 """);
         List<Object> bindings = new ArrayList<>();
 
         String status = stringParam(parameters, "status");
         if (status != null) {
-            sql.append(" AND pi.status = ?");
+            sql.append(" AND a.status = ?");
             bindings.add(status);
+        }
+
+        String projectId = stringParam(parameters, "projectId");
+        if (projectId != null) {
+            sql.append(" AND b.project_id = ?");
+            bindings.add(projectId);
+        }
+
+        String purchaseUserId = stringParam(parameters, "purchaseUserId");
+        if (purchaseUserId != null) {
+            sql.append(" AND b.purchase_user_id = ?");
+            bindings.add(purchaseUserId);
+        }
+
+        String flowerCode = stringParam(parameters, "flowerCode");
+        if (flowerCode != null) {
+            sql.append(" AND c.code LIKE ?");
+            bindings.add('%' + flowerCode + '%');
         }
 
         String goodName = stringParam(parameters, "goodName");
         if (goodName != null) {
-            sql.append(" AND pi.good_name LIKE ?");
+            sql.append(" AND a.good_name LIKE ?");
             bindings.add('%' + goodName + '%');
-        }
-
-        String projectName = stringParam(parameters, "projectName");
-        if (projectName != null) {
-            sql.append(" AND ppi.project_name LIKE ?");
-            bindings.add('%' + projectName + '%');
         }
 
         sql.append("""
 
-                ORDER BY ppi.create_time DESC
+                ORDER BY b.create_time DESC, a.id DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
@@ -1041,32 +1235,100 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         AnalyticsDatabase database = resolveDatabase(contract.databaseName());
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    di.code AS deliveryCode,
-                    di.delivery_user_name AS deliveryUserName,
-                    di.start_delivery_time AS startDeliveryTime,
-                    di.receive_time AS receiveTime,
-                    di.status AS status,
-                    di.remark AS remark
-                FROM t_delivery_info di
-                WHERE di.del_flag = '0'
+                    t.project_name AS projectName,
+                    t.biz_code AS bizCode,
+                    t.code AS deliveryCode,
+                    t.totalNumber AS totalNumber,
+                    CASE t.status
+                        WHEN 1 THEN '配送中'
+                        WHEN 2 THEN '运费确认中'
+                        WHEN 3 THEN '待接收'
+                        WHEN 4 THEN '已结束'
+                        WHEN -1 THEN '已作废'
+                        ELSE ''
+                    END AS statusName,
+                    CASE t.delivery_mode
+                        WHEN 1 THEN '市场->项目点'
+                        WHEN 2 THEN '库房->项目点'
+                        WHEN 3 THEN '库房->库房'
+                        WHEN 4 THEN '项目点->库房'
+                        WHEN 5 THEN '库房->项目点'
+                        WHEN 6 THEN '库房->项目点'
+                        WHEN 7 THEN '市场->库房'
+                        ELSE ''
+                    END AS deliveryModeName,
+                    t.delivery_user_name AS deliveryUserName,
+                    t.receive_user_name AS receiveUserName,
+                    DATE_FORMAT(t.start_delivery_time, '%Y-%m-%d %H:%i:%s') AS startDeliveryTime,
+                    DATE_FORMAT(t.receive_time, '%Y-%m-%d %H:%i:%s') AS receiveTime
+                FROM (
+                    SELECT
+                        b.code AS biz_code,
+                        b.project_name AS project_name,
+                        b.project_id AS project_id,
+                        ( SELECT sum( c.good_number ) FROM t_delivery_item c WHERE c.delivery_info_id = a.id ) AS totalNumber,
+                        a.*
+                    FROM t_delivery_info a
+                    LEFT JOIN t_flower_biz_info b ON a.biz_id = b.id
+                    WHERE a.delivery_mode IN (1, 2, 4)
+                    UNION ALL
+                    SELECT
+                        b.code AS biz_code,
+                        NULL AS project_name,
+                        NULL AS project_id,
+                        ( SELECT sum( c.good_number ) FROM t_delivery_item c WHERE c.delivery_info_id = a.id ) AS totalNumber,
+                        a.*
+                    FROM t_delivery_info a
+                    LEFT JOIN t_allocation b ON a.biz_id = b.id
+                    WHERE a.delivery_mode IN (3)
+                    UNION ALL
+                    SELECT
+                        b.code AS biz_code,
+                        NULL AS project_name,
+                        NULL AS project_id,
+                        ( SELECT sum( c.good_number ) FROM t_delivery_item c WHERE c.delivery_info_id = a.id ) AS totalNumber,
+                        a.*
+                    FROM t_delivery_info a
+                    LEFT JOIN t_self_mining_info b ON a.biz_id = b.id
+                    WHERE a.delivery_mode IN (7)
+                ) t
+                WHERE t.del_flag = '0'
                 """);
         List<Object> bindings = new ArrayList<>();
 
+        String projectId = stringParam(parameters, "projectId");
+        if (projectId != null) {
+            sql.append(" AND t.project_id = ?");
+            bindings.add(projectId);
+        }
+
         String status = stringParam(parameters, "status");
         if (status != null) {
-            sql.append(" AND di.status = ?");
+            sql.append(" AND t.status = ?");
             bindings.add(status);
         }
 
-        String deliveryUserName = stringParam(parameters, "deliveryUserName");
-        if (deliveryUserName != null) {
-            sql.append(" AND di.delivery_user_name LIKE ?");
-            bindings.add('%' + deliveryUserName + '%');
+        String code = stringParam(parameters, "code");
+        if (code != null) {
+            sql.append(" AND t.code like ?");
+            bindings.add('%' + code + '%');
+        }
+
+        String bizCode = stringParam(parameters, "bizCode");
+        if (bizCode != null) {
+            sql.append(" AND t.biz_code like ?");
+            bindings.add('%' + bizCode + '%');
+        }
+
+        String receiveUserId = stringParam(parameters, "receiveUserId");
+        if (receiveUserId != null) {
+            sql.append(" AND t.receive_user_id = ?");
+            bindings.add(receiveUserId);
         }
 
         sql.append("""
 
-                ORDER BY di.create_time DESC
+                ORDER BY t.start_delivery_time DESC, t.id DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
@@ -1082,32 +1344,41 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         AnalyticsDatabase database = resolveDatabase(contract.databaseName());
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    DATE_FORMAT(di.start_delivery_time, '%Y-%m') AS deliveryMonth,
+                    DATE_FORMAT(a.start_delivery_time, '%Y-%m-%d') AS statDate,
                     COUNT(*) AS totalDeliveries,
-                    SUM(CASE WHEN di.receive_time IS NOT NULL THEN 1 ELSE 0 END) AS completedDeliveries,
-                    ROUND(SUM(CASE WHEN di.receive_time IS NOT NULL THEN 1 ELSE 0 END) / COUNT(*) * 100, 1) AS completionRate
-                FROM t_delivery_info di
-                WHERE di.del_flag = '0'
-                  AND di.start_delivery_time IS NOT NULL
+                    SUM(CASE
+                        WHEN a.receive_time IS NOT NULL
+                         AND TIMESTAMPDIFF(HOUR, a.start_delivery_time, a.receive_time) <= 24
+                        THEN 1 ELSE 0 END) AS ontimeDeliveries,
+                    ROUND(
+                        SUM(CASE
+                            WHEN a.receive_time IS NOT NULL
+                             AND TIMESTAMPDIFF(HOUR, a.start_delivery_time, a.receive_time) <= 24
+                            THEN 1 ELSE 0 END) / COUNT(*) * 100,
+                        1
+                    ) AS ontimeRate
+                FROM t_delivery_info a
+                WHERE a.del_flag = '0'
+                  AND a.start_delivery_time IS NOT NULL
                 """);
         List<Object> bindings = new ArrayList<>();
 
-        String startMonth = stringParam(parameters, "startMonth");
-        if (startMonth != null) {
-            sql.append(" AND DATE_FORMAT(di.start_delivery_time, '%Y-%m') >= ?");
-            bindings.add(startMonth);
+        String startDate = stringParam(parameters, "startDate");
+        if (startDate != null) {
+            sql.append(" AND DATE_FORMAT(a.start_delivery_time, '%Y-%m-%d') >= ?");
+            bindings.add(startDate);
         }
 
-        String endMonth = stringParam(parameters, "endMonth");
-        if (endMonth != null) {
-            sql.append(" AND DATE_FORMAT(di.start_delivery_time, '%Y-%m') <= ?");
-            bindings.add(endMonth);
+        String endDate = stringParam(parameters, "endDate");
+        if (endDate != null) {
+            sql.append(" AND DATE_FORMAT(a.start_delivery_time, '%Y-%m-%d') <= ?");
+            bindings.add(endDate);
         }
 
         sql.append("""
 
-                GROUP BY DATE_FORMAT(di.start_delivery_time, '%Y-%m')
-                ORDER BY deliveryMonth DESC
+                GROUP BY DATE_FORMAT(a.start_delivery_time, '%Y-%m-%d')
+                ORDER BY statDate DESC
                 """);
 
         DatasetResult result = datasetQueryService.runNative(
