@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabaseRole;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsReportTemplate;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
@@ -333,12 +334,14 @@ class DefaultFixedReportExecutionServiceTest {
         runtimeDatabase.setName("园林业务库");
         runtimeDatabase.setEngine("postgres");
         runtimeDatabase.setDetailsJson("{\"dataSourceId\":10}");
+        runtimeDatabase.setDatabaseRole(AnalyticsDatabaseRole.SYSTEM_RUNTIME);
 
         AnalyticsDatabase businessDatabase = new AnalyticsDatabase();
         businessDatabase.setId(8L);
         businessDatabase.setName("新业务测试库1");
         businessDatabase.setEngine("mysql");
         businessDatabase.setDetailsJson("{\"dataSourceId\":9}");
+        businessDatabase.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
 
         when(databaseRepository.findFirstByNameIgnoreCase("园林业务库")).thenReturn(Optional.of(runtimeDatabase));
         when(databaseRepository.findAll()).thenReturn(List.of(runtimeDatabase, businessDatabase));
@@ -378,6 +381,114 @@ class DefaultFixedReportExecutionServiceTest {
 
         verify(datasetQueryService).runNative(eq(8L), sqlCaptor.capture(), any(DatasetConstraints.class), bindingsCaptor.capture());
         assertThat(sqlCaptor.getValue()).contains("FROM s_stock_info a");
+    }
+
+    @Test
+    void shouldPreferBusinessPrimaryDatabaseRoleOverLegacyNameHeuristics() throws Exception {
+        AnalyticsDatabase secondaryDatabase = new AnalyticsDatabase();
+        secondaryDatabase.setId(7L);
+        secondaryDatabase.setName("归档业务库");
+        secondaryDatabase.setEngine("mysql");
+        secondaryDatabase.setDetailsJson("{\"dataSourceId\":11}");
+        secondaryDatabase.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_SECONDARY);
+
+        AnalyticsDatabase primaryDatabase = new AnalyticsDatabase();
+        primaryDatabase.setId(8L);
+        primaryDatabase.setName("新业务测试库1");
+        primaryDatabase.setEngine("mysql");
+        primaryDatabase.setDetailsJson("{\"dataSourceId\":9}");
+        primaryDatabase.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
+
+        when(databaseRepository.findFirstByNameIgnoreCase("园林业务库")).thenReturn(Optional.empty());
+        when(databaseRepository.findAll()).thenReturn(List.of(secondaryDatabase, primaryDatabase));
+        when(datasetQueryService.runNative(eq(8L), any(String.class), any(DatasetConstraints.class), any()))
+                .thenReturn(new DatasetResult(
+                        List.of(List.of("中石油缓养库", "白塑料盆", "小", "10X12", 0, new BigDecimal("2.3000"), new BigDecimal("4.50"), "李四")),
+                        List.of(
+                                Map.of("name", "storehouseName", "display_name", "所属库房", "base_type", "type/Text"),
+                                Map.of("name", "goodName", "display_name", "物品名称", "base_type", "type/Text"),
+                                Map.of("name", "goodNorms", "display_name", "物品规格", "base_type", "type/Text"),
+                                Map.of("name", "goodSpecs", "display_name", "物品属性", "base_type", "type/Text"),
+                                Map.of("name", "goodNumber", "display_name", "可用数量", "base_type", "type/Number"),
+                                Map.of("name", "outCost", "display_name", "出库单价", "base_type", "type/Number"),
+                                Map.of("name", "salePrice", "display_name", "销售单价", "base_type", "type/Number"),
+                                Map.of("name", "leaderUserName", "display_name", "负责人", "base_type", "type/Text")),
+                        List.of(),
+                        "Asia/Shanghai"));
+
+        DefaultFixedReportExecutionService service =
+                new DefaultFixedReportExecutionService(databaseRepository, datasetQueryService);
+
+        Optional<FixedReportExecutionService.ExecutionResult> result = service.execute(
+                warehouseLowStockAlertTemplate(),
+                Map.of("underNumber", "10"),
+                new ReportExecutionPlanService.ReportExecutionPlan(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        "WH-LOW-STOCK-ALERT",
+                        "authority.inventory",
+                        "authority.inventory.low_stock_alert",
+                        "template uses realtime low stock alert sql",
+                        "SQL",
+                        "REALTIME"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().databaseId()).isEqualTo(8L);
+        assertThat(result.get().databaseName()).isEqualTo("新业务测试库1");
+
+        verify(datasetQueryService).runNative(eq(8L), sqlCaptor.capture(), any(DatasetConstraints.class), bindingsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("FROM s_stock_info a");
+    }
+
+    @Test
+    void shouldResolveBusinessPrimaryFromQueryContractDatabaseRole() throws Exception {
+        AnalyticsDatabase runtimeDatabase = new AnalyticsDatabase();
+        runtimeDatabase.setId(9L);
+        runtimeDatabase.setName("园林业务库");
+        runtimeDatabase.setEngine("postgres");
+        runtimeDatabase.setDetailsJson("{\"dataSourceId\":10}");
+        runtimeDatabase.setDatabaseRole(AnalyticsDatabaseRole.SYSTEM_RUNTIME);
+
+        AnalyticsDatabase businessDatabase = new AnalyticsDatabase();
+        businessDatabase.setId(8L);
+        businessDatabase.setName("新业务测试库1");
+        businessDatabase.setEngine("mysql");
+        businessDatabase.setDetailsJson("{\"dataSourceId\":9}");
+        businessDatabase.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
+
+        when(databaseRepository.findAll()).thenReturn(List.of(runtimeDatabase, businessDatabase));
+        when(datasetQueryService.runNative(eq(8L), any(String.class), any(DatasetConstraints.class), any()))
+                .thenReturn(new DatasetResult(
+                        List.of(List.of("中石油缓养库", "白塑料盆", "小", "10X12", 0, new BigDecimal("2.3000"), new BigDecimal("4.50"), "李四")),
+                        List.of(
+                                Map.of("name", "storehouseName", "display_name", "所属库房", "base_type", "type/Text"),
+                                Map.of("name", "goodName", "display_name", "物品名称", "base_type", "type/Text"),
+                                Map.of("name", "goodNorms", "display_name", "物品规格", "base_type", "type/Text"),
+                                Map.of("name", "goodSpecs", "display_name", "物品属性", "base_type", "type/Text"),
+                                Map.of("name", "goodNumber", "display_name", "可用数量", "base_type", "type/Number"),
+                                Map.of("name", "outCost", "display_name", "出库单价", "base_type", "type/Number"),
+                                Map.of("name", "salePrice", "display_name", "销售单价", "base_type", "type/Number"),
+                                Map.of("name", "leaderUserName", "display_name", "负责人", "base_type", "type/Text")),
+                        List.of(),
+                        "Asia/Shanghai"));
+
+        DefaultFixedReportExecutionService service =
+                new DefaultFixedReportExecutionService(databaseRepository, datasetQueryService);
+
+        Optional<FixedReportExecutionService.ExecutionResult> result = service.execute(
+                warehouseLowStockAlertRoleBasedTemplate(),
+                Map.of("underNumber", "10"),
+                new ReportExecutionPlanService.ReportExecutionPlan(
+                        ReportExecutionPlanService.Route.AUTHORITY_SQL,
+                        "WH-LOW-STOCK-ALERT",
+                        "authority.inventory",
+                        "authority.inventory.low_stock_alert",
+                        "template uses realtime low stock alert sql",
+                        "SQL",
+                        "REALTIME"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().databaseId()).isEqualTo(8L);
+        assertThat(result.get().databaseName()).isEqualTo("新业务测试库1");
     }
 
     @Test
@@ -1400,6 +1511,24 @@ class DefaultFixedReportExecutionServiceTest {
                     "sourceType":"AUTHORITY_SQL",
                     "targetObject":"authority.inventory.low_stock_alert",
                     "databaseName":"园林业务库"
+                  },
+                  "placeholderReviewRequired":false
+                }
+                """);
+        return template;
+    }
+
+    private static AnalyticsReportTemplate warehouseLowStockAlertRoleBasedTemplate() {
+        AnalyticsReportTemplate template = warehouseLowStockAlertTemplate();
+        template.setSpecJson("""
+                {
+                  "templateCode":"WH-LOW-STOCK-ALERT",
+                  "reportType":"fixed",
+                  "displayType":"alert-list",
+                  "queryContract":{
+                    "sourceType":"AUTHORITY_SQL",
+                    "targetObject":"authority.inventory.low_stock_alert",
+                    "databaseRole":"BUSINESS_PRIMARY"
                   },
                   "placeholderReviewRequired":false
                 }

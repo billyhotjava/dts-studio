@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.analytics.config.DefaultDatabaseProperties;
 import com.yuzhi.dts.copilot.analytics.config.DefaultDatabaseProperties.DatabaseEntry;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabaseRole;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -33,8 +34,8 @@ class DefaultDatabaseInitServiceTest {
     @Test
     void runSkipsSystemRuntimePostgresDefaults() throws Exception {
         DefaultDatabaseProperties properties = new DefaultDatabaseProperties(List.of(
-                new DatabaseEntry("园林业务库", "postgresql", "localhost", 5432, "garden", "readonly", "", true),
-                new DatabaseEntry("Copilot业务库", "postgresql", "copilot-postgres", 5432, "copilot", "copilot", "", true)));
+                new DatabaseEntry("园林业务库", "SYSTEM_RUNTIME", "postgresql", "localhost", 5432, "garden", "readonly", "", true),
+                new DatabaseEntry("Copilot业务库", "SYSTEM_RUNTIME", "postgresql", "copilot-postgres", 5432, "copilot", "copilot", "", true)));
         when(databaseRepository.findAll()).thenReturn(List.of());
 
         DefaultDatabaseInitService service = new DefaultDatabaseInitService(
@@ -54,7 +55,7 @@ class DefaultDatabaseInitServiceTest {
     @Test
     void runStillRegistersExternalBusinessDatabaseDefaults() throws Exception {
         DefaultDatabaseProperties properties = new DefaultDatabaseProperties(List.of(
-                new DatabaseEntry("新业务测试库1", "mysql", "db.xycyl.com", 3306, "rs_cloud_flower", "yuzhicloud", "secret", true)));
+                new DatabaseEntry("新业务测试库1", "BUSINESS_PRIMARY", "mysql", "db.xycyl.com", 3306, "rs_cloud_flower", "yuzhicloud", "secret", true)));
         when(databaseRepository.findAll()).thenReturn(List.of());
         when(platformInfraClient.createDataSource(any())).thenReturn(new PlatformInfraClient.DataSourceSummary(
                 "9",
@@ -85,11 +86,15 @@ class DefaultDatabaseInitServiceTest {
 
         ArgumentCaptor<PlatformInfraClient.CreateDataSourceRequest> requestCaptor =
                 ArgumentCaptor.forClass(PlatformInfraClient.CreateDataSourceRequest.class);
+        ArgumentCaptor<AnalyticsDatabase> databaseCaptor = ArgumentCaptor.forClass(AnalyticsDatabase.class);
         verify(platformInfraClient).createDataSource(requestCaptor.capture());
+        verify(databaseRepository).save(databaseCaptor.capture());
         verify(metadataSyncService).syncDatabaseSchema(8L);
         PlatformInfraClient.CreateDataSourceRequest request = requestCaptor.getValue();
         org.assertj.core.api.Assertions.assertThat(request.name()).isEqualTo("新业务测试库1");
         org.assertj.core.api.Assertions.assertThat(request.jdbcUrl())
                 .isEqualTo("jdbc:mysql://db.xycyl.com:3306/rs_cloud_flower");
+        org.assertj.core.api.Assertions.assertThat(databaseCaptor.getValue().getDatabaseRole())
+                .isEqualTo(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
     }
 }

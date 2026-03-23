@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.analytics.config.DefaultDatabaseProperties;
 import com.yuzhi.dts.copilot.analytics.config.DefaultDatabaseProperties.DatabaseEntry;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabaseRole;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
 import java.io.IOException;
 import java.util.List;
@@ -63,12 +64,17 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
                 continue;
             }
             if (isSystemRuntimeDatabase(entry)) {
+                AnalyticsDatabase existing = existingByName.get(entry.name());
+                if (existing != null) {
+                    synchronizeDatabaseRole(existing, entry);
+                }
                 LOG.info("Skipping system runtime database '{}' from auto-registration", entry.name());
                 continue;
             }
 
             AnalyticsDatabase existing = existingByName.get(entry.name());
             if (existing != null) {
+                synchronizeDatabaseRole(existing, entry);
                 ensureCopilotDataSourceLinked(existing, entry);
                 continue;
             }
@@ -89,6 +95,7 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
         AnalyticsDatabase database = new AnalyticsDatabase();
         database.setName(entry.name());
         database.setEngine(mapEngine(entry.engine()));
+        database.setDatabaseRole(resolveDatabaseRole(entry));
         database.setDetailsJson(detailsJson);
         database.setSample(false);
         database.setAutoRunQueries(true);
@@ -209,20 +216,17 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
         }
     }
 
+    private void synchronizeDatabaseRole(AnalyticsDatabase database, DatabaseEntry entry) {
+        AnalyticsDatabaseRole resolvedRole = resolveDatabaseRole(entry);
+        if (database.getDatabaseRole() == resolvedRole) {
+            return;
+        }
+        database.setDatabaseRole(resolvedRole);
+        databaseRepository.save(database);
+    }
+
     private static boolean isSystemRuntimeDatabase(DatabaseEntry entry) {
-        String engine = mapEngine(entry.engine());
-        if (!"postgres".equals(engine)) {
-            return false;
-        }
-        String host = normalize(entry.host());
-        if (!("localhost".equals(host) || "127.0.0.1".equals(host) || "copilot-postgres".equals(host))) {
-            return false;
-        }
-        if (entry.port() != 5432) {
-            return false;
-        }
-        String db = normalize(entry.db());
-        return "garden".equals(db) || "copilot".equals(db);
+        return resolveDatabaseRole(entry) == AnalyticsDatabaseRole.SYSTEM_RUNTIME;
     }
 
     private static String mapEngine(String engine) {
@@ -240,5 +244,33 @@ public class DefaultDatabaseInitService implements ApplicationRunner {
             return "";
         }
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static AnalyticsDatabaseRole resolveDatabaseRole(DatabaseEntry entry) {
+        AnalyticsDatabaseRole configuredRole = parseDatabaseRole(entry.role());
+        if (configuredRole != null) {
+            return configuredRole;
+        }
+        String engine = mapEngine(entry.engine());
+        String host = normalize(entry.host());
+        String db = normalize(entry.db());
+        if ("postgres".equals(engine)
+                && ("localhost".equals(host) || "127.0.0.1".equals(host) || "copilot-postgres".equals(host))
+                && ("garden".equals(db) || "copilot".equals(db))) {
+            return AnalyticsDatabaseRole.SYSTEM_RUNTIME;
+        }
+        return AnalyticsDatabaseRole.BUSINESS_PRIMARY;
+    }
+
+    private static AnalyticsDatabaseRole parseDatabaseRole(String role) {
+        String normalized = normalize(role);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            return AnalyticsDatabaseRole.valueOf(normalized.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

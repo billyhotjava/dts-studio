@@ -26,6 +26,9 @@ public class AnalyticsDatabase implements Serializable {
     @Column(name = "engine", nullable = false, length = 64)
     private String engine;
 
+    @Column(name = "database_role", length = 64)
+    private String databaseRole;
+
     @Column(name = "details_json", nullable = false, columnDefinition = "text")
     private String detailsJson;
 
@@ -89,6 +92,21 @@ public class AnalyticsDatabase implements Serializable {
 
     public void setDetailsJson(String detailsJson) {
         this.detailsJson = detailsJson;
+    }
+
+    public AnalyticsDatabaseRole getDatabaseRole() {
+        if (databaseRole == null || databaseRole.isBlank()) {
+            return null;
+        }
+        return AnalyticsDatabaseRole.valueOf(databaseRole);
+    }
+
+    public void setDatabaseRole(AnalyticsDatabaseRole databaseRole) {
+        this.databaseRole = databaseRole == null ? null : databaseRole.name();
+    }
+
+    public String getDatabaseRoleValue() {
+        return databaseRole;
     }
 
     public String getDescription() {
@@ -177,4 +195,3 @@ public class AnalyticsDatabase implements Serializable {
         updatedAt = Instant.now();
     }
 }
-

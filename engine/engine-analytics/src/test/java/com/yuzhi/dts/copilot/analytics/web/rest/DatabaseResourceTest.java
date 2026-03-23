@@ -3,10 +3,12 @@ package com.yuzhi.dts.copilot.analytics.web.rest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabaseRole;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsAlert;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCard;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsUser;
@@ -291,6 +293,125 @@ class DatabaseResourceTest {
         List<Map<String, Object>> data = (List<Map<String, Object>>) body.get("data");
         assertThat(data).extracting(item -> item.get("id")).containsExactly(8L);
         assertThat(data).extracting(item -> item.get("name")).containsExactly("新业务测试库1");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listHidesSystemRuntimeDatabasesByExplicitRole() throws Exception {
+        DatabaseResource resource = new DatabaseResource(
+                sessionService,
+                databaseRepository,
+                tableRepository,
+                fieldRepository,
+                cardRepository,
+                dashboardCardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                synonymRepository,
+                metadataSyncService,
+                jdbcDetailsResolver,
+                platformInfraClient,
+                MAPPER);
+
+        AnalyticsUser user = new AnalyticsUser();
+        user.setId(1L);
+        user.setUsername("admin");
+        user.setPasswordHash("secret");
+        user.setSuperuser(true);
+        user.setActive(true);
+        when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
+
+        AnalyticsDatabase runtimeDatabase = new AnalyticsDatabase();
+        runtimeDatabase.setId(6L);
+        runtimeDatabase.setName("Internal Runtime");
+        runtimeDatabase.setEngine("mysql");
+        runtimeDatabase.setDetailsJson("{\"dataSourceId\":7}");
+        runtimeDatabase.setDatabaseRole(AnalyticsDatabaseRole.SYSTEM_RUNTIME);
+
+        AnalyticsDatabase businessDatabase = new AnalyticsDatabase();
+        businessDatabase.setId(8L);
+        businessDatabase.setName("新业务测试库1");
+        businessDatabase.setEngine("mysql");
+        businessDatabase.setDetailsJson("{\"dataSourceId\":9}");
+        businessDatabase.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
+
+        when(databaseRepository.findAll()).thenReturn(List.of(runtimeDatabase, businessDatabase));
+
+        ResponseEntity<?> response = resource.list(new MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertThat(body).isNotNull();
+        List<Map<String, Object>> data = (List<Map<String, Object>>) body.get("data");
+        assertThat(data).extracting(item -> item.get("id")).containsExactly(8L);
+        assertThat(data).extracting(item -> item.get("name")).containsExactly("新业务测试库1");
+    }
+
+    @Test
+    void createMarksImportedRuntimeDatabaseWithExplicitSystemRole() throws Exception {
+        DatabaseResource resource = new DatabaseResource(
+                sessionService,
+                databaseRepository,
+                tableRepository,
+                fieldRepository,
+                cardRepository,
+                dashboardCardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                synonymRepository,
+                metadataSyncService,
+                jdbcDetailsResolver,
+                platformInfraClient,
+                MAPPER);
+
+        AnalyticsUser user = new AnalyticsUser();
+        user.setId(1L);
+        user.setUsername("admin");
+        user.setPasswordHash("secret");
+        user.setSuperuser(true);
+        user.setActive(true);
+        when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
+        when(platformInfraClient.fetchDataSourceDetail(10L)).thenReturn(new PlatformInfraClient.DataSourceDetail(
+                "10",
+                "园林业务库",
+                "postgres",
+                "jdbc:postgresql://copilot-postgres:5432/garden",
+                "readonly",
+                null,
+                null,
+                Map.of(),
+                Map.of(),
+                "ACTIVE",
+                null));
+        when(databaseRepository.save(any())).thenAnswer(invocation -> {
+            AnalyticsDatabase saved = invocation.getArgument(0);
+            saved.setId(9L);
+            return saved;
+        });
+
+        DatabaseResource.DatabaseRequest body = new DatabaseResource.DatabaseRequest(
+                "园林业务库",
+                "postgres",
+                MAPPER.readTree("""
+                        {
+                          "dataSourceId": 10
+                        }
+                        """),
+                null,
+                false,
+                null,
+                null,
+                null,
+                true,
+                true,
+                false);
+
+        ResponseEntity<?> response = resource.create(body, new MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        org.mockito.ArgumentCaptor<AnalyticsDatabase> captor = org.mockito.ArgumentCaptor.forClass(AnalyticsDatabase.class);
+        verify(databaseRepository).save(captor.capture());
+        assertThat(captor.getValue().getDatabaseRole()).isEqualTo(AnalyticsDatabaseRole.SYSTEM_RUNTIME);
     }
 
     private static void setEntityId(Object entity, Long id) throws Exception {

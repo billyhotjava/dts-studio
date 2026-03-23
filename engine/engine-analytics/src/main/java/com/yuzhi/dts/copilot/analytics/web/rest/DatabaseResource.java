@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabaseRole;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsCard;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsField;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsAlert;
@@ -524,6 +525,7 @@ public class DatabaseResource {
         item.put("id", db.getId());
         item.put("name", db.getName());
         item.put("engine", db.getEngine());
+        item.put("database_role", db.getDatabaseRoleValue());
         item.put("description", db.getDescription());
         item.put("details", parseDetails(db.getDetailsJson()));
         item.put("settings", null);
@@ -581,6 +583,9 @@ public class DatabaseResource {
         if (database == null) {
             return false;
         }
+        if (database.getDatabaseRole() == AnalyticsDatabaseRole.SYSTEM_RUNTIME) {
+            return true;
+        }
         String engine = database.getEngine() == null ? "" : database.getEngine().trim().toLowerCase(Locale.ROOT);
         if (!"postgres".equals(engine) && !"postgresql".equals(engine)) {
             return false;
@@ -634,6 +639,7 @@ public class DatabaseResource {
         if (StringUtils.hasText(detail.description())) {
             db.setDescription(detail.description());
         }
+        db.setDatabaseRole(resolveDatabaseRole(detail.jdbcUrl(), db.getDatabaseRole()));
         db.setSample(false);
     }
 
@@ -644,6 +650,9 @@ public class DatabaseResource {
         db.setAutoRunQueries(true);
         db.setFullSync(true);
         db.setOnDemand(false);
+        if (db.getDatabaseRole() == null) {
+            db.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
+        }
     }
 
     private void applyMissingDefaults(AnalyticsDatabase db) {
@@ -656,6 +665,16 @@ public class DatabaseResource {
         if (!StringUtils.hasText(db.getCacheFieldValuesSchedule())) {
             db.setCacheFieldValuesSchedule("0 50 0 * * ? *");
         }
+        if (db.getDatabaseRole() == null) {
+            db.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_PRIMARY);
+        }
+    }
+
+    private AnalyticsDatabaseRole resolveDatabaseRole(String jdbcUrl, AnalyticsDatabaseRole currentRole) {
+        if (isSystemRuntimeJdbcUrl(jdbcUrl)) {
+            return AnalyticsDatabaseRole.SYSTEM_RUNTIME;
+        }
+        return currentRole == null ? AnalyticsDatabaseRole.BUSINESS_PRIMARY : currentRole;
     }
 
     private String buildPlatformDetailsJson(UUID platformId) {
