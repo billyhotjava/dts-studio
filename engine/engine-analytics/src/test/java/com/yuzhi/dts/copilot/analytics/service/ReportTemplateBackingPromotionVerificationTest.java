@@ -23,6 +23,7 @@ class ReportTemplateBackingPromotionVerificationTest {
     private static final String RESOURCE_PATH_REIMBURSEMENT = "config/liquibase/changelog/0050_promote_finance_reimbursement_fixed_report.xml";
     private static final String RESOURCE_PATH_INVOICE = "config/liquibase/changelog/0051_promote_finance_invoice_fixed_report.xml";
     private static final String RESOURCE_PATH_PENDING = "config/liquibase/changelog/0054_promote_pending_fixed_reports.xml";
+    private static final String RESOURCE_PATH_DATABASE_ROLE = "config/liquibase/changelog/0055_database_role_hardening.xml";
     private static final String MASTER_PATH = "config/liquibase/master.xml";
 
     @Test
@@ -263,6 +264,20 @@ class ReportTemplateBackingPromotionVerificationTest {
         assertThat(columnText(customerArRank, "parameter_schema_json")).contains("\"companyName\"");
     }
 
+    @Test
+    void shouldHardenDatabaseRoleAndRemoveLegacyDatabaseNameSelectors() throws Exception {
+        String changelog = loadText(RESOURCE_PATH_DATABASE_ROLE);
+        Document master = loadDocument(MASTER_PATH);
+
+        assertMasterIncludesDatabaseRoleHardening(master);
+        assertThat(changelog).contains("addColumn tableName=\"analytics_database\"");
+        assertThat(changelog).contains("name=\"database_role\"");
+        assertThat(changelog).contains("defaultValue=\"BUSINESS_PRIMARY\"");
+        assertThat(changelog).contains("'{queryContract,databaseRole}'");
+        assertThat(changelog).contains("#- '{queryContract,databaseName}'");
+        assertThat(changelog).contains("sourceType') = 'AUTHORITY_SQL'");
+    }
+
     private static void assertMasterIncludesPromotion(Document master) {
         List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
         int analysisDraftIndex = -1;
@@ -416,6 +431,23 @@ class ReportTemplateBackingPromotionVerificationTest {
         assertThat(pendingPromotionIndex).isGreaterThan(cleanupIndex);
     }
 
+    private static void assertMasterIncludesDatabaseRoleHardening(Document master) {
+        List<Element> includes = childElementsByLocalName(master.getDocumentElement(), "include");
+        int pendingPromotionIndex = -1;
+        int roleHardeningIndex = -1;
+        for (int i = 0; i < includes.size(); i++) {
+            String file = includes.get(i).getAttribute("file");
+            if (RESOURCE_PATH_PENDING.equals(file)) {
+                pendingPromotionIndex = i;
+            }
+            if (RESOURCE_PATH_DATABASE_ROLE.equals(file)) {
+                roleHardeningIndex = i;
+            }
+        }
+        assertThat(pendingPromotionIndex).isGreaterThanOrEqualTo(0);
+        assertThat(roleHardeningIndex).isGreaterThan(pendingPromotionIndex);
+    }
+
     private static Element findUpdate(Document changelog, String templateCode) {
         for (Element update : childElementsByLocalName(changelog.getDocumentElement(), "update")) {
             String where = normalize(updateText(update, "where"));
@@ -437,6 +469,14 @@ class ReportTemplateBackingPromotionVerificationTest {
             Document document = factory.newDocumentBuilder().parse(input, StandardCharsets.UTF_8.name());
             document.getDocumentElement().normalize();
             return document;
+        }
+    }
+
+    private static String loadText(String resourcePath) throws Exception {
+        InputStream stream = Thread.currentThread().getContextClassLoader().getResourceAsStream(resourcePath);
+        assertThat(stream).as("Expected Liquibase resource to exist at %s", resourcePath).isNotNull();
+        try (InputStream input = stream) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 

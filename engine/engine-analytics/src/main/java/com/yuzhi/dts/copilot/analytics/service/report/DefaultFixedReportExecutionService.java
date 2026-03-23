@@ -3,6 +3,7 @@ package com.yuzhi.dts.copilot.analytics.service.report;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabase;
+import com.yuzhi.dts.copilot.analytics.domain.AnalyticsDatabaseRole;
 import com.yuzhi.dts.copilot.analytics.domain.AnalyticsReportTemplate;
 import com.yuzhi.dts.copilot.analytics.repository.AnalyticsDatabaseRepository;
 import com.yuzhi.dts.copilot.analytics.service.DatasetQueryService;
@@ -23,6 +24,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String DEFAULT_DATABASE_NAME = "园林业务库";
+    private static final String DATABASE_ROLE_SELECTOR_PREFIX = "__ROLE__:";
     private static final int PREVIEW_LIMIT = 50;
     private static final int QUERY_TIMEOUT_SECONDS = 60;
 
@@ -1390,20 +1392,40 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
     }
 
     private AnalyticsDatabase resolveDatabase(String preferredDatabaseName) {
+        AnalyticsDatabaseRole preferredRole = parseDatabaseRoleSelector(preferredDatabaseName);
+        if (preferredRole != null) {
+            return databaseRepository.findAll().stream()
+                    .filter(db -> db.getDatabaseRole() == preferredRole)
+                    .findFirst()
+                    .or(() -> databaseRepository.findAll().stream()
+                            .filter(this::isBusinessOperationalDatabase)
+                            .findFirst())
+                    .orElseThrow(() -> new IllegalArgumentException("Fixed report database not found for role: " + preferredRole));
+        }
         String databaseName = trimToNull(preferredDatabaseName) == null ? DEFAULT_DATABASE_NAME : preferredDatabaseName.trim();
         AnalyticsDatabase preferred = databaseRepository.findFirstByNameIgnoreCase(databaseName).orElse(null);
-        if (isBusinessOperationalDatabase(preferred)) {
+        if (preferred != null && preferred.getDatabaseRole() != AnalyticsDatabaseRole.SYSTEM_RUNTIME) {
             return preferred;
         }
         return databaseRepository.findAll().stream()
-                .filter(this::isBusinessOperationalDatabase)
+                .filter(db -> db.getDatabaseRole() == AnalyticsDatabaseRole.BUSINESS_PRIMARY)
                 .findFirst()
+                .or(() -> databaseRepository.findAll().stream()
+                .filter(this::isBusinessOperationalDatabase)
+                .findFirst())
                 .orElseThrow(() -> new IllegalArgumentException("Fixed report database not found: " + databaseName));
     }
 
     private boolean isBusinessOperationalDatabase(AnalyticsDatabase database) {
         if (database == null) {
             return false;
+        }
+        if (database.getDatabaseRole() == AnalyticsDatabaseRole.SYSTEM_RUNTIME) {
+            return false;
+        }
+        if (database.getDatabaseRole() == AnalyticsDatabaseRole.BUSINESS_PRIMARY
+                || database.getDatabaseRole() == AnalyticsDatabaseRole.BUSINESS_SECONDARY) {
+            return true;
         }
         String engine = normalize(database.getEngine());
         return engine.isEmpty() || "mysql".equals(engine);
@@ -1450,7 +1472,9 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         String sourceType = firstNonBlank(
                 stringValue(queryContract.get("sourceType")),
                 trimToNull(template.getDataSourceType()));
-        String databaseName = stringValue(queryContract.get("databaseName"));
+        String databaseName = firstNonBlank(
+                toRoleSelector(stringValue(queryContract.get("databaseRole"))),
+                stringValue(queryContract.get("databaseName")));
         return new QueryContract(sourceType, targetObject, databaseName);
     }
 
@@ -1502,6 +1526,30 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
     private static String firstNonBlank(String first, String second) {
         return trimToNull(first) != null ? first.trim() : trimToNull(second);
+    }
+
+    private static String toRoleSelector(String databaseRole) {
+        String normalized = trimToNull(databaseRole);
+        if (normalized == null) {
+            return null;
+        }
+        return DATABASE_ROLE_SELECTOR_PREFIX + normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private static AnalyticsDatabaseRole parseDatabaseRoleSelector(String selector) {
+        String normalized = trimToNull(selector);
+        if (normalized == null || !normalized.startsWith(DATABASE_ROLE_SELECTOR_PREFIX)) {
+            return null;
+        }
+        String roleValue = normalized.substring(DATABASE_ROLE_SELECTOR_PREFIX.length()).trim();
+        if (roleValue.isEmpty()) {
+            return null;
+        }
+        try {
+            return AnalyticsDatabaseRole.valueOf(roleValue);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     // ── Batch 2: 报花单据汇总 ─────────────────────────────────────────

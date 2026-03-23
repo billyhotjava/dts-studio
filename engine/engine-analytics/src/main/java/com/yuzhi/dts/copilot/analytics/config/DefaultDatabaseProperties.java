@@ -14,6 +14,7 @@ public record DefaultDatabaseProperties(List<DatabaseEntry> defaultDatabases) {
 
     public record DatabaseEntry(
             String name,
+            String role,
             String engine,
             String host,
             int port,

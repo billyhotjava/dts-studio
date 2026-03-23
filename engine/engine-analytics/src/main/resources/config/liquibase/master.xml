@@ -59,4 +59,5 @@
     <include file="config/liquibase/changelog/0052_promote_batch2_reports.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0053_remove_hardcoded_fixed_report_database_name.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0054_promote_pending_fixed_reports.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0055_database_role_hardening.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

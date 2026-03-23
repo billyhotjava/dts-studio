@@ -33,6 +33,7 @@ dts:
       enabled: ${DTS_ANALYTICS_PLATFORM_AUTH_ENABLED:false}
     default-databases:
       - name: "园林业务库"
+        role: SYSTEM_RUNTIME
         engine: postgresql
         host: ${BIZ_DB_HOST:localhost}
         port: ${BIZ_DB_PORT:5432}
