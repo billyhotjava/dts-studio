@@ -29,7 +29,7 @@
 
 ### .rules/ — 工作守则
 - `00-foundation/` — 五条铁律 + 产品理念 (**HIGHEST priority**)
-- `10-architecture/` — 架构原则 + 服务边界 + AppPack 协议
+- `10-architecture/` — 架构原则 + 服务边界 + AppPack 协议 + **Infra 铁律应用**
 - `20-development/` — 编码规范 + Git 工作流 + API 设计 + 依赖策略
 - `30-testing/` — 测试策略 + 质量门禁 (PR/Nightly/Release)
 - `40-deployment/` — K8s 部署运维 + 发布流程
@@ -47,20 +47,21 @@
 ## Project Structure
 
 ```
-/opt/prod/dts/rdc/
-├── .rules/              # 工作守则 (22 rule files)
-├── .skills/             # 技能清单 (14 skill files, 57 skills)
-├── dts-stack/           # 平台内核源码
-├── app-stack/           # 行业应用包 (metro-stack, prs-stack, ...)
-├── worklog/             # 工作日志 (按 dts-stack/ 和 app-stack/ 分)
-└── CLAUDE.md            # 本文件 — 项目入口
+/opt/prod/dts/dts-rdc/dts-studio/    # dts-rdc 的 submodule
+├── .rules/              # 工作守则 (23 rule files)
+├── .skills/             # 技能清单 (15 skill files, 57 skills)
+├── .memory/             # 领域知识 (ontology/conversations/decisions)
+├── CLAUDE.md            # 本文件 — dts-studio 入口
+└── .mcp.json            # MCP server config (Engram)
 ```
 
 ## Key References
 
-- Design doc: `worklog/dts-stack/docs/plans/2026-03-11-ai-decision-os-design.md`
+- Parent repo: `/opt/prod/dts/dts-rdc/` (RDC — Research Development Center)
+- Architecture design: `/opt/prod/dts/dts-rdc/worklog/v1.0.0/docs/plans/2026-03-11-ai-decision-os-design.md`
+- Infra design: `/opt/prod/dts/dts-rdc/worklog/v1.0.0/docs/plans/2026-03-26-dts-infra-design.md`
 - Product docs: `~/Documents/dts/` (商业计划书, 产品介绍, Palantir 分析)
-- Memory: `~/.claude/projects/-opt-prod-dts-rdc/memory/`
+- Memory: `~/.claude/projects/-opt-prod-dts-dts-rdc/memory/`
 
 ## Working Language
 

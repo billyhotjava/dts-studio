@@ -1,0 +1,45 @@
+# Infrastructure Iron Laws Application (基础设施铁律落地)
+
+Scope: dts-infra (Go) — dts-bootstrap, dts-commander, dts-operator, dts-cli
+Priority: HIGH — derived from Five Iron Laws, mandatory for all infra code
+
+## Law 1 → Infra: Graceful Degradation
+- bootstrap and commander must work WITHOUT any AI/Python service running.
+- If AI features (InfraAgent) are unavailable, fall back to manual CLI commands.
+- All Helm charts must support `ai.enabled=false` to disable AI sidecars.
+- Offline install must succeed with zero internet access (air-gapped bundle).
+- Rollback: every `dts component deploy` must record previous state for `dts component rollback`.
+
+## Law 2 → Infra: No Bypass in Deployment
+- bootstrap creates Keycloak realm + initial admin credentials during install.
+- commander gRPC endpoints require JWT from first boot (bootstrap injects bootstrap-token).
+- No `--skip-auth` or `--insecure` flags in production builds.
+- K8s RBAC: commander ServiceAccount has scoped permissions (dts-system namespace only).
+- Secrets: use K8s Secrets (SealedSecrets for offline); never store credentials in ConfigMap or bbolt.
+
+## Law 3 → Infra: Data Boundary Enforcement
+- commander NEVER reads business data from global-pg; only infra schema (component registry, health, config).
+- Helm values containing credentials must be marked `sensitive: true` and excluded from audit log payloads.
+- bootstrap precheck results stored in bbolt are local-only; synced to global-pg infra schema after PG is ready.
+- Log output must redact connection strings, tokens, and passwords (use `[REDACTED]` placeholder).
+
+## Law 4 → Infra: Infra Audit Trail
+- Every commander operation (deploy/upgrade/rollback/health-check) emits an audit event.
+- Before Kafka is available: audit events buffered in bbolt, flushed to Kafka once available.
+- Audit event schema: `{timestamp, actor, action, component, namespace, result, trace_id}`.
+- OpenTelemetry tracing on all gRPC handlers; traceId propagated to Helm install jobs.
+- Health check results persisted to global-pg `infra.health_snapshots` table.
+
+## Law 5 → Infra: API-First Infrastructure
+- commander exposes gRPC API (proto/infra/v1/) BEFORE any CLI or UI is built.
+- dts-cli is a thin client calling commander gRPC — no business logic in CLI.
+- All Helm charts must be deployable via `helm install` directly (no commander dependency for manual ops).
+- Proto contracts reviewed and frozen before implementation begins.
+- Integration tests: bootstrap end-to-end in kind cluster, commander gRPC smoke tests.
+
+## Checklist for Every Infra PR
+- [ ] Does it work with AI disabled? (Law 1)
+- [ ] Are all endpoints authenticated? (Law 2)
+- [ ] Does it touch only infra schema data? (Law 3)
+- [ ] Does it emit audit events? (Law 4)
+- [ ] Is there a gRPC API with tests? (Law 5)
