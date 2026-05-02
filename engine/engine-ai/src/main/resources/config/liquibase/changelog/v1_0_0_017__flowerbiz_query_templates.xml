@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- sprint-22 FB: 报花域 NL2SQL query templates                  -->
+    <!-- 现有 flowerbiz 模板：TPL-05/06/07/08/17/18/19（次数/分布类） -->
+    <!-- 本 changeSet 补 TPL-34~43，覆盖：金额汇总/超期/销售/坏账/    -->
+    <!-- 养护人/内购/加急 等场景                                      -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-017-flowerbiz-query-templates" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*)
+                FROM copilot_ai.nl2sql_query_template
+                WHERE template_code IN ('TPL-34','TPL-35','TPL-36','TPL-37','TPL-38','TPL-39','TPL-40','TPL-41','TPL-42','TPL-43')
+            </sqlCheck>
+        </preConditions>
+
+        <sql splitStatements="false"><![CDATA[
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority)
+VALUES
+-- TPL-34: 加摆撤摆净增减金额汇总（按项目）
+('TPL-34', 'flowerbiz', NULL,
+ '["(加摆|加花).*(撤摆|减花).*(净增|净减|净额|金额)",".*报花.*金额.*(项目|按项目)",".*月.*(加摆|撤摆).*金额.*"]',
+ '["本月各项目加摆撤摆净增减多少？","本月报花净增金额","各项目加花撤花金额对比"]',
+ 'SELECT project_name AS 项目, ROUND(SUM(CASE WHEN biz_type_name=''加花'' THEN biz_total_rent ELSE 0 END), 2) AS 加摆金额, ROUND(SUM(CASE WHEN biz_type_name=''减花'' THEN biz_total_rent ELSE 0 END), 2) AS 撤摆金额, ROUND(SUM(CASE WHEN biz_type_name=''加花'' THEN biz_total_rent ELSE 0 END) - SUM(CASE WHEN biz_type_name=''减花'' THEN biz_total_rent ELSE 0 END), 2) AS 净增金额 FROM v_flower_biz_detail WHERE biz_month = :month AND biz_status_name = ''已完成'' GROUP BY project_name ORDER BY 净增金额 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '加摆撤摆净增减金额汇总', 20),
+
+-- TPL-35: XX 项目最近报花单
+('TPL-35', 'flowerbiz', NULL,
+ '["(项目|XX).*(最近|近期|最新).*(报花|业务单)","(项目|XX).*(报花|业务单).*(列表|明细|清单)"]',
+ '["万象城最近的报花单","XX项目近期报花明细","查一下XX项目报花清单"]',
+ 'SELECT biz_code, biz_type_name, biz_status_name, project_name, position_name, green_name, plant_number, ROUND(biz_total_rent, 2) AS 总租金, apply_user_name, apply_time FROM v_flower_biz_detail WHERE project_name LIKE CONCAT(''%'', :project_name, ''%'') ORDER BY apply_time DESC LIMIT :top_n',
+ '{"project_name":{"type":"string","required":true},"top_n":{"type":"integer","default":30}}',
+ 'v_flower_biz_detail', 'XX项目最近报花单列表', 20),
+
+-- TPL-36: 审核中超期报花单
+('TPL-36', 'flowerbiz', NULL,
+ '["(审核|审批).*(超过|大于|超期).*(天|日)","(审核中|备货中|待结算).*(久|长时间|挂起|滞留)"]',
+ '["审核中超过 7 天的报花单","哪些报花单审批挂起太久","备货中超过 14 天的"]',
+ 'SELECT biz_code, biz_type_name, project_name, apply_user_name, apply_time, DATEDIFF(CURDATE(), apply_time) AS 已挂起天数, ROUND(biz_total_rent, 2) AS 总租金 FROM v_flower_biz_detail WHERE biz_status_name = :status_name AND DATEDIFF(CURDATE(), apply_time) > :over_days ORDER BY 已挂起天数 DESC',
+ '{"status_name":{"type":"string","default":"审核中"},"over_days":{"type":"integer","default":7}}',
+ 'v_flower_biz_detail', '审核中超期报花单', 20),
+
+-- TPL-37: 销售金额前 N 项目
+('TPL-37', 'flowerbiz', NULL,
+ '["(销售|售花|卖花).*(金额|总额).*(前|排行|排名|TOP)",".*月.*销售.*(项目|前)"]',
+ '["本月销售金额前 10","哪些项目销售金额最高","售花金额排行"]',
+ 'SELECT project_name AS 项目, ROUND(SUM(biz_total_rent), 2) AS 销售金额, COUNT(DISTINCT biz_id) AS 销售单数 FROM v_flower_biz_detail WHERE biz_type_name IN (''售花'',''销售'') AND biz_month = :month AND biz_status_name = ''已完成'' GROUP BY project_name ORDER BY 销售金额 DESC LIMIT :top_n',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"},"top_n":{"type":"integer","default":10}}',
+ 'v_flower_biz_detail', '销售金额前 N 项目', 25),
+
+-- TPL-38: 坏账客户/项目
+('TPL-38', 'flowerbiz', NULL,
+ '["(坏账|死账).*(客户|项目)",".*月.*坏账.*"]',
+ '["本月坏账客户","哪些项目坏账多","坏账金额排行"]',
+ 'SELECT project_name AS 项目, ROUND(SUM(ABS(biz_total_rent)), 2) AS 坏账金额, COUNT(DISTINCT biz_id) AS 坏账单数 FROM v_flower_biz_detail WHERE biz_type_name = ''坏账'' AND biz_month = :month AND biz_status_name = ''已完成'' GROUP BY project_name ORDER BY 坏账金额 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '坏账项目排行', 20),
+
+-- TPL-39: 养护人工作量
+('TPL-39', 'flowerbiz', NULL,
+ '["(养护人|养护师傅|师傅).*(工作量|经手|多少|几次)",".*师傅.*(本月|这个月|月).*报花"]',
+ '["李师傅本月经手多少报花单","养护人工作量排行","XX师傅经手的报花"]',
+ 'SELECT curing_user_name AS 养护人, biz_type_name AS 类型, COUNT(DISTINCT biz_id) AS 单数, ROUND(SUM(biz_total_rent), 2) AS 总金额 FROM v_flower_biz_detail WHERE curing_user_name LIKE CONCAT(''%'', :curing_user_name, ''%'') AND biz_month = :month GROUP BY curing_user_name, biz_type_name ORDER BY 单数 DESC',
+ '{"curing_user_name":{"type":"string","required":true},"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '养护人本月报花工作量', 20),
+
+-- TPL-40: 内购金额
+('TPL-40', 'flowerbiz', NULL,
+ '["(内购).*(金额|多少)",".*月.*内购"]',
+ '["本月内购金额","内购了多少花","内购明细"]',
+ 'SELECT project_name AS 项目, apply_user_name AS 申请人, ROUND(SUM(biz_total_rent), 2) AS 内购金额, COUNT(DISTINCT biz_id) AS 单数 FROM v_flower_biz_detail WHERE biz_type_name = ''内购'' AND biz_month = :month AND biz_status_name = ''已完成'' GROUP BY project_name, apply_user_name ORDER BY 内购金额 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '内购金额汇总', 20),
+
+-- TPL-41: 加急报花单
+('TPL-41', 'flowerbiz', NULL,
+ '["(加急|紧急).*(报花|业务单)","(近|最近).*(天|日).*加急"]',
+ '["近一周加急报花单","加急报花有哪些","紧急业务单"]',
+ 'SELECT biz_code, biz_type_name, biz_status_name, project_name, apply_user_name, apply_time, ROUND(biz_total_rent, 2) AS 总租金 FROM v_flower_biz_detail WHERE is_urgent = ''是'' AND apply_time >= DATE_SUB(CURDATE(), INTERVAL :recent_days DAY) ORDER BY apply_time DESC',
+ '{"recent_days":{"type":"integer","default":7}}',
+ 'v_flower_biz_detail', '近 N 天加急报花单', 15),
+
+-- TPL-42: 各状态报花单数（含金额）
+('TPL-42', 'flowerbiz', NULL,
+ '["(各状态|按状态).*(报花|业务单).*(单数|数量|多少)",".*报花.*状态.*分布"]',
+ '["各状态报花单数","按状态统计报花单","报花状态分布"]',
+ 'SELECT biz_status_name AS 状态, COUNT(DISTINCT biz_id) AS 单数, ROUND(SUM(biz_total_rent), 2) AS 总金额 FROM v_flower_biz_detail WHERE biz_month = :month GROUP BY biz_status_name ORDER BY 单数 DESC',
+ '{"month":{"type":"string","default":"CURRENT_MONTH"}}',
+ 'v_flower_biz_detail', '各状态报花单数', 15),
+
+-- TPL-43: 上月加摆 TOP 项目
+('TPL-43', 'flowerbiz', NULL,
+ '["(上月|上个月|前一月).*(加摆|加花).*(TOP|排行|前)","(上月).*报花.*金额"]',
+ '["上月加摆 TOP 项目","上个月哪个项目加摆最多","上月报花金额排行"]',
+ 'SELECT project_name AS 项目, ROUND(SUM(biz_total_rent), 2) AS 加摆金额, COUNT(DISTINCT biz_id) AS 单数 FROM v_flower_biz_detail WHERE biz_type_name = ''加花'' AND biz_status_name = ''已完成'' AND biz_month = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), ''%Y-%m'') GROUP BY project_name ORDER BY 加摆金额 DESC LIMIT :top_n',
+ '{"top_n":{"type":"integer","default":10}}',
+ 'v_flower_biz_detail', '上月加摆 TOP 项目', 15);
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

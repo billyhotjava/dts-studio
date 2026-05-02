@@ -1,0 +1,120 @@
+{
+  "domain": "flowerbiz",
+  "description": "馨懿诚绿植租摆报花主题域。报花单 t_flower_biz_info 是业务事实表的源头，下游所有 mart（采购/摆放/结算）的真正数据源。本 pack 短期方案：直接用 v_flower_biz_detail 视图（已存在于 rs_cloud_flower 业务库，sprint-10 落地，sprint-22 sprint-22 不重建）；长期方案：sprint-22 F4 完成后切换到 xycyl_ads_flowerbiz_* 系列 dbt 产出。",
+
+  "objects": [
+    {
+      "name": "报花业务明细",
+      "view": "v_flower_biz_detail",
+      "description": "报花单 + 明细项 + 项目联合视图，每行 = 一张报花单的一条明细（项目 × 摆位 × 绿植）。biz_type_name 已翻译为中文（11 类：换花/加花/减花/调花/售花/坏账/销售/内购/辅料/加盆架/减盆架）。biz_status_name 已翻译为中文（8 类：作废/审核中/备货中/核算中/待结算/已完成/草稿/驳回）。",
+      "keyDimensions": ["project_name", "position_name", "biz_type_name", "biz_status_name", "apply_user_name", "manager_name", "curing_user_name", "green_name", "biz_month"],
+      "keyMeasures": ["plant_number", "item_rent", "item_cost", "biz_total_rent", "biz_total_cost"],
+      "commonFilters": ["biz_month", "project_name", "biz_type_name", "biz_status_name", "curing_user_name", "apply_time", "finish_time"],
+      "defaultTimeField": "apply_time"
+    }
+  ],
+
+  "synonyms": [
+    { "term": "报花", "field": "biz_id", "views": ["v_flower_biz_detail"] },
+    { "term": "报花单", "field": "biz_code", "views": ["v_flower_biz_detail"] },
+    { "term": "业务单", "field": "biz_id", "views": ["v_flower_biz_detail"] },
+    { "term": "加摆", "field": "biz_type_name='加花'", "views": ["v_flower_biz_detail"] },
+    { "term": "加花", "field": "biz_type_name='加花'", "views": ["v_flower_biz_detail"] },
+    { "term": "新增绿植", "field": "biz_type_name='加花'", "views": ["v_flower_biz_detail"] },
+    { "term": "撤摆", "field": "biz_type_name='减花'", "views": ["v_flower_biz_detail"] },
+    { "term": "撤花", "field": "biz_type_name='减花'", "views": ["v_flower_biz_detail"] },
+    { "term": "减花", "field": "biz_type_name='减花'", "views": ["v_flower_biz_detail"] },
+    { "term": "退植", "field": "biz_type_name='减花'", "views": ["v_flower_biz_detail"] },
+    { "term": "换花", "field": "biz_type_name='换花'", "views": ["v_flower_biz_detail"] },
+    { "term": "调花", "field": "biz_type_name='调花'", "views": ["v_flower_biz_detail"] },
+    { "term": "调拨", "field": "biz_type_name='调花'", "views": ["v_flower_biz_detail"] },
+    { "term": "售花", "field": "biz_type_name='售花'", "views": ["v_flower_biz_detail"] },
+    { "term": "销售", "field": "biz_type_name IN ('售花','销售')", "views": ["v_flower_biz_detail"] },
+    { "term": "卖花", "field": "biz_type_name IN ('售花','销售')", "views": ["v_flower_biz_detail"] },
+    { "term": "内购", "field": "biz_type_name='内购'", "views": ["v_flower_biz_detail"] },
+    { "term": "坏账", "field": "biz_type_name='坏账'", "views": ["v_flower_biz_detail"] },
+    { "term": "辅料", "field": "biz_type_name='辅料'", "views": ["v_flower_biz_detail"] },
+    { "term": "加盆架", "field": "biz_type_name='加盆架'", "views": ["v_flower_biz_detail"] },
+    { "term": "减盆架", "field": "biz_type_name='减盆架'", "views": ["v_flower_biz_detail"] },
+    { "term": "草稿", "field": "biz_status_name='草稿'", "views": ["v_flower_biz_detail"] },
+    { "term": "审核中", "field": "biz_status_name='审核中'", "views": ["v_flower_biz_detail"] },
+    { "term": "驳回", "field": "biz_status_name='驳回'", "views": ["v_flower_biz_detail"] },
+    { "term": "备货中", "field": "biz_status_name='备货中'", "views": ["v_flower_biz_detail"] },
+    { "term": "核算中", "field": "biz_status_name='核算中'", "views": ["v_flower_biz_detail"] },
+    { "term": "待结算", "field": "biz_status_name='待结算'", "views": ["v_flower_biz_detail"] },
+    { "term": "已完成", "field": "biz_status_name='已完成'", "views": ["v_flower_biz_detail"] },
+    { "term": "已结束", "field": "biz_status_name='已完成'", "views": ["v_flower_biz_detail"] },
+    { "term": "作废", "field": "biz_status_name='作废'", "views": ["v_flower_biz_detail"] },
+    { "term": "申请人", "field": "apply_user_name", "views": ["v_flower_biz_detail"] },
+    { "term": "申请", "field": "apply_user_name", "views": ["v_flower_biz_detail"] },
+    { "term": "项目经理", "field": "manager_name", "views": ["v_flower_biz_detail"] },
+    { "term": "养护人", "field": "curing_user_name", "views": ["v_flower_biz_detail"] },
+    { "term": "养护师傅", "field": "curing_user_name", "views": ["v_flower_biz_detail"] },
+    { "term": "师傅", "field": "curing_user_name", "views": ["v_flower_biz_detail"] },
+    { "term": "申请时间", "field": "apply_time", "views": ["v_flower_biz_detail"] },
+    { "term": "完工时间", "field": "finish_time", "views": ["v_flower_biz_detail"] },
+    { "term": "业务月份", "field": "biz_month", "views": ["v_flower_biz_detail"] },
+    { "term": "数量", "field": "plant_number", "views": ["v_flower_biz_detail"] },
+    { "term": "总租金", "field": "biz_total_rent", "views": ["v_flower_biz_detail"] },
+    { "term": "总成本", "field": "biz_total_cost", "views": ["v_flower_biz_detail"] },
+    { "term": "成本承担", "field": "bear_cost_type_name", "views": ["v_flower_biz_detail"] },
+    { "term": "摆位", "field": "position_name", "views": ["v_flower_biz_detail"] },
+    { "term": "绿植", "field": "green_name", "views": ["v_flower_biz_detail"] },
+    { "term": "品种", "field": "green_name", "views": ["v_flower_biz_detail"] },
+    { "term": "规格", "field": "good_specs", "views": ["v_flower_biz_detail"] }
+  ],
+
+  "fewShots": [
+    {
+      "question": "本月各项目加摆撤摆净增减多少？",
+      "sql": "SELECT project_name AS 项目, ROUND(SUM(CASE WHEN biz_type_name='加花' THEN biz_total_rent ELSE 0 END), 2) AS 加摆金额, ROUND(SUM(CASE WHEN biz_type_name='减花' THEN biz_total_rent ELSE 0 END), 2) AS 撤摆金额, ROUND(SUM(CASE WHEN biz_type_name='加花' THEN biz_total_rent ELSE 0 END) - SUM(CASE WHEN biz_type_name='减花' THEN biz_total_rent ELSE 0 END), 2) AS 净增金额 FROM v_flower_biz_detail WHERE biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name ORDER BY 净增金额 DESC"
+    },
+    {
+      "question": "万象城最近的报花单",
+      "sql": "SELECT biz_code, biz_type_name, biz_status_name, project_name, position_name, green_name, plant_number, ROUND(biz_total_rent, 2) AS 总租金, apply_user_name, apply_time FROM v_flower_biz_detail WHERE project_name LIKE '%万象城%' ORDER BY apply_time DESC LIMIT 30"
+    },
+    {
+      "question": "审核中超过 7 天的报花单",
+      "sql": "SELECT biz_code, biz_type_name, project_name, apply_user_name, apply_time, DATEDIFF(CURDATE(), apply_time) AS 已挂起天数, ROUND(biz_total_rent, 2) AS 总租金 FROM v_flower_biz_detail WHERE biz_status_name = '审核中' AND DATEDIFF(CURDATE(), apply_time) > 7 ORDER BY 已挂起天数 DESC"
+    },
+    {
+      "question": "本月销售金额前 10",
+      "sql": "SELECT project_name AS 项目, ROUND(SUM(biz_total_rent), 2) AS 销售金额, COUNT(DISTINCT biz_id) AS 销售单数 FROM v_flower_biz_detail WHERE biz_type_name IN ('售花','销售') AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name ORDER BY 销售金额 DESC LIMIT 10"
+    },
+    {
+      "question": "本月坏账客户",
+      "sql": "SELECT project_name AS 项目, ROUND(SUM(ABS(biz_total_rent)), 2) AS 坏账金额, COUNT(DISTINCT biz_id) AS 坏账单数 FROM v_flower_biz_detail WHERE biz_type_name = '坏账' AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name ORDER BY 坏账金额 DESC"
+    },
+    {
+      "question": "李师傅本月经手多少报花单",
+      "sql": "SELECT biz_type_name AS 类型, COUNT(DISTINCT biz_id) AS 单数, ROUND(SUM(biz_total_rent), 2) AS 总金额 FROM v_flower_biz_detail WHERE curing_user_name LIKE '%李师傅%' AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') GROUP BY biz_type_name ORDER BY 单数 DESC"
+    },
+    {
+      "question": "各状态报花单数",
+      "sql": "SELECT biz_status_name AS 状态, COUNT(DISTINCT biz_id) AS 单数 FROM v_flower_biz_detail WHERE biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') GROUP BY biz_status_name ORDER BY 单数 DESC"
+    },
+    {
+      "question": "上月加摆 TOP 项目",
+      "sql": "SELECT project_name AS 项目, ROUND(SUM(biz_total_rent), 2) AS 加摆金额, COUNT(DISTINCT biz_id) AS 单数 FROM v_flower_biz_detail WHERE biz_type_name = '加花' AND biz_status_name = '已完成' AND biz_month = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m') GROUP BY project_name ORDER BY 加摆金额 DESC LIMIT 10"
+    },
+    {
+      "question": "本月内购金额",
+      "sql": "SELECT project_name AS 项目, apply_user_name AS 申请人, ROUND(SUM(biz_total_rent), 2) AS 内购金额 FROM v_flower_biz_detail WHERE biz_type_name = '内购' AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name, apply_user_name ORDER BY 内购金额 DESC"
+    },
+    {
+      "question": "近一周加急报花单",
+      "sql": "SELECT biz_code, biz_type_name, biz_status_name, project_name, apply_user_name, apply_time, ROUND(biz_total_rent, 2) AS 总租金 FROM v_flower_biz_detail WHERE is_urgent = '是' AND apply_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ORDER BY apply_time DESC"
+    }
+  ],
+
+  "guardrails": [
+    "禁止跨 biz_type_name 直接 SUM(biz_total_rent)。报花 11 种 bizType 业务语义不同：加花/辅料/加盆架/售花/销售/内购 是 +正方向收益类，减花/坏账/减盆架 是冲减类。SUM 必须按 biz_type_name 或 biz_category 分组。",
+    "销售类（biz_type_name IN ('售花','销售')）和租赁变更类（biz_type_name IN ('加花','减花','换花','调花')）业务语义不同。'本月所有报花收入'问句应明确：是租赁净增 还是 销售收入 还是 全部口径？默认拆分而非合并。",
+    "biz_type_name='坏账' 的 biz_total_rent 通常为正数但语义是冲减，对外展示用 ABS() 取绝对值，并标注'坏账金额'而非'收入'。",
+    "业务时间统一用 apply_time（已被视图内 biz_month 字段做月份归口）。create_time / update_time 在 v_flower_biz_detail 中不暴露。",
+    "已结束（biz_status_name='已完成'）vs 进行中：汇总类问句默认仅含 '已完成'；'待处理 / 审核中超期'类问句必须按对应状态过滤。",
+    "金额聚合必须 ROUND(...,2)，避免精度漂移。",
+    "project_name / curing_user_name / apply_user_name 用 LIKE '%X%' 模糊匹配；biz_type_name / biz_status_name 用精确等值。",
+    "v_flower_biz_detail 的粒度是'报花单 × 明细项'，COUNT(*) 是明细数，COUNT(DISTINCT biz_id) 才是单据数；问'报花单数'用后者。"
+  ]
+}

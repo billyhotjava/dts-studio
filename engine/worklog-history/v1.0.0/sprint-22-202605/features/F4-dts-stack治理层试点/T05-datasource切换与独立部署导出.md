@@ -23,14 +23,14 @@
 INSERT INTO copilot_ai.ai_data_source (
     name, db_type, jdbc_url, username, password_secret_ref, description, status, tag
 ) VALUES (
-    '花卉财务 Mart (dbt)',
+    '花卉报花 Mart (dbt)',
     'postgres',
     'jdbc:postgresql://dbt-output-host:5432/xycyl_warehouse',
     'copilot_reader',
     'secret:dbt-output-readonly',
     '由 dts-stack dbt 项目 xycyl 命名空间产出，每日刷新，schema = xycyl_ads',
     'ACTIVE',
-    'finance,xycyl,dbt-output'
+    'flowerbiz,xycyl,dbt-output'
 );
 ```
 
@@ -42,16 +42,20 @@ INSERT INTO copilot_ai.ai_data_source (
 | 通过 Trino 联邦查询 | `jdbc:trino://dts-trino:8080/...` | 跨库联邦（如 mart 在 PG，源系统在 MySQL） |
 | 独立部署（外部客户） | dts-copilot 自己的 PG，跑 sprint-22 导出脚本 | T05 第二部分提供导出 |
 
-#### 1.2 query template 内的 view 名称迁移
+#### 1.2 query template 内的 view 名称映射
 
-F2-T01 的 query template 中视图名从 `authority.finance.*` 切换：
+F2-T01 的 query template 默认走 dts-stack dbt 产出（直接读 `xycyl_ads.*`）。如需兜底走 adminapi 实时查询，模板按 datasource tag 切换：
 
-| sprint-21 名 | sprint-22 切换后名 |
+| 模板默认 view（dbt 产出） | 兜底 view（adminapi 实时） |
 |---|---|
-| `authority.finance.settlement_summary` | `xycyl_ads.xycyl_ads_finance_settlement_summary` |
-| `authority.finance.receivable_overview` | `xycyl_ads.xycyl_ads_finance_receivable_overview` |
+| `xycyl_ads.xycyl_ads_flowerbiz_lease_summary` | （动态拼 `t_flower_biz_info` + `t_flower_biz_item` JOIN）|
+| `xycyl_ads.xycyl_ads_flowerbiz_lease_detail` | 同上 |
+| `xycyl_ads.xycyl_ads_flowerbiz_pending` | 同上，按 status 过滤 |
+| `xycyl_ads.xycyl_ads_flowerbiz_sale_summary` | 走 adminapi `flower/sale` 接口数据 |
+| `xycyl_ads.xycyl_ads_flowerbiz_baddebt_summary` | `t_flower_biz_info WHERE biz_type=6` |
 | ... | ... |
-| `mart.finance.customer_ar_rank_daily` | `xycyl_ads.xycyl_ads_finance_customer_ar_rank_daily` |
+
+> sprint-21 财务视图（`authority.finance.*`）**不**作为本 sprint 的兜底 —— 它们是财务衍生层，与本 sprint 报花域不直接对应。sprint-25 财务域上线时再处理 view 切换映射。
 
 **做法**：
 
@@ -80,10 +84,10 @@ F2-T01 的 query template 中视图名从 `authority.finance.*` 切换：
 ```bash
 #!/usr/bin/env bash
 # Usage: bin/export-dbt-artifacts.sh <namespace> <out_dir>
-# Example: bin/export-dbt-artifacts.sh xycyl-finance ./dist/xycyl-finance
+# Example: bin/export-dbt-artifacts.sh xycyl-flowerbiz ./dist/xycyl-flowerbiz
 #
 # 输出物：
-#   ./dist/xycyl-finance/
+#   ./dist/xycyl-flowerbiz/
 #     ├── ddl/
 #     │   ├── 01_schemas.sql               # CREATE SCHEMA xycyl_ods, xycyl_stg, ... 
 #     │   ├── 10_dim.sql                   # 维度表 + seeds
@@ -98,7 +102,7 @@ F2-T01 的 query template 中视图名从 `authority.finance.*` 切换：
 
 set -euo pipefail
 
-NAMESPACE="${1:-xycyl-finance}"
+NAMESPACE="${1:-xycyl-flowerbiz}"
 OUT_DIR="${2:-./dist/${NAMESPACE}}"
 
 # 1. dbt compile 把模型展开为最终 SQL
@@ -118,7 +122,7 @@ python3 tools/dbt-extract-manifest.py \
 
 # 4. 从 OpenMetadata 导出 Glossary
 python3 tools/openmetadata-export-glossary.py \
-  --glossary xycyl_finance_glossary \
+  --glossary xycyl_flowerbiz_glossary \
   --out ${OUT_DIR}/glossary.json
 
 echo "Export complete: ${OUT_DIR}"
@@ -136,7 +140,7 @@ echo "Export complete: ${OUT_DIR}"
 
 dts-copilot 的发布流程在 sprint-23 增加：
 
-- 拉取 `dts-stack/dist/xycyl-finance/` 作为 release artifacts
+- 拉取 `dts-stack/dist/xycyl-flowerbiz/` 作为 release artifacts
 - 打入 dts-copilot Docker 镜像 `/opt/copilot/static-assets/`
 - 容器启动时检查目标 datasource 中是否已有 mart 表
   - 若无：执行 `ddl/*.sql` 建表 + 提示用户跑 ETL（用户自行）
@@ -147,19 +151,19 @@ dts-copilot 的发布流程在 sprint-23 增加：
 
 ### 5. 一致性回归
 
-sprint-22 末必须验证：同一组财务问句通过两个 datasource 跑出的 SQL 结果一致。
+sprint-22 末必须验证：同一组报花问句通过 dbt 产出 vs adminapi 实时查询的结果一致。
 
 新建 `worklog/v1.0.0/sprint-22-202605/it/test_xycyl_dbt_consistency.sh`：
 
 ```bash
 #!/usr/bin/env bash
-# 在 sprint-21 PG 视图与 sprint-22 dbt 产出 之间做一致性回归
-# 期望：两侧行数 100% 一致，金额差 < 0.01 元
+# 在 dbt 产出（xycyl_ads.*）与 adminapi 实时查询（rs_cloud_flower）之间做一致性回归
+# 期望：两侧行数 100% 一致，数量差 ≤ 1，金额差 < 0.01 元
 
 set -euo pipefail
 
-OLD_DATASOURCE_ID="${OLD_DS_ID:-1}"  # sprint-21 PG 视图
-NEW_DATASOURCE_ID="${NEW_DS_ID:-99}" # dbt 产出
+DBT_DATASOURCE_ID="${DBT_DS_ID:-99}"   # dbt 产出（PG）
+SOURCE_DATASOURCE_ID="${SRC_DS_ID:-1}" # adminapi 业务库（MySQL，rs_cloud_flower）
 COPILOT_API="${COPILOT_API:-http://localhost:8091/api/ai}"
 API_KEY="${COPILOT_API_KEY:-}"
 
@@ -172,27 +176,24 @@ run_query() {
     -d "{\"datasourceId\": ${ds_id}, \"sql\": \"${sql}\"}"
 }
 
-# 用 5 条代表性 SQL 在两个 datasource 跑，diff 结果
-QUERIES=(
-  "SELECT customer_name, ROUND(outstanding_amount,2) FROM <SETTLEMENT_VIEW> WHERE ..."
-  # ...
-)
+# === R1: 本月加摆汇总 vs 业务库现场聚合 ===
+echo "== R1: lease_in (this month) =="
+dbt_r1=$(run_query "$DBT_DATASOURCE_ID" "SELECT ROUND(SUM(\"加摆金额\"),2) FROM xycyl_ads.xycyl_ads_flowerbiz_lease_summary WHERE \"业务月份\" = DATE_FORMAT(CURDATE(),'%Y-%m')")
+src_r1=$(run_query "$SOURCE_DATASOURCE_ID" "SELECT ROUND(SUM(i.rent * i.plant_number),2) FROM t_flower_biz_info f JOIN t_flower_biz_item i ON i.flower_biz_id=f.id WHERE f.biz_type=2 AND f.status=5 AND f.del_flag='0' AND i.del_flag='0' AND DATE_FORMAT(i.start_time,'%Y-%m') = DATE_FORMAT(CURDATE(),'%Y-%m')")
+echo "dbt=${dbt_r1} | src=${src_r1}"
 
-for q in "${QUERIES[@]}"; do
-  old_q=$(echo "$q" | sed "s|<SETTLEMENT_VIEW>|authority.finance.settlement_summary|g")
-  new_q=$(echo "$q" | sed "s|<SETTLEMENT_VIEW>|xycyl_ads.xycyl_ads_finance_settlement_summary|g")
-  
-  old_result=$(run_query "$OLD_DATASOURCE_ID" "$old_q")
-  new_result=$(run_query "$NEW_DATASOURCE_ID" "$new_q")
-  
-  diff <(echo "$old_result") <(echo "$new_result") || {
-    echo "MISMATCH for query: $q"
-    exit 1
-  }
-done
-
-echo "Consistency regression passed."
+# === R2: 销售汇总 ===
+# === R3: 坏账金额 ===
+# === R4: 待结算单数 ===
+# === R5: 养护人工作量 Top 5 ===
+# 略，按相同 pattern
 ```
+
+**断言策略**：
+
+- 数值断言用容差（金额差 < 0.01 元，行数差 = 0，数量差 ≤ 1）
+- adminapi 实时查询用最简单的 JOIN，避免业务复杂逻辑
+- 失败时输出 `dbt=X | src=Y` 让排查更容易
 
 ## 影响范围
 
@@ -213,9 +214,9 @@ echo "Consistency regression passed."
 
 ## 验证
 
-- [ ] dts-copilot ChatPanel 切换 datasource 到"花卉财务 Mart (dbt)"，输入"客户欠款前 10"，返回结果与旧 datasource 一致（行数 / 客户排名 / 金额）
+- [ ] dts-copilot ChatPanel 切换 datasource 到"花卉报花 Mart (dbt)"，输入"本月加摆撤摆净增减"，返回结果与 adminweb 现网页面一致（行数 / 数量 ±1 / 金额差 < 0.01）
 - [ ] `test_xycyl_dbt_consistency.sh` 通过
-- [ ] `bin/export-dbt-artifacts.sh xycyl-finance ./dist/xycyl-finance` 产出完整 tarball
+- [ ] `bin/export-dbt-artifacts.sh xycyl-flowerbiz ./dist/xycyl-flowerbiz` 产出完整 tarball
 - [ ] tarball 中 `ddl/50_ads.sql` 可在新 PG 实例跑通
 - [ ] `EltSyncService` 默认禁用，启动日志有 deprecated 提示
 - [ ] dts-copilot 主流程不依赖 dts-stack 在线（只在拉取最新 manifest 时联线）

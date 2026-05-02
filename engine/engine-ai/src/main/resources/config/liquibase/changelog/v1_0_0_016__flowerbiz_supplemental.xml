@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- sprint-22 FB: 补充报花相关枚举字典                           -->
+    <!-- v1_0_0_008 已有 t_flower_biz_info.biz_type / status,          -->
+    <!-- 但缺：bizType=10 辅料、回收/变更类型、回收/变更状态           -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-016-fb-biz-type-supplement" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
+                WHERE source_db = 'rs_cloud_flower'
+                  AND table_name = 't_flower_biz_info'
+                  AND field_name = 'biz_type'
+                  AND code = '10'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, description, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '10', '辅料', '附加成本/容器辅助物品', 11);
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-016-fb-recovery-type" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
+                WHERE source_db = 'rs_cloud_flower'
+                  AND table_name = 't_recovery_info_item'
+                  AND field_name = 'recovery_type'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, description, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_recovery_info_item', 'recovery_type', '1', '报损', '绿植无法继续使用', 1),
+  ('rs_cloud_flower', 't_recovery_info_item', 'recovery_type', '2', '回购', '客户付费保留绿植', 2),
+  ('rs_cloud_flower', 't_recovery_info_item', 'recovery_type', '3', '留用', '库房留用，下次再摆', 3);
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-016-fb-recovery-status" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
+                WHERE source_db = 'rs_cloud_flower'
+                  AND table_name = 't_recovery_info'
+                  AND field_name = 'status'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, description, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_recovery_info', 'status', '1', '待回收', '回收单已生成等待执行', 1),
+  ('rs_cloud_flower', 't_recovery_info', 'status', '2', '确认入库', '回收人确认入库', 2),
+  ('rs_cloud_flower', 't_recovery_info', 'status', '3', '已结束', '回收流程完结', 3);
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-016-fb-change-type" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
+                WHERE source_db = 'rs_cloud_flower'
+                  AND table_name = 't_change_info'
+                  AND field_name = 'change_type'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, description, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_change_info', 'change_type', '1', '销售金额变更', 'totalAmount 修改', 1),
+  ('rs_cloud_flower', 't_change_info', 'change_type', '2', '库房物品类型变更', 'good_price_id 修改', 2),
+  ('rs_cloud_flower', 't_change_info', 'change_type', '3', '成本变更', 'cost 修改', 3),
+  ('rs_cloud_flower', 't_change_info', 'change_type', '4', '起租减租变更', 'start/end_lease_time 修改', 4);
+        </sql>
+    </changeSet>
+
+    <changeSet id="v1.0.0-016-fb-change-status" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
+                WHERE source_db = 'rs_cloud_flower'
+                  AND table_name = 't_change_info'
+                  AND field_name = 'status'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, description, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_change_info', 'status', '-1', '作废', '变更单作废', 1),
+  ('rs_cloud_flower', 't_change_info', 'status', '1', '确认中', '变更单等待确认', 2),
+  ('rs_cloud_flower', 't_change_info', 'status', '2', '已结束', '变更单已生效', 3);
+        </sql>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- sprint-22 FB: 升级 flowerbiz 路由规则                         -->
+    <!-- v1_0_0_009 已有 flowerbiz domain，priority=0，关键词 12 个    -->
+    <!-- 本 changeSet：扩充关键词 + 提升 priority 到 90 + 加 secondary -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-016-fb-routing-upgrade" author="dts-copilot-sprint22">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM copilot_ai.nl2sql_routing_rule
+                WHERE domain = 'flowerbiz' AND priority &lt; 90
+            </sqlCheck>
+        </preConditions>
+        <sql>
+UPDATE copilot_ai.nl2sql_routing_rule
+SET keywords = '["报花","报花单","业务单","加花","加摆","新增绿植","换花","减花","撤摆","撤花","退植","调花","调拨","售花","销售","卖花","内购","坏账","辅料","加盆架","减盆架","审核中","驳回","备货中","核算中","待结算","已完成","作废","起租","减租","净增","净减","养护人","养护师傅","项目经理","申请人","完工时间","加急","紧急"]',
+    secondary_views = '["v_monthly_settlement","v_project_green_current","v_project_overview"]',
+    priority = 90,
+    updated_at = now()
+WHERE domain = 'flowerbiz';
+        </sql>
+        <rollback>
+UPDATE copilot_ai.nl2sql_routing_rule
+SET keywords = '["加花","换花","减花","调花","报花","坏账","售花","业务单","审批","驳回","审核","备货"]',
+    secondary_views = '[]',
+    priority = 0,
+    updated_at = now()
+WHERE domain = 'flowerbiz';
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

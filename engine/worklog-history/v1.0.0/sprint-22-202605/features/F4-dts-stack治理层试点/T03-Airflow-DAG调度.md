@@ -1,4 +1,4 @@
-# T03: Airflow DAG 调度（xycyl-finance）
+# T03: Airflow DAG 调度（xycyl-flowerbiz）
 
 **优先级**: P0
 **状态**: READY
@@ -8,7 +8,7 @@
 
 ## 目标
 
-复用 dts-stack 现有的 dbt DAG 模板（`dwh_finance_dbt_manual.py`），新建 `dwh_xycyl_finance_dbt_manual.py`，让花卉财务 dbt 模型可以通过 Airflow 触发执行 `dbt run` / `dbt test` / `dbt docs generate`。
+复用 dts-stack 现有的 dbt DAG 模板（`dwh_finance_dbt_manual.py`），新建 `dwh_xycyl_flowerbiz_dbt_manual.py`，让花卉财务 dbt 模型可以通过 Airflow 触发执行 `dbt run` / `dbt test` / `dbt docs generate`。
 
 ## 技术设计
 
@@ -20,12 +20,12 @@ dts-stack 已有的 `dwh_finance_dbt_manual.py` / `dwh_project_management_dbt_ma
 - `dwh_project_management_dbt_manual.py` —— `selector="tag:project_management"`
 - `dwh_dbt_dbt_manual.py` —— `selector="tag:all"`（兜底）
 
-新建 `dwh_xycyl_finance_dbt_manual.py`：
+新建 `dwh_xycyl_flowerbiz_dbt_manual.py`：
 
 ```python
-selector = "tag:xycyl-finance"
-dag_id = "dwh_xycyl_finance_dbt_manual"
-tags = ["dbt", "transform", "dwh", "xycyl", "xycyl-finance"]
+selector = "tag:xycyl-flowerbiz"
+dag_id = "dwh_xycyl_flowerbiz_dbt_manual"
+tags = ["dbt", "transform", "dwh", "xycyl", "xycyl-flowerbiz"]
 ```
 
 其余逻辑完全沿用现有模板（docker run dbt-image / 通过 dag_run.conf 传递 operation / target / threads / vars / macro_args）。
@@ -41,10 +41,10 @@ curl -X POST "${DTS_PLATFORM}/api/etl/dbt/dags/trigger" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
-    "dagId": "dwh_xycyl_finance_dbt_manual",
+    "dagId": "dwh_xycyl_flowerbiz_dbt_manual",
     "conf": {
       "operation": "run",
-      "models": "tag:xycyl-finance",
+      "models": "tag:xycyl-flowerbiz",
       "target": "prod",
       "threads": "4"
     }
@@ -88,7 +88,7 @@ OpenMetadata Ingestion DAG（每日，dbt 之后）
         └─ 读 target/*.json → 推送到 OpenMetadata
 ```
 
-T04 会建一个新的 OpenMetadata ingestion 配置 `xycyl_dbt.yml`，区分 service name `xycyl_finance_dbt` 与现有 `dts_finance_dbt`。
+T04 会建一个新的 OpenMetadata ingestion 配置 `xycyl_dbt.yml`，区分 service name `xycyl_flowerbiz_dbt` 与现有 `dts_finance_dbt`。
 
 ### 6. dbt-platform-sync 的资源映射
 
@@ -103,13 +103,13 @@ T04 会建一个新的 OpenMetadata ingestion 配置 `xycyl_dbt.yml`，区分 se
 
 ## 影响范围
 
-- `services/dts-airflow/dags/dwh/dwh_xycyl_finance_dbt_manual.py` —— 新增（基于 `dwh_finance_dbt_manual.py` 复制 + 修改 3 行）
+- `services/dts-airflow/dags/dwh/dwh_xycyl_flowerbiz_dbt_manual.py` —— 新增（基于 `dwh_finance_dbt_manual.py` 复制 + 修改 3 行）
 - 不改 dts-platform 后端代码（除非"决策点"需要）
 
 ## 验证
 
 - [ ] DAG 在 Airflow UI 可见，状态为 unpaused
-- [ ] 手动触发 `operation=run` 在 dev target 跑通，全部 xycyl-finance 模型 success
+- [ ] 手动触发 `operation=run` 在 dev target 跑通，全部 xycyl-flowerbiz 模型 success
 - [ ] 手动触发 `operation=test` 跑通，警告数 ≤ T02 的预期
 - [ ] 手动触发 `operation=docs-generate` 生成 `target/index.html`
 - [ ] dts-platform 在跑批后能在 `/etl/dbt/models` 看到 xycyl 模型清单（如果 service 注册问题已解决）
