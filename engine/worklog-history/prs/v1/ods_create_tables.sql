@@ -396,9 +396,26 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_customer (
 );
 
 -- ============================================================
+-- 授权（让 dbt run / 入湖任务的非 owner 账号能读写）
+-- ============================================================
+-- USAGE：让 dbt 账号能进 schema
+-- SELECT：让 dbt source() 能查 11 张表
+-- INSERT/UPDATE/DELETE/TRUNCATE：让入湖任务（addax / 其他 ETL 账号）能写
+-- ALTER DEFAULT PRIVILEGES：后续在该 schema 下新建表自动继承同样权限
+GRANT USAGE ON SCHEMA xycyl_ods TO PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
+  ON ALL TABLES IN SCHEMA xycyl_ods TO PUBLIC;
+ALTER DEFAULT PRIVILEGES IN SCHEMA xycyl_ods
+  GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLES TO PUBLIC;
+
+-- ============================================================
 -- 加载策略提示（仅 dba 参考，dbt 不依赖）
 -- ============================================================
 -- 1. ETL 工具读取 MySQL → 写入这些 ODS 表（全量或增量）
 -- 2. dbt 通过 source('xycyl_ods', '<table>') 引用
 -- 3. STG 视图按 schema 'xycyl_stg' 物化
 -- 4. DWD/DWS/ADS 按 'xycyl_dwd' / 'xycyl_dws' / 'xycyl_ads' 物化
+-- 5. 如需更精细授权（仅授给具体 dbt user，例如 biadmin），可手工:
+--      GRANT USAGE ON SCHEMA xycyl_ods TO <dbt_user>;
+--      GRANT SELECT ON ALL TABLES IN SCHEMA xycyl_ods TO <dbt_user>;
+--    并删除 PUBLIC 授权。
