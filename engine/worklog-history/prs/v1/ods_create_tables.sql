@@ -1,25 +1,31 @@
 -- ============================================================
--- 馨懿诚绿植租摆 报花域 ODS 建表 DDL  v3  (2026-05-02)
--- 命名空间: xycyl   |   schema: xycyl_ods
+-- 馨懿诚绿植租摆 报花域 ODS 建表 DDL  v4  (2026-05-02)
+-- 命名空间: xycyl  |  schema: 默认数据湖默认 schema (通常 public)
 -- 来源: rs_cloud_flower 业务库（MySQL 5.7）入湖镜像
 -- 字段全部 varchar — 类型转换由 dbt STG 层处理
 --
 -- 用法:
---   psql -h <pg-host> -U <user> -d <db> -f ods_create_tables.sql
+--   1) 在 dts-stack「默认数据湖」配的目标库里执行（dbt 也连这个库）：
+--      psql -h <lake-pg-host> -U <lake-user> -d <lake-db> -f ods_create_tables.sql
+--   2) 不需要 superuser 权限；用「默认数据湖」配的同一个账号执行即可
+--      —— 这样 dbt run 时该账号就是 owner，无需任何 GRANT
 --
--- 注意:
---   1) 列名严格对齐生产 information_schema.COLUMNS（39.106.43.56:3307 review 后修正）
+-- 设计原则（对齐 dts-stack 默认数据湖约定，参考 pjm v2）:
+--   • 所有 ODS / STG / DWD / DWS / ADS 表全部落同一 schema（默认 public）
+--   • 靠表前缀区分层次：ods_* / xycyl_stg_* / xycyl_dwd_* / xycyl_dws_* / xycyl_ads_*
+--   • dbt sources.yml 的 schema 也声明为 "public"
+--   • 入湖任务（addax）写入也写到同一个 schema，整条链路无跨 schema 跳转
+--
+-- 字段事实（生产数据画像 2026-05-02 验证）:
+--   1) 列名严格对齐生产 information_schema.COLUMNS（39.106.43.56:3307）
 --   2) 仅 t_flower_biz_info / t_flower_biz_item / t_flower_extra_cost 真有 del_flag
 --   3) 项目→客户关系经 p_contract 中转，不是 p_project 直接挂
 --   4) 全部 CREATE TABLE IF NOT EXISTS，幂等可重复执行，不破坏已有数据
---   5) 如需重置某张表数据：手工 TRUNCATE TABLE xycyl_ods.ods_xxx
+--   5) 如需重置某张表数据：手工 TRUNCATE TABLE ods_xxx
 -- ============================================================
 
-CREATE SCHEMA IF NOT EXISTS xycyl_ods;
-SET search_path TO xycyl_ods, public;
-
 -- ─── 1. 报花单主表（t_flower_biz_info）── 32k 行 ──────────────
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_info (
+CREATE TABLE IF NOT EXISTS ods_flower_biz_info (
     id                    varchar(64),    -- BIGINT PK
     project_id            varchar(64),
     project_name          varchar(255),
@@ -109,7 +115,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_info (
 );
 
 -- ─── 2. 报花明细（t_flower_biz_item）── 196k 行 ───────────────
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_item (
+CREATE TABLE IF NOT EXISTS ods_flower_biz_item (
     id                          varchar(64),
     flower_biz_id               varchar(64),    -- → ods_flower_biz_info.id
     position_id                 varchar(64),
@@ -179,7 +185,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_item (
 -- ─── 3. 报花明细分配表（t_flower_biz_item_detailed）── 225k 行 ────
 -- 实际 8 字段，是 item ↔ project_green_item 的分配/出库 junction
 -- 25.5% 孤儿（flower_biz_item_id 在 t_flower_biz_item 中查无）— 历史 hard-delete
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_item_detailed (
+CREATE TABLE IF NOT EXISTS ods_flower_biz_item_detailed (
     id                       varchar(64),
     flower_biz_item_id       varchar(64),    -- → ods_flower_biz_item.id (25.5% 孤儿)
     project_green_item_id    varchar(64),
@@ -195,7 +201,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_item_detailed (
 -- ─── 4. 变更单（t_change_info）── 1180 行 ────────────────────
 -- 真实 schema 包含 BEFORE/AFTER 货物完整对（good_price_id/name/type/norms/specs/unit）
 -- 没有 del_flag 字段
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_change_info (
+CREATE TABLE IF NOT EXISTS ods_change_info (
     id                       varchar(64),
     code                     varchar(64),
     title                    varchar(255),
@@ -236,7 +242,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_change_info (
 
 -- ─── 5. 回收主表（t_recovery_info）── 2527 行 ────────────────
 -- 没有 del_flag 字段
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_recovery_info (
+CREATE TABLE IF NOT EXISTS ods_recovery_info (
     id                       varchar(64),
     biz_info_id              varchar(64),    -- → ods_flower_biz_info.id
     project_id               varchar(64),
@@ -263,7 +269,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_recovery_info (
 
 -- ─── 6. 回收明细（t_recovery_info_item）── 20k 行 ────────────
 -- 没有 del_flag 字段
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_recovery_info_item (
+CREATE TABLE IF NOT EXISTS ods_recovery_info_item (
     id                       varchar(64),
     recovery_info_id         varchar(64),    -- → ods_recovery_info.id
     biz_item_id              varchar(64),    -- → ods_flower_biz_item.id
@@ -286,7 +292,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_recovery_info_item (
 -- ─── 7. 报花单操作日志（t_flower_biz_log）── 295k 行 ─────────
 -- 没有 del_flag、create_time、update_time 字段
 -- biz_type 列 98% NULL，不是父表 biz_type — 命名为 log_biz_type 避免误用
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_log (
+CREATE TABLE IF NOT EXISTS ods_flower_biz_log (
     id                       varchar(64),
     sorts                    varchar(16),
     biz_type                 varchar(16),    -- 在 STG 重命名为 log_biz_type_raw
@@ -303,7 +309,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_biz_log (
 
 -- ─── 8. 报花额外费用（t_flower_extra_cost）── 575 行 ─────────
 -- 唯一一个除主表/明细外有 del_flag 的表
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_extra_cost (
+CREATE TABLE IF NOT EXISTS ods_flower_extra_cost (
     id                       varchar(64),
     biz_id                   varchar(64),    -- → ods_flower_biz_info.id
     biz_type                 varchar(16),
@@ -330,7 +336,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_extra_cost (
 -- ─── 9. 起租期变更日志（t_flower_rent_time_log）── 6k 行 ─────
 -- 没有 del_flag、change_reason、update_time 字段
 -- rent_time_type 实测两值: 1=起租 / 2=减租
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_rent_time_log (
+CREATE TABLE IF NOT EXISTS ods_flower_rent_time_log (
     id                       varchar(64),
     biz_id                   varchar(64),    -- → ods_flower_biz_info.id
     rent_time_type           varchar(16),
@@ -348,7 +354,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_flower_rent_time_log (
 -- 重要事实：p_project 没有 customer_id；客户经 p_contract 中转
 -- sprint-22 用 main.customer_name (反范式) 作为客户维度
 
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_project (
+CREATE TABLE IF NOT EXISTS ods_project (
     id              varchar(64),
     contract_id     varchar(64),    -- → p_contract.id (sprint-23+ 接客户)
     name            varchar(255),
@@ -375,7 +381,7 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_project (
     imported_at     timestamp DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS xycyl_ods.ods_customer (
+CREATE TABLE IF NOT EXISTS ods_customer (
     id              varchar(64),
     code            varchar(64),
     name            varchar(255),
@@ -396,26 +402,9 @@ CREATE TABLE IF NOT EXISTS xycyl_ods.ods_customer (
 );
 
 -- ============================================================
--- 授权（让 dbt run / 入湖任务的非 owner 账号能读写）
--- ============================================================
--- USAGE：让 dbt 账号能进 schema
--- SELECT：让 dbt source() 能查 11 张表
--- INSERT/UPDATE/DELETE/TRUNCATE：让入湖任务（addax / 其他 ETL 账号）能写
--- ALTER DEFAULT PRIVILEGES：后续在该 schema 下新建表自动继承同样权限
-GRANT USAGE ON SCHEMA xycyl_ods TO PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE
-  ON ALL TABLES IN SCHEMA xycyl_ods TO PUBLIC;
-ALTER DEFAULT PRIVILEGES IN SCHEMA xycyl_ods
-  GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLES TO PUBLIC;
-
--- ============================================================
 -- 加载策略提示（仅 dba 参考，dbt 不依赖）
 -- ============================================================
--- 1. ETL 工具读取 MySQL → 写入这些 ODS 表（全量或增量）
--- 2. dbt 通过 source('xycyl_ods', '<table>') 引用
--- 3. STG 视图按 schema 'xycyl_stg' 物化
--- 4. DWD/DWS/ADS 按 'xycyl_dwd' / 'xycyl_dws' / 'xycyl_ads' 物化
--- 5. 如需更精细授权（仅授给具体 dbt user，例如 biadmin），可手工:
---      GRANT USAGE ON SCHEMA xycyl_ods TO <dbt_user>;
---      GRANT SELECT ON ALL TABLES IN SCHEMA xycyl_ods TO <dbt_user>;
---    并删除 PUBLIC 授权。
+-- 1. ETL 工具（addax 入湖任务）读取 MySQL → 写入这 11 张 ods_* 表（全量或增量）
+-- 2. dbt source('xycyl_ods', '<table>') 引用 — sources.yml 里 schema=public
+-- 3. dbt 自身产出的 xycyl_stg_* / xycyl_dwd_* / xycyl_dws_* / xycyl_ads_* 也落同一 schema
+-- 4. 默认数据湖账号执行此脚本 → owner = 默认数据湖账号 → dbt run 自动有权限
