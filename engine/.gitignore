@@ -42,3 +42,4 @@ dist/
 
 # Local git worktrees
 .worktrees/
+.gitnexus
