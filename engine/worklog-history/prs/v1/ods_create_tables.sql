@@ -12,7 +12,7 @@
 --
 -- 设计原则（对齐 dts-stack 默认数据湖约定，参考 pjm v2）:
 --   • 所有 ODS / STG / DWD / DWS / ADS 表全部落同一 schema（默认 public）
---   • 靠表前缀区分层次：ods_* / xycyl_stg_* / xycyl_dwd_* / xycyl_dws_* / xycyl_ads_*
+--   • 靠表前缀区分层次：ods_ptr_mysql_* / xycyl_stg_* / xycyl_dwd_* / xycyl_dws_* / xycyl_ads_*
 --   • dbt sources.yml 的 schema 也声明为 "public"
 --   • 入湖任务（addax）写入也写到同一个 schema，整条链路无跨 schema 跳转
 --
@@ -21,11 +21,11 @@
 --   2) 仅 t_flower_biz_info / t_flower_biz_item / t_flower_extra_cost 真有 del_flag
 --   3) 项目→客户关系经 p_contract 中转，不是 p_project 直接挂
 --   4) 全部 CREATE TABLE IF NOT EXISTS，幂等可重复执行，不破坏已有数据
---   5) 如需重置某张表数据：手工 TRUNCATE TABLE ods_xxx
+--   5) 如需重置某张表数据：手工 TRUNCATE TABLE ods_ptr_mysql_xxx
 -- ============================================================
 
 -- ─── 1. 报花单主表（t_flower_biz_info）── 32k 行 ──────────────
-CREATE TABLE IF NOT EXISTS ods_flower_biz_info (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_flower_biz_info (
     id                    varchar(64),    -- BIGINT PK
     project_id            varchar(64),
     project_name          varchar(255),
@@ -110,14 +110,18 @@ CREATE TABLE IF NOT EXISTS ods_flower_biz_info (
     task_item_id          varchar(64),
     settle_id             varchar(64),    -- sprint-25 结算挂钩
     settle_code           varchar(64),
-    source_system         varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at           timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 2. 报花明细（t_flower_biz_item）── 196k 行 ───────────────
-CREATE TABLE IF NOT EXISTS ods_flower_biz_item (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_flower_biz_item (
     id                          varchar(64),
-    flower_biz_id               varchar(64),    -- → ods_flower_biz_info.id
+    flower_biz_id               varchar(64),    -- → ods_ptr_mysql_t_flower_biz_info.id
     position_id                 varchar(64),
     position_name               varchar(255),
     position_full_name          varchar(255),
@@ -178,30 +182,38 @@ CREATE TABLE IF NOT EXISTS ods_flower_biz_item (
     sort                        varchar(64),
     finish_number               varchar(16),
     finish_distribute_number    varchar(16),
-    source_system               varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at                 timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 3. 报花明细分配表（t_flower_biz_item_detailed）── 225k 行 ────
 -- 实际 8 字段，是 item ↔ project_green_item 的分配/出库 junction
 -- 25.5% 孤儿（flower_biz_item_id 在 t_flower_biz_item 中查无）— 历史 hard-delete
-CREATE TABLE IF NOT EXISTS ods_flower_biz_item_detailed (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_flower_biz_item_detailed (
     id                       varchar(64),
-    flower_biz_item_id       varchar(64),    -- → ods_flower_biz_item.id (25.5% 孤儿)
+    flower_biz_item_id       varchar(64),    -- → ods_ptr_mysql_t_flower_biz_item.id (25.5% 孤儿)
     project_green_item_id    varchar(64),
     status                   varchar(16),
     source                   varchar(16),
     price                    varchar(40),
     allocate_time            varchar(40),
     plan_purchase_info_id    varchar(64),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 4. 变更单（t_change_info）── 1180 行 ────────────────────
 -- 真实 schema 包含 BEFORE/AFTER 货物完整对（good_price_id/name/type/norms/specs/unit）
 -- 没有 del_flag 字段
-CREATE TABLE IF NOT EXISTS ods_change_info (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_change_info (
     id                       varchar(64),
     code                     varchar(64),
     title                    varchar(255),
@@ -236,15 +248,19 @@ CREATE TABLE IF NOT EXISTS ods_change_info (
     update_time              varchar(40),
     update_by                varchar(64),
     remark                   varchar(512),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 5. 回收主表（t_recovery_info）── 2527 行 ────────────────
 -- 没有 del_flag 字段
-CREATE TABLE IF NOT EXISTS ods_recovery_info (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_recovery_info (
     id                       varchar(64),
-    biz_info_id              varchar(64),    -- → ods_flower_biz_info.id
+    biz_info_id              varchar(64),    -- → ods_ptr_mysql_t_flower_biz_info.id
     project_id               varchar(64),
     project_name             varchar(255),
     distribution_user_id     varchar(64),
@@ -263,16 +279,20 @@ CREATE TABLE IF NOT EXISTS ods_recovery_info (
     remark                   varchar(512),
     tenant_id                varchar(64),
     plan_recovery_time       varchar(40),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 6. 回收明细（t_recovery_info_item）── 20k 行 ────────────
 -- 没有 del_flag 字段
-CREATE TABLE IF NOT EXISTS ods_recovery_info_item (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_recovery_info_item (
     id                       varchar(64),
-    recovery_info_id         varchar(64),    -- → ods_recovery_info.id
-    biz_item_id              varchar(64),    -- → ods_flower_biz_item.id
+    recovery_info_id         varchar(64),    -- → ods_ptr_mysql_t_recovery_info.id
+    biz_item_id              varchar(64),    -- → ods_ptr_mysql_t_flower_biz_item.id
     goods_price_id           varchar(64),
     good_name                varchar(255),
     good_norms               varchar(255),
@@ -285,33 +305,41 @@ CREATE TABLE IF NOT EXISTS ods_recovery_info_item (
     good_cost                varchar(40),
     status                   varchar(16),
     recovery_time            varchar(40),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 7. 报花单操作日志（t_flower_biz_log）── 295k 行 ─────────
 -- 没有 del_flag、create_time、update_time 字段
 -- biz_type 列 98% NULL，不是父表 biz_type — 命名为 log_biz_type 避免误用
-CREATE TABLE IF NOT EXISTS ods_flower_biz_log (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_flower_biz_log (
     id                       varchar(64),
     sorts                    varchar(16),
     biz_type                 varchar(16),    -- 在 STG 重命名为 log_biz_type_raw
-    biz_id                   varchar(64),    -- → ods_flower_biz_info.id
+    biz_id                   varchar(64),    -- → ods_ptr_mysql_t_flower_biz_info.id
     status                   varchar(16),
     operation_title          varchar(255),
     operation_user_id        varchar(64),
     operation_user_name      varchar(255),
     operation_time           varchar(40),
     operation_content        varchar(2000),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 8. 报花额外费用（t_flower_extra_cost）── 575 行 ─────────
 -- 唯一一个除主表/明细外有 del_flag 的表
-CREATE TABLE IF NOT EXISTS ods_flower_extra_cost (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_flower_extra_cost (
     id                       varchar(64),
-    biz_id                   varchar(64),    -- → ods_flower_biz_info.id
+    biz_id                   varchar(64),    -- → ods_ptr_mysql_t_flower_biz_info.id
     biz_type                 varchar(16),
     cost_type                varchar(16),    -- 1运费 / 2人工 / 3税费 / 4垃圾清理 / 5其他
     title                    varchar(255),
@@ -329,24 +357,32 @@ CREATE TABLE IF NOT EXISTS ods_flower_extra_cost (
     pay_time                 varchar(40),
     expense_id               varchar(64),
     expense_code             varchar(64),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 9. 起租期变更日志（t_flower_rent_time_log）── 6k 行 ─────
 -- 没有 del_flag、change_reason、update_time 字段
 -- rent_time_type 实测两值: 1=起租 / 2=减租
-CREATE TABLE IF NOT EXISTS ods_flower_rent_time_log (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_t_flower_rent_time_log (
     id                       varchar(64),
-    biz_id                   varchar(64),    -- → ods_flower_biz_info.id
+    biz_id                   varchar(64),    -- → ods_ptr_mysql_t_flower_biz_info.id
     rent_time_type           varchar(16),
     old_rent_time            varchar(40),
     new_rent_time            varchar(40),
     change_user_id           varchar(64),
     change_user_name         varchar(255),
     change_time              varchar(40),
-    source_system            varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at              timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ─── 业务实体支持表（项目/客户）的简化镜像 ────────────────────
@@ -354,7 +390,7 @@ CREATE TABLE IF NOT EXISTS ods_flower_rent_time_log (
 -- 重要事实：p_project 没有 customer_id；客户经 p_contract 中转
 -- sprint-22 用 main.customer_name (反范式) 作为客户维度
 
-CREATE TABLE IF NOT EXISTS ods_project (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_p_project (
     id              varchar(64),
     contract_id     varchar(64),    -- → p_contract.id (sprint-23+ 接客户)
     name            varchar(255),
@@ -377,11 +413,15 @@ CREATE TABLE IF NOT EXISTS ods_project (
     update_time     varchar(40),
     del_flag        varchar(4),
     tenant_id       varchar(64),
-    source_system   varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at     timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
-CREATE TABLE IF NOT EXISTS ods_customer (
+CREATE TABLE IF NOT EXISTS ods_ptr_mysql_p_customer (
     id              varchar(64),
     code            varchar(64),
     name            varchar(255),
@@ -397,14 +437,18 @@ CREATE TABLE IF NOT EXISTS ods_customer (
     update_time     varchar(40),
     del_flag        varchar(4),
     tenant_id       varchar(64),
-    source_system   varchar(64) DEFAULT 'rs_cloud_flower',
-    imported_at     timestamp DEFAULT now()
+    _dts_source_system varchar(64) DEFAULT 'rs_cloud_flower',
+    _dts_source_table  varchar(128),
+    _dts_import_time   timestamp DEFAULT now(),
+    _dts_batch_id      varchar(64),
+    _dts_execution_id  varchar(64),
+    _dts_task_id       varchar(64)
 );
 
 -- ============================================================
 -- 加载策略提示（仅 dba 参考，dbt 不依赖）
 -- ============================================================
--- 1. ETL 工具（addax 入湖任务）读取 MySQL → 写入这 11 张 ods_* 表（全量或增量）
+-- 1. ETL 工具（addax 入湖任务）读取 MySQL → 写入这 11 张 ods_ptr_mysql_* 表（全量或增量）
 -- 2. dbt source('xycyl_ods', '<table>') 引用 — sources.yml 里 schema=public
 -- 3. dbt 自身产出的 xycyl_stg_* / xycyl_dwd_* / xycyl_dws_* / xycyl_ads_* 也落同一 schema
 -- 4. 默认数据湖账号执行此脚本 → owner = 默认数据湖账号 → dbt run 自动有权限
