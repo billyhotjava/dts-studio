@@ -23,4 +23,22 @@ class SemanticPackServiceTest {
                 .containsEntry("采购人", "purchase_user_name")
                 .containsEntry("产品", "good_name");
     }
+
+    @Test
+    void shouldLoadFlowerbizSemanticPackFromDbtPublicModels() {
+        SemanticPackService service = new SemanticPackService(new ObjectMapper());
+
+        service.init();
+
+        String context = service.getContextForDomain("flowerbiz");
+        assertThat(service.getDomains()).contains("flowerbiz");
+        assertThat(context)
+                .contains("public.xycyl_ads_flowerbiz_lease_summary")
+                .contains("public.xycyl_ads_flowerbiz_pending")
+                .contains("PostgreSQL")
+                .doesNotContain("v_flower_biz_detail")
+                .doesNotContain("DATE_FORMAT")
+                .doesNotContain("CURDATE")
+                .doesNotContain("DATEDIFF");
+    }
 }

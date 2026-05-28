@@ -40,6 +40,58 @@ class DefaultFixedReportExecutionServiceTest {
     private ArgumentCaptor<List<Object>> bindingsCaptor;
 
     @Test
+    void shouldExecuteDbtScreenTemplateAsTableBackedFixedReport() throws Exception {
+        AnalyticsDatabase database = new AnalyticsDatabase();
+        database.setId(8L);
+        database.setName("DTS dbt模型库");
+        database.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_SECONDARY);
+        when(databaseRepository.findFirstByNameIgnoreCase("DTS dbt模型库")).thenReturn(Optional.of(database));
+        when(datasetQueryService.runNative(eq(8L), any(String.class), any(DatasetConstraints.class), any()))
+                .thenReturn(new DatasetResult(
+                        List.of(List.of(2025, 5, "国贸项目", "客户A", new BigDecimal("12000.00"))),
+                        List.of(
+                                Map.of("name", "年份", "display_name", "年份", "base_type", "type/Integer"),
+                                Map.of("name", "业务月份", "display_name", "业务月份", "base_type", "type/Integer"),
+                                Map.of("name", "项目", "display_name", "项目", "base_type", "type/Text"),
+                                Map.of("name", "客户", "display_name", "客户", "base_type", "type/Text"),
+                                Map.of("name", "租金净额全口径", "display_name", "租金净额全口径", "base_type", "type/Decimal")),
+                        List.of(),
+                        "Asia/Shanghai"));
+
+        DefaultFixedReportExecutionService service =
+                new DefaultFixedReportExecutionService(databaseRepository, datasetQueryService);
+
+        Optional<FixedReportExecutionService.ExecutionResult> result = service.execute(
+                prsDbtScreenTemplate(),
+                Map.of("dateFrom", "2025-05-01", "projectName", "国贸"),
+                new ReportExecutionPlanService.ReportExecutionPlan(
+                        ReportExecutionPlanService.Route.MART_FACT,
+                        "PRS-FLOWERBIZ-OVERVIEW",
+                        "dbt.screen",
+                        "screen.prs-flowerbiz-overview-v1",
+                        "template uses dbt screen table route",
+                        "DBT_SCREEN",
+                        "DBT_BUILD"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().databaseId()).isEqualTo(8L);
+        assertThat(result.get().columns()).extracting(FixedReportExecutionService.PreviewColumn::key)
+                .containsExactly("年份", "业务月份", "项目", "客户", "租金净额全口径");
+        assertThat(result.get().rows()).containsExactly(Map.of(
+                "年份", 2025,
+                "业务月份", 5,
+                "项目", "国贸项目",
+                "客户", "客户A",
+                "租金净额全口径", new BigDecimal("12000.00")));
+
+        verify(datasetQueryService).runNative(eq(8L), sqlCaptor.capture(), any(DatasetConstraints.class), bindingsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("FROM public.xycyl_dws_flowerbiz_project_monthly");
+        assertThat(sqlCaptor.getValue()).contains("LIMIT 50");
+        assertThat(sqlCaptor.getValue()).doesNotContain("screen.prs-flowerbiz-overview-v1");
+        assertThat(bindingsCaptor.getValue()).isEmpty();
+    }
+
+    @Test
     void shouldExecuteProcurementSummaryAgainstConfiguredBusinessDatabase() throws Exception {
         AnalyticsDatabase database = new AnalyticsDatabase();
         database.setId(7L);
@@ -1804,6 +1856,34 @@ class DefaultFixedReportExecutionServiceTest {
                   },
                   "placeholderReviewRequired":false
                 }
+                """);
+        return template;
+    }
+
+    private static AnalyticsReportTemplate prsDbtScreenTemplate() {
+        AnalyticsReportTemplate template = new AnalyticsReportTemplate();
+        template.setTemplateCode("PRS-FLOWERBIZ-OVERVIEW");
+        template.setName("PRS 租赁经营总览");
+        template.setDomain("PRS租赁");
+        template.setCategory("总览");
+        template.setDataSourceType("DBT_SCREEN");
+        template.setTargetObject("screen.prs-flowerbiz-overview-v1");
+        template.setRefreshPolicy("DBT_BUILD");
+        template.setSpecJson("""
+                {
+                  "templateCode":"PRS-FLOWERBIZ-OVERVIEW",
+                  "reportType":"fixed-screen",
+                  "displayType":"table",
+                  "queryContract":{
+                    "sourceType":"DBT_SCREEN",
+                    "targetObject":"screen.prs-flowerbiz-overview-v1",
+                    "dbtModels":["public.xycyl_dws_flowerbiz_project_monthly"]
+                  },
+                  "placeholderReviewRequired":false
+                }
+                """);
+        template.setMetricDefinitionJson("""
+                {"primaryDbtModel":"public.xycyl_dws_flowerbiz_project_monthly"}
                 """);
         return template;
     }

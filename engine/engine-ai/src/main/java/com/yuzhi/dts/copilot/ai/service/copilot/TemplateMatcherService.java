@@ -153,7 +153,91 @@ public class TemplateMatcherService {
                     "authority.inventory.low_stock_alert",
                     "库存现量-低库存预警",
                     List.of("低库存预警", "低库存清单", "库存现量低库存预警"),
-                    List.of(".*(库存现量.*低库存|低库存|缺货).*(预警|告警|清单|列表).*"))
+                    List.of(".*(库存现量.*低库存|低库存|缺货).*(预警|告警|清单|列表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-OVERVIEW",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-overview-v1",
+                    "PRS 租赁经营总览",
+                    List.of("PRS 租赁经营总览", "报花租赁经营总览", "租赁经营总览大屏"),
+                    List.of(".*(PRS|报花|租赁).*(经营)?(总览|概览|看板|大屏).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-LEASE-EXECUTION",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-lease-execution-v1",
+                    "PRS 租赁报花执行看板",
+                    List.of("PRS 租赁报花执行看板", "租赁报花执行看板", "租赁执行大屏"),
+                    List.of(".*(租赁|报花).*(执行|加摆|撤摆|换花|调花).*(看板|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-FINANCE-COST",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-finance-cost-v1",
+                    "PRS 销售坏账与费用看板",
+                    List.of("PRS 销售坏账与费用看板", "销售坏账费用看板", "报花费用成本大屏"),
+                    List.of(".*(销售|坏账|费用|成本).*(看板|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-CURING-WORKLOAD",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-curing-workload-v1",
+                    "PRS 养护人工作量看板",
+                    List.of("PRS 养护人工作量看板", "养护人工作量看板", "养护工作量大屏"),
+                    List.of(".*(养护人|养护师傅|师傅|养护).*(工作量|经手|绩效).*(看板|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-PENDING-APPROVAL",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-pending-approval-v1",
+                    "PRS 在途审批与操作监控",
+                    List.of("PRS 在途审批与操作监控", "待审批报花看板", "在途审批监控"),
+                    List.of(".*(待审批|审核中|在途|待处理|滞留).*(报花|审批|操作).*(看板|监控|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-project-customer-v1",
+                    "PRS 项目客户经营看板",
+                    List.of("PRS 项目客户经营看板", "项目客户经营看板", "项目客户大屏"),
+                    List.of(".*(项目|客户).*(经营|排行|分析|贡献).*(看板|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-CHANGE-BOARD",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-change-board-v1",
+                    "PRS 变更与租期调整看板",
+                    List.of("PRS 变更与租期调整看板", "变更租期调整看板", "报花变更看板"),
+                    List.of(".*(变更|租期|起租|减租|调整).*(看板|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-RECOVERY-BOARD",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-recovery-board-v1",
+                    "PRS 回收撤摆与去向看板",
+                    List.of("PRS 回收撤摆与去向看板", "回收撤摆看板", "回收去向大屏"),
+                    List.of(".*(回收|撤摆|去向|报损|回购|留用).*(看板|大屏|报表).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-DRILL-LEASE-DETAIL",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-drill-lease-detail-v1",
+                    "PRS 报花单明细钻取",
+                    List.of("PRS 报花单明细钻取", "报花单明细钻取", "租赁明细钻取"),
+                    List.of(".*(报花单|租赁|加摆|撤摆).*(明细|钻取|清单).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-DRILL-CHANGE-DETAIL",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-drill-change-detail-v1",
+                    "PRS 变更明细钻取",
+                    List.of("PRS 变更明细钻取", "变更明细钻取", "租期变更明细"),
+                    List.of(".*(变更|租期).*(明细|钻取|清单).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-DRILL-RECOVERY-DETAIL",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-drill-recovery-detail-v1",
+                    "PRS 回收明细钻取",
+                    List.of("PRS 回收明细钻取", "回收明细钻取", "撤摆回收明细"),
+                    List.of(".*(回收|撤摆).*(明细|钻取|清单).*")),
+            new FixedReportIntent(
+                    "PRS-FLOWERBIZ-DRILL-AUDIT-TRAIL",
+                    "flowerbiz",
+                    "screen.prs-flowerbiz-drill-audit-trail-v1",
+                    "PRS 审批操作链路钻取",
+                    List.of("PRS 审批操作链路钻取", "审批操作链路钻取", "操作日志钻取"),
+                    List.of(".*(审批|操作|日志|链路|流转).*(明细|钻取|看板|大屏).*"))
     );
 
     /**
@@ -190,7 +274,12 @@ public class TemplateMatcherService {
 
                         Map<String, String> paramDefs = parseParamDefinitions(template.getParameters());
                         Map<String, String> extractedParams = extractParameters(userQuestion, paramDefs);
-                        String resolvedSql = resolveSql(template.getSqlTemplate(), extractedParams);
+                        String resolvedSql = resolveSql(template.getSqlTemplate(), paramDefs, extractedParams);
+                        if (resolvedSql == null) {
+                            log.debug("Template {} matched but required parameters were not resolved",
+                                    template.getTemplateCode());
+                            continue;
+                        }
 
                         return new TemplateMatchResult(true, template, extractedParams, resolvedSql);
                     }
@@ -275,6 +364,7 @@ public class TemplateMatcherService {
             return Collections.emptyList();
         }
         return FIXED_REPORT_INTENTS.stream()
+                .filter(TemplateMatcherService::isActiveFixedReportIntent)
                 .filter(intent -> normalizeFixedReportDomain(intent.domain()).equals(normalizedDomain))
                 .limit(limit)
                 .map(intent -> new SuggestedQuestion(
@@ -296,6 +386,9 @@ public class TemplateMatcherService {
         for (FixedReportIntent intent : FIXED_REPORT_INTENTS) {
             if (suggestions.size() >= limit) {
                 break;
+            }
+            if (!isActiveFixedReportIntent(intent)) {
+                continue;
             }
             int count = perDomainCount.getOrDefault(intent.domain(), 0);
             if (count >= 2 || intent.questionSamples().isEmpty()) {
@@ -327,6 +420,12 @@ public class TemplateMatcherService {
         return intent.templateCode();
     }
 
+    private static boolean isActiveFixedReportIntent(FixedReportIntent intent) {
+        return intent != null
+                && intent.templateCode() != null
+                && intent.templateCode().startsWith("PRS-FLOWERBIZ-");
+    }
+
     private String normalizeFixedReportDomain(String domain) {
         if (domain == null || domain.isBlank()) {
             return "";
@@ -335,6 +434,7 @@ public class TemplateMatcherService {
             case "settlement", "finance", "financial", "finace", "财务" -> "财务";
             case "procurement", "purchase", "采购" -> "采购";
             case "warehouse", "inventory", "stock", "仓库", "库存" -> "仓库";
+            case "flowerbiz", "flower", "prs", "报花", "租赁", "租摆" -> "flowerbiz";
             default -> domain.trim();
         };
     }
@@ -357,7 +457,8 @@ public class TemplateMatcherService {
                 case "month" -> value = extractMonth(question, defJson);
                 case "project_name" -> value = extractNameBeforeKeyword(question, "项目");
                 case "customer_name" -> value = extractNameBeforeKeyword(question, "客户");
-                case "curing_user" -> value = extractNameBeforeKeyword(question, "养护人");
+                case "curing_user", "curing_user_name" -> value = extractPersonName(
+                        question, List.of("养护人", "养护师傅", "师傅"));
                 case "good_name" -> value = extractProductName(question);
                 default -> value = resolveDefault(defJson);
             }
@@ -437,6 +538,30 @@ public class TemplateMatcherService {
             }
         }
 
+        return null;
+    }
+
+    private String extractPersonName(String question, List<String> keywords) {
+        for (String keyword : keywords) {
+            if ("师傅".equals(keyword)) {
+                Matcher shortName = Pattern.compile("([\\u4e00-\\u9fa5A-Za-z0-9]{1,20})师傅").matcher(question);
+                if (shortName.find()) {
+                    String candidate = shortName.group(1) + "师傅";
+                    if (!isStopWord(candidate)) {
+                        return candidate;
+                    }
+                }
+                continue;
+            }
+            String value = extractNameBeforeKeyword(question, keyword);
+            if (value == null) {
+                continue;
+            }
+            if ("师傅".equals(keyword) && !value.endsWith("师傅")) {
+                return value + "师傅";
+            }
+            return value;
+        }
         return null;
     }
 
@@ -534,9 +659,20 @@ public class TemplateMatcherService {
      * Replace :param_name placeholders in SQL with actual values.
      * For null optional params, keeps them as NULL (the SQL uses :param IS NULL OR ... pattern).
      */
-    private String resolveSql(String sqlTemplate, Map<String, String> params) {
+    private String resolveSql(String sqlTemplate, Map<String, String> paramDefs, Map<String, String> params) {
         String sql = sqlTemplate;
-        for (Map.Entry<String, String> entry : params.entrySet()) {
+        Map<String, String> allParams = new LinkedHashMap<>(params);
+        for (Map.Entry<String, String> entry : paramDefs.entrySet()) {
+            if (allParams.containsKey(entry.getKey())) {
+                continue;
+            }
+            if (isRequiredParam(entry.getValue())) {
+                return null;
+            }
+            allParams.put(entry.getKey(), null);
+        }
+
+        for (Map.Entry<String, String> entry : allParams.entrySet()) {
             String placeholder = ":" + entry.getKey();
             String value = entry.getValue();
             if (value == null) {
@@ -550,7 +686,29 @@ public class TemplateMatcherService {
                 }
             }
         }
+        if (containsUnresolvedPlaceholder(sql)) {
+            return null;
+        }
         return sql;
+    }
+
+    private boolean isRequiredParam(String defJson) {
+        if (defJson == null || defJson.isBlank()) {
+            return false;
+        }
+        try {
+            Map<String, Object> def = objectMapper.readValue(defJson, new TypeReference<>() {});
+            return Boolean.TRUE.equals(def.get("required"));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean containsUnresolvedPlaceholder(String sql) {
+        if (sql == null || sql.isBlank()) {
+            return false;
+        }
+        return Pattern.compile("(?<!:):[A-Za-z_][A-Za-z0-9_]*").matcher(sql).find();
     }
 
     private boolean isNumeric(String s) {
@@ -591,6 +749,9 @@ public class TemplateMatcherService {
 
     private TemplateMatchResult matchFixedReportIntent(String userQuestion) {
         for (FixedReportIntent intent : FIXED_REPORT_INTENTS) {
+            if (!isActiveFixedReportIntent(intent)) {
+                continue;
+            }
             for (String patternStr : intent.patterns()) {
                 try {
                     Pattern pattern = Pattern.compile(patternStr, Pattern.CASE_INSENSITIVE);

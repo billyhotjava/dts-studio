@@ -76,6 +76,11 @@ public class AnalysisDraftService {
         draft.setSqlText(sqlText);
         draft.setExplanationText(textOrNull(body, "explanation_text"));
         draft.setSuggestedDisplay(Optional.ofNullable(textOrNull(body, "suggested_display")).orElse("table"));
+        draft.setResponseKind(textOrNull(body, "response_kind"));
+        draft.setDataSurface(textOrNull(body, "data_surface"));
+        draft.setQualityLevel(textOrNull(body, "quality_level"));
+        draft.setQualityNotes(textOrArrayOrNull(body, "quality_notes"));
+        draft.setReportCode(textOrNull(body, "report_code"));
         draft.setStatus(Optional.ofNullable(textOrNull(body, "status")).orElse(STATUS_DRAFT));
         draft.setCreatorId(userId);
         return draftRepository.save(draft);
@@ -159,6 +164,24 @@ public class AnalysisDraftService {
         }
         JsonNode node = body.get(fieldName);
         return node.canConvertToLong() ? node.asLong() : null;
+    }
+
+    private static String textOrArrayOrNull(JsonNode body, String fieldName) {
+        if (body == null || !body.has(fieldName) || body.get(fieldName).isNull()) {
+            return null;
+        }
+        JsonNode node = body.get(fieldName);
+        if (!node.isArray()) {
+            return trimToNull(node.asText(null));
+        }
+        List<String> values = new java.util.ArrayList<>();
+        node.forEach(item -> {
+            String text = trimToNull(item.asText(null));
+            if (text != null) {
+                values.add(text);
+            }
+        });
+        return values.isEmpty() ? null : String.join("；", values);
     }
 
     private static String trimToNull(String value) {

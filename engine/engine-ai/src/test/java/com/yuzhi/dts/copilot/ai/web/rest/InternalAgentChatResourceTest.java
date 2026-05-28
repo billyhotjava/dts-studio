@@ -30,6 +30,7 @@ class InternalAgentChatResourceTest {
         assistant.setRole("assistant");
         assistant.setContent("当前已沉淀的业务分析范围包括：");
         assistant.setResponseKind("BUSINESS_DIRECT_RESPONSE");
+        assistant.setSourceRefs("semantic-pack:project");
         session.addMessage(assistant);
 
         when(agentChatService.getSession("sess-1")).thenReturn(Optional.of(session));
@@ -45,7 +46,9 @@ class InternalAgentChatResourceTest {
         @SuppressWarnings("unchecked")
         var messages = (java.util.List<java.util.Map<String, Object>>) body.get("messages");
         assertThat(messages).singleElement().satisfies(message ->
-                assertThat(message.get("responseKind")).isEqualTo("BUSINESS_DIRECT_RESPONSE"));
+                assertThat(message)
+                        .containsEntry("responseKind", "BUSINESS_DIRECT_RESPONSE")
+                        .containsEntry("sourceRefs", "semantic-pack:project"));
     }
 
     @Test

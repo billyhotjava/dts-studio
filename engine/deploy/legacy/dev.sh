@@ -25,6 +25,12 @@ if [[ -f imgversion.conf ]]; then
   set +a
 fi
 
+if [[ -f .env ]]; then
+  set -a
+  source .env
+  set +a
+fi
+
 # ── 颜色 ──────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -104,11 +110,11 @@ start_backend() {
 
   # 环境变量
   export PG_HOST=localhost
-  export PG_PORT=15432
+  export PG_PORT="${PG_HOST_PORT:-${PG_PORT:-55432}}"
   export PG_DB=copilot
   export PG_USER=copilot
   export PG_PASSWORD=copilot_dev
-  export OLLAMA_BASE_URL=http://localhost:11434
+  export OLLAMA_BASE_URL="http://localhost:${OLLAMA_PORT:-51434}"
   export COPILOT_ADMIN_SECRET=change-me-in-production
   export COPILOT_AI_BASE_URL=http://localhost:8091
 

@@ -220,6 +220,23 @@ class ReportExecutionPlanServiceTest {
     }
 
     @Test
+    void dbtScreenTemplatesShouldRouteToTableBackedReportExecution() {
+        AnalyticsReportTemplate template = template(
+                "PRS-FLOWERBIZ-OVERVIEW",
+                "PRS租赁",
+                "总览",
+                "DBT_SCREEN",
+                "screen.prs-flowerbiz-overview-v1",
+                "DBT_BUILD");
+
+        ReportExecutionPlanService.ReportExecutionPlan plan = service.planFor(template);
+
+        assertThat(plan.route()).isEqualTo(ReportExecutionPlanService.Route.MART_FACT);
+        assertThat(plan.adapterKey()).isEqualTo("dbt.screen");
+        assertThat(plan.targetObject()).isEqualTo("screen.prs-flowerbiz-overview-v1");
+    }
+
+    @Test
     void unknownTemplatesShouldFallBackToExploration() {
         AnalyticsReportTemplate template = template(
                 "OPS-UNKNOWN",

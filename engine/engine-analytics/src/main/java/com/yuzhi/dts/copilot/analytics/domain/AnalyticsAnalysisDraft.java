@@ -50,6 +50,21 @@ public class AnalyticsAnalysisDraft implements Serializable {
     @Column(name = "suggested_display", length = 64)
     private String suggestedDisplay;
 
+    @Column(name = "response_kind", length = 64)
+    private String responseKind;
+
+    @Column(name = "data_surface", length = 64)
+    private String dataSurface;
+
+    @Column(name = "quality_level", length = 32)
+    private String qualityLevel;
+
+    @Column(name = "quality_notes", columnDefinition = "text")
+    private String qualityNotes;
+
+    @Column(name = "report_code", length = 128)
+    private String reportCode;
+
     @Column(name = "status", nullable = false, length = 32)
     private String status;
 
@@ -153,6 +168,46 @@ public class AnalyticsAnalysisDraft implements Serializable {
 
     public void setSuggestedDisplay(String suggestedDisplay) {
         this.suggestedDisplay = suggestedDisplay;
+    }
+
+    public String getResponseKind() {
+        return responseKind;
+    }
+
+    public void setResponseKind(String responseKind) {
+        this.responseKind = responseKind;
+    }
+
+    public String getDataSurface() {
+        return dataSurface;
+    }
+
+    public void setDataSurface(String dataSurface) {
+        this.dataSurface = dataSurface;
+    }
+
+    public String getQualityLevel() {
+        return qualityLevel;
+    }
+
+    public void setQualityLevel(String qualityLevel) {
+        this.qualityLevel = qualityLevel;
+    }
+
+    public String getQualityNotes() {
+        return qualityNotes;
+    }
+
+    public void setQualityNotes(String qualityNotes) {
+        this.qualityNotes = qualityNotes;
+    }
+
+    public String getReportCode() {
+        return reportCode;
+    }
+
+    public void setReportCode(String reportCode) {
+        this.reportCode = reportCode;
     }
 
     public String getStatus() {

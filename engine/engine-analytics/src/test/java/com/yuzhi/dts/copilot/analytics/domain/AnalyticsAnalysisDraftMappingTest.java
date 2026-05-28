@@ -34,6 +34,11 @@ class AnalyticsAnalysisDraftMappingTest {
         assertThat(columnsByField).containsEntry("sqlText", "sql_text");
         assertThat(columnsByField).containsEntry("explanationText", "explanation_text");
         assertThat(columnsByField).containsEntry("suggestedDisplay", "suggested_display");
+        assertThat(columnsByField).containsEntry("responseKind", "response_kind");
+        assertThat(columnsByField).containsEntry("dataSurface", "data_surface");
+        assertThat(columnsByField).containsEntry("qualityLevel", "quality_level");
+        assertThat(columnsByField).containsEntry("qualityNotes", "quality_notes");
+        assertThat(columnsByField).containsEntry("reportCode", "report_code");
         assertThat(columnsByField).containsEntry("status", "status");
         assertThat(columnsByField).containsEntry("linkedCardId", "linked_card_id");
         assertThat(columnsByField).containsEntry("linkedDashboardId", "linked_dashboard_id");

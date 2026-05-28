@@ -76,6 +76,58 @@ class AgentChatServiceTest {
     }
 
     @Test
+    void sendMessagePersistsAgentBiReportMetadataOnAssistantMessage() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-1");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        when(sessionRepository.findBySessionId("sess-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(agentExecutionService.executeChat(
+                eq("sess-1"), eq("alice"), eq("租赁收入按月趋势怎么样"), anyList(), eq(7L), anyMap()))
+                .thenReturn(new ChatExecutionResult(
+                        "已生成报表草稿。",
+                        "select month_id, lease_amount from public.xycyl_dws_flowerbiz_project_monthly",
+                        new ConversationPlan(
+                                PlanMode.AGENT_WORKFLOW,
+                                ResponseKind.REPORT_DRAFT,
+                                null,
+                                "flowerbiz",
+                                "public.xycyl_dws_flowerbiz_project_monthly",
+                                List.of(),
+                                null,
+                                null,
+                                "MART",
+                                "public.xycyl_dws_flowerbiz_project_monthly",
+                                "Agent BI 报表目录",
+                                "L1_DBT_MART",
+                                "MEDIUM",
+                                List.of("2025年5月以后租赁项目数据较可用"),
+                                "line",
+                                "prs.flowerbiz.lease_execution_monthly",
+                                List.of("dbt-model:public.xycyl_dws_flowerbiz_project_monthly")),
+                        null));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+
+        service.sendMessage("sess-1", "alice", "租赁收入按月趋势怎么样", 7L, Map.of());
+
+        AiChatMessage assistantMessage = session.getMessages().get(1);
+        assertThat(assistantMessage.getResponseKind()).isEqualTo("REPORT_DRAFT");
+        assertThat(assistantMessage.getDataSurface()).isEqualTo("L1_DBT_MART");
+        assertThat(assistantMessage.getQualityLevel()).isEqualTo("MEDIUM");
+        assertThat(assistantMessage.getQualityNotes()).isEqualTo("2025年5月以后租赁项目数据较可用");
+        assertThat(assistantMessage.getSuggestedDisplay()).isEqualTo("line");
+        assertThat(assistantMessage.getReportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(assistantMessage.getSourceRefs()).isEqualTo("dbt-model:public.xycyl_dws_flowerbiz_project_monthly");
+    }
+
+    @Test
     void sendMessageStreamDoesNotPersistAssistantErrorWhenStreamingIsInterrupted() {
         AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
         AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);

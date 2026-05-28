@@ -17,9 +17,19 @@ fi
 # ── 加载运行配置 ──────────────────────────────────────────
 if [[ -f .env ]]; then
   set -a
-  source .env
+  source <(sed $'s/\r$//' .env)
   set +a
 fi
+
+# ── 宿主机端口默认值：对外端口统一使用 50000+ ─────────────
+export PG_HOST_PORT="${PG_HOST_PORT:-55432}"
+export OLLAMA_PORT="${OLLAMA_PORT:-51434}"
+export COPILOT_AI_PORT="${COPILOT_AI_PORT:-50091}"
+export COPILOT_ANALYTICS_PORT="${COPILOT_ANALYTICS_PORT:-50092}"
+export COPILOT_WEBAPP_PORT="${COPILOT_WEBAPP_PORT:-50080}"
+export TLS_PORT="${TLS_PORT:-50443}"
+export HTTP_PORT="${HTTP_PORT:-50081}"
+export BASE_DOMAIN="${BASE_DOMAIN:-prs.yuzhicloud.com}"
 
 # ── 参数解析 ──────────────────────────────────────────────
 SKIP_BUILD=false
@@ -36,7 +46,7 @@ for arg in "$@"; do
       echo ""
       echo "选项:"
       echo "  --skip-build   跳过 Maven 编译和前端构建（使用已有构建产物）"
-      echo "  --no-tls       不启动 Traefik，直接通过内部端口访问"
+      echo "  --no-tls       不启动 Traefik，直接通过 50000+ 宿主机端口访问"
       echo "  --pull-model   启动后自动拉取默认 LLM 模型 (qwen2.5-coder:7b)"
       echo "  -h, --help     显示帮助"
       exit 0
@@ -56,6 +66,32 @@ step()  { echo -e "\n${CYAN}[$(date +%H:%M:%S)]${NC} ${GREEN}$1${NC}"; }
 warn()  { echo -e "${YELLOW}  ⚠ $1${NC}"; }
 fail()  { echo -e "${RED}  ✗ $1${NC}"; }
 ok()    { echo -e "${GREEN}  ✓ $1${NC}"; }
+info()  { echo -e "${CYAN}  $1${NC}"; }
+
+require_runtime_port() {
+  local name="$1"
+  local value="$2"
+  if ! [[ "$value" =~ ^[0-9]+$ ]]; then
+    fail "$name 必须是数字端口，当前: $value"
+    exit 1
+  fi
+  if (( value < 50000 || value > 65535 )); then
+    fail "$name 必须使用 50000-65535 范围端口，当前: $value"
+    exit 1
+  fi
+}
+
+format_local_url() {
+  local scheme="$1"
+  local host="$2"
+  local port="$3"
+  local default_port="$4"
+  if [[ "$port" == "$default_port" ]]; then
+    echo "${scheme}://${host}"
+  else
+    echo "${scheme}://${host}:${port}"
+  fi
+}
 
 echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║     DTS Copilot - 一键启动            ║${NC}"
@@ -67,6 +103,15 @@ step "检查运行环境..."
 command -v docker >/dev/null 2>&1 || { fail "未安装 Docker"; exit 1; }
 docker compose version >/dev/null 2>&1 || { fail "未安装 Docker Compose V2"; exit 1; }
 ok "Docker $(docker --version | grep -oP '\d+\.\d+\.\d+')"
+
+require_runtime_port "PG_HOST_PORT" "$PG_HOST_PORT"
+require_runtime_port "OLLAMA_PORT" "$OLLAMA_PORT"
+require_runtime_port "COPILOT_AI_PORT" "$COPILOT_AI_PORT"
+require_runtime_port "COPILOT_ANALYTICS_PORT" "$COPILOT_ANALYTICS_PORT"
+require_runtime_port "COPILOT_WEBAPP_PORT" "$COPILOT_WEBAPP_PORT"
+require_runtime_port "TLS_PORT" "$TLS_PORT"
+require_runtime_port "HTTP_PORT" "$HTTP_PORT"
+ok "宿主机端口已校验：web=${COPILOT_WEBAPP_PORT}, ai=${COPILOT_AI_PORT}, analytics=${COPILOT_ANALYTICS_PORT}"
 
 # ── 2. 生成 HTTPS 证书 ───────────────────────────────────
 if [[ "$NO_TLS" == false ]]; then
@@ -113,7 +158,7 @@ fi
 # ── 4. 构建 Docker 镜像 ──────────────────────────────────
 step "构建 Docker 镜像..."
 if [[ "$NO_TLS" == true ]]; then
-  docker compose build copilot-ai copilot-analytics 2>&1 | tail -5
+  docker compose build copilot-ai copilot-analytics copilot-webapp 2>&1 | tail -5
 else
   docker compose build 2>&1 | tail -5
 fi
@@ -127,9 +172,17 @@ if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
 fi
 
 if [[ "$NO_TLS" == true ]]; then
-  COMPOSE_PROFILES="${COMPOSE_PROFILES}" docker compose up -d copilot-postgres copilot-ai copilot-analytics ${LLM_PROVIDER:+copilot-ollama}
+  services=(copilot-postgres copilot-ai copilot-analytics copilot-webapp)
+  if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
+    services+=(copilot-ollama)
+  fi
+  COMPOSE_PROFILES="${COMPOSE_PROFILES}" docker compose up -d "${services[@]}"
 else
-  COMPOSE_PROFILES="${COMPOSE_PROFILES}" docker compose --profile "${COMPOSE_PROFILES:-default}" up -d
+  if [[ -n "$COMPOSE_PROFILES" ]]; then
+    COMPOSE_PROFILES="${COMPOSE_PROFILES}" docker compose --profile "$COMPOSE_PROFILES" up -d
+  else
+    docker compose up -d
+  fi
 fi
 ok "容器已启动"
 
@@ -153,7 +206,6 @@ wait_for() {
   return 1
 }
 
-wait_for "PostgreSQL" "http://localhost:5432" 30 2>/dev/null || true  # pg_isready 不是 HTTP
 # 用 docker 检查 postgres
 for i in $(seq 1 20); do
   if docker exec dts-copilot-postgres pg_isready -U copilot -d copilot >/dev/null 2>&1; then
@@ -165,10 +217,11 @@ for i in $(seq 1 20); do
 done
 
 if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
-  wait_for "Ollama" "http://localhost:11434/api/tags" 60
+  wait_for "Ollama" "http://localhost:${OLLAMA_PORT}/api/tags" 60
 fi
-wait_for "copilot-ai"        "http://localhost:8091/actuator/health" 90
-wait_for "copilot-analytics"  "http://localhost:8092/api/health" 90
+wait_for "copilot-ai"        "http://localhost:${COPILOT_AI_PORT}/actuator/health" 90
+wait_for "copilot-analytics"  "http://localhost:${COPILOT_ANALYTICS_PORT}/actuator/health" 90
+wait_for "copilot-webapp"     "http://localhost:${COPILOT_WEBAPP_PORT}/" 90
 
 # ── 7. 拉取 LLM 模型（仅 Ollama 模式）────────────────────
 if [[ "$PULL_MODEL" == true && "${LLM_PROVIDER:-}" == "ollama" ]]; then
@@ -196,19 +249,26 @@ docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/nul
 echo ""
 echo -e "  ${GREEN}访问地址:${NC}"
 if [[ "$NO_TLS" == true ]]; then
-  echo "    copilot-ai        http://localhost:8091"
-  echo "    copilot-analytics  http://localhost:8092"
-  echo "    Ollama            http://localhost:11434"
+  echo "    Web 控制台         http://localhost:${COPILOT_WEBAPP_PORT}"
+  echo "    copilot-ai        http://localhost:${COPILOT_AI_PORT}"
+  echo "    copilot-analytics  http://localhost:${COPILOT_ANALYTICS_PORT}"
+  if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
+    echo "    Ollama            http://localhost:${OLLAMA_PORT}"
+  fi
 else
-  echo "    HTTPS 入口         https://copilot.local  (需添加 hosts: 127.0.0.1 copilot.local)"
-  echo "    copilot-ai        http://localhost:8091   (内部直连)"
-  echo "    copilot-analytics  http://localhost:8092   (内部直连)"
-  echo "    Ollama            http://localhost:11434"
+  echo "    HTTPS 入口         $(format_local_url https "$BASE_DOMAIN" "$TLS_PORT" 443)"
+  echo "    HTTP 入口          $(format_local_url http "$BASE_DOMAIN" "$HTTP_PORT" 80)"
+  echo "    Web 控制台         http://localhost:${COPILOT_WEBAPP_PORT}"
+  echo "    copilot-ai        http://localhost:${COPILOT_AI_PORT}"
+  echo "    copilot-analytics  http://localhost:${COPILOT_ANALYTICS_PORT}"
+  if [[ "${LLM_PROVIDER:-}" == "ollama" ]]; then
+    echo "    Ollama            http://localhost:${OLLAMA_PORT}"
+  fi
 fi
 echo ""
 echo -e "  ${GREEN}下一步:${NC}"
 echo "    1. 生成 API Key:"
-echo "       curl -X POST http://localhost:8091/api/auth/keys \\"
+echo "       curl -X POST http://localhost:${COPILOT_AI_PORT}/api/auth/keys \\"
 echo "         -H 'X-Admin-Secret: change-me-in-production' \\"
 echo "         -H 'Content-Type: application/json' \\"
 echo "         -d '{\"name\": \"my-app\"}'"

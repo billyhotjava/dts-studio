@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.mock.env.MockEnvironment;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,7 +21,7 @@ class JdbcDetailsResolverTest {
 
     @Test
     void resolvesJdbcDetailsFromManagedDataSourceId() throws Exception {
-        JdbcDetailsResolver resolver = new JdbcDetailsResolver(platformInfraClient, "dts-pg");
+        JdbcDetailsResolver resolver = new JdbcDetailsResolver(platformInfraClient, "dts-pg", new MockEnvironment());
         when(platformInfraClient.fetchDataSourceDetail(42L)).thenReturn(new PlatformInfraClient.DataSourceDetail(
                 "42",
                 "园林业务库",
@@ -49,7 +50,7 @@ class JdbcDetailsResolverTest {
 
     @Test
     void resolvesMysqlJdbcDetailsFromDatabaseNameAlias() throws Exception {
-        JdbcDetailsResolver resolver = new JdbcDetailsResolver(platformInfraClient, "dts-pg");
+        JdbcDetailsResolver resolver = new JdbcDetailsResolver(platformInfraClient, "dts-pg", new MockEnvironment());
 
         JdbcDetailsResolver.JdbcDetails details = resolver.resolve(
                 "mysql",

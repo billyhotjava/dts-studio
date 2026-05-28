@@ -145,6 +145,11 @@ public class AnalysisDraftResource {
         response.put("sql_text", draft.getSqlText());
         response.put("explanation_text", draft.getExplanationText());
         response.put("suggested_display", draft.getSuggestedDisplay());
+        response.put("response_kind", draft.getResponseKind());
+        response.put("data_surface", draft.getDataSurface());
+        response.put("quality_level", draft.getQualityLevel());
+        response.put("quality_notes", draft.getQualityNotes());
+        response.put("report_code", draft.getReportCode());
         response.put("status", draft.getStatus());
         response.put("linked_card_id", draft.getLinkedCardId());
         response.put("linked_dashboard_id", draft.getLinkedDashboardId());

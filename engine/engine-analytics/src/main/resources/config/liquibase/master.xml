@@ -60,4 +60,9 @@
     <include file="config/liquibase/changelog/0053_remove_hardcoded_fixed_report_database_name.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0054_promote_pending_fixed_reports.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0055_database_role_hardening.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0056_analysis_draft_agent_bi_metadata.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0057_prs_flowerbiz_fixed_report_screens.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0058_prs_flowerbiz_fixed_report_tables.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0059_prs_flowerbiz_dbt_report_database.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0060_prs_flowerbiz_dbt_agent_datasource.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

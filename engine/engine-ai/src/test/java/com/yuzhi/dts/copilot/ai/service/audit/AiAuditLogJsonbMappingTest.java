@@ -138,6 +138,12 @@ class AiAuditLogJsonbMappingTest {
                         routed_domain varchar(32),
                         target_view varchar(128),
                         template_code varchar(64),
+                        response_kind varchar(64),
+                        data_surface varchar(64),
+                        quality_level varchar(32),
+                        quality_notes text,
+                        suggested_display varchar(64),
+                        report_code varchar(128),
                         created_at timestamptz
                     )
                     """.formatted(SCHEMA, SCHEMA));

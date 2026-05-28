@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -16,10 +17,12 @@ import org.springframework.util.StringUtils;
 public class ManagedToolConnectionProvider implements ToolConnectionProvider {
 
     private final AiDataSourceRepository dataSourceRepository;
+    private final Environment environment;
     private final Map<Long, CachedDataSource> cache = new ConcurrentHashMap<>();
 
-    public ManagedToolConnectionProvider(AiDataSourceRepository dataSourceRepository) {
+    public ManagedToolConnectionProvider(AiDataSourceRepository dataSourceRepository, Environment environment) {
         this.dataSourceRepository = dataSourceRepository;
+        this.environment = environment;
     }
 
     @Override
@@ -61,9 +64,9 @@ public class ManagedToolConnectionProvider implements ToolConnectionProvider {
 
     private HikariDataSource buildDataSource(AiDataSource entity) {
         HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(entity.getJdbcUrl());
-        config.setUsername(entity.getUsername());
-        config.setPassword(entity.getPassword());
+        config.setJdbcUrl(resolveConfiguredText(entity.getJdbcUrl()));
+        config.setUsername(resolveConfiguredText(entity.getUsername()));
+        config.setPassword(resolveConfiguredText(entity.getPassword()));
         config.setPoolName("copilot-tool-" + entity.getId());
         config.setMaximumPoolSize(3);
         config.setMinimumIdle(0);
@@ -75,10 +78,18 @@ public class ManagedToolConnectionProvider implements ToolConnectionProvider {
 
     private String configKey(AiDataSource entity) {
         return String.join("|",
-                safe(entity.getJdbcUrl()),
-                safe(entity.getUsername()),
-                safe(entity.getPassword()),
+                safe(resolveConfiguredText(entity.getJdbcUrl())),
+                safe(resolveConfiguredText(entity.getUsername())),
+                safe(resolveConfiguredText(entity.getPassword())),
                 safe(entity.getDbType()));
+    }
+
+    private String resolveConfiguredText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        String resolved = environment.resolvePlaceholders(value);
+        return StringUtils.hasText(resolved) ? resolved.trim() : resolved;
     }
 
     private String safe(String value) {

@@ -135,33 +135,47 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("固定报表意图: 财务结算汇总命中固定模板")
-    void matchFixedReportSettlementSummaryPageLabel() {
-        TemplateMatchResult result = matcherService.match("打开财务结算汇总");
+    @DisplayName("固定报表意图: 旧财务采购仓库模板不再作为固定报表快路径")
+    void legacyFixedReportPageLabelsNoLongerMatchFixedReportFastPath() {
+        assertThat(matcherService.match("打开财务结算汇总").matched()).isFalse();
+        assertThat(matcherService.match("查看采购汇总").matched()).isFalse();
+        assertThat(matcherService.match("库存现量").matched()).isFalse();
+    }
+
+    @Test
+    @DisplayName("PRS 大屏意图: 租赁经营总览命中大屏资产")
+    void matchPrsFlowerbizOverviewScreen() {
+        TemplateMatchResult result = matcherService.match("打开PRS租赁经营总览大屏");
 
         assertThat(result.matched()).isTrue();
-        assertThat(result.template().getTemplateCode()).isEqualTo("FIN-AR-OVERVIEW");
+        assertThat(result.template().getTemplateCode()).isEqualTo("PRS-FLOWERBIZ-OVERVIEW");
+        assertThat(result.template().getTargetView()).isEqualTo("screen.prs-flowerbiz-overview-v1");
         assertThat(result.resolvedSql()).isNull();
     }
 
     @Test
-    @DisplayName("固定报表意图: 采购汇总命中固定模板")
-    void matchFixedReportPurchaseSummaryPageLabel() {
-        TemplateMatchResult result = matcherService.match("查看采购汇总");
+    @DisplayName("PRS 大屏候选: flowerbiz 域返回页面化大屏候选")
+    void fixedReportSuggestionsIncludePrsFlowerbizScreens() {
+        List<SuggestedQuestion> suggestions = matcherService.getFixedReportSuggestionsByDomain("flowerbiz", 20);
 
-        assertThat(result.matched()).isTrue();
-        assertThat(result.template().getTemplateCode()).isEqualTo("PROC-SUPPLIER-AMOUNT-RANK");
-        assertThat(result.resolvedSql()).isNull();
-    }
-
-    @Test
-    @DisplayName("固定报表意图: 库存现量命中固定模板")
-    void matchFixedReportStockListPageLabel() {
-        TemplateMatchResult result = matcherService.match("库存现量");
-
-        assertThat(result.matched()).isTrue();
-        assertThat(result.template().getTemplateCode()).isEqualTo("WH-STOCK-OVERVIEW");
-        assertThat(result.resolvedSql()).isNull();
+        assertThat(suggestions)
+                .extracting(SuggestedQuestion::question)
+                .containsExactly(
+                        "PRS 租赁经营总览",
+                        "PRS 租赁报花执行看板",
+                        "PRS 销售坏账与费用看板",
+                        "PRS 养护人工作量看板",
+                        "PRS 在途审批与操作监控",
+                        "PRS 项目客户经营看板",
+                        "PRS 变更与租期调整看板",
+                        "PRS 回收撤摆与去向看板",
+                        "PRS 报花单明细钻取",
+                        "PRS 变更明细钻取",
+                        "PRS 回收明细钻取",
+                        "PRS 审批操作链路钻取");
+        assertThat(suggestions)
+                .extracting(SuggestedQuestion::templateCode)
+                .allMatch(code -> code.startsWith("PRS-FLOWERBIZ-"));
     }
 
     @Test
@@ -190,6 +204,26 @@ class TemplateMatcherServiceTest {
         assertThat(result.extractedParams().get("good_name")).isEqualTo("绿萝");
         assertThat(result.resolvedSql()).contains("t_purchase_price_item");
         assertThat(result.resolvedSql()).contains("ORDER BY a.purchase_time DESC");
+    }
+
+    @Test
+    @DisplayName("模板参数: curing_user_name 必填参数可从养护师傅问句提取")
+    void extractCuringUserNameForFlowerbizTemplate() {
+        TemplateMatchResult result = matcherService.match("李师傅本月经手多少报花单");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-39");
+        assertThat(result.extractedParams()).containsEntry("curing_user_name", "李师傅");
+        assertThat(result.resolvedSql()).doesNotContain(":curing_user_name");
+    }
+
+    @Test
+    @DisplayName("模板参数: 必填参数缺失时不返回带未解析占位符的 SQL")
+    void requiredParamMissingDoesNotReturnUnresolvedSql() {
+        TemplateMatchResult result = matcherService.match("师傅本月报花");
+
+        assertThat(result.matched()).isFalse();
+        assertThat(result.resolvedSql()).isNull();
     }
 
     // ===================== No match =====================
@@ -297,23 +331,26 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("getSuggestedQuestions 优先包含当前页面语言的固定报表建议")
+    @DisplayName("getSuggestedQuestions 优先包含 PRS 大屏固定报表建议")
     void suggestedQuestionsIncludeCurrentPagePhrases() {
         List<SuggestedQuestion> suggestions = matcherService.getSuggestedQuestions(12);
 
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::question)
-                .contains("财务结算汇总", "采购汇总", "库存现量");
+                .contains("PRS 租赁经营总览", "PRS 租赁报花执行看板");
+        assertThat(suggestions)
+                .extracting(SuggestedQuestion::templateCode)
+                .allMatch(code -> code.startsWith("PRS-FLOWERBIZ-") || code.startsWith("TPL-"));
     }
 
     @Test
-    @DisplayName("getFixedReportSuggestionsByDomain 返回同域页面化固定报表候选")
+    @DisplayName("getFixedReportSuggestionsByDomain 返回 PRS 页面化固定报表候选")
     void fixedReportSuggestionsByDomainUseCurrentPagePhrases() {
-        List<SuggestedQuestion> suggestions = matcherService.getFixedReportSuggestionsByDomain("财务", 3);
+        List<SuggestedQuestion> suggestions = matcherService.getFixedReportSuggestionsByDomain("flowerbiz", 3);
 
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::question)
-                .containsExactly("财务结算汇总", "财务结算汇总客户欠款排行", "财务结算列表项目回款进度");
+                .containsExactly("PRS 租赁经营总览", "PRS 租赁报花执行看板", "PRS 销售坏账与费用看板");
     }
 
     // ===================== Helper: build mock templates =====================
@@ -388,6 +425,14 @@ class TemplateMatcherServiceTest {
                 "SELECT curing_user_name, sum(total_position_count) as 负责摆位总数 FROM v_curing_coverage WHERE curing_month = :month GROUP BY curing_user_name ORDER BY 负责摆位总数 DESC",
                 "{\"month\":{\"type\":\"string\",\"default\":\"CURRENT_MONTH\"},\"curing_user\":{\"type\":\"string\"}}",
                 "v_curing_coverage", "养护人负责摆位", 10));
+
+        // TPL-39: 养护人工作量（dbt flowerbiz 模板）
+        templates.add(buildTemplate(39L, "TPL-39", "flowerbiz", null,
+                "[\"(养护人|养护师傅|师傅).*(工作量|经手|多少|几次)\",\".*师傅.*(本月|这个月|月).*报花\"]",
+                "[\"李师傅本月经手多少报花单\"]",
+                "SELECT c.\"养护人\", SUM(c.\"经手单数\") AS \"经手单数\" FROM public.xycyl_ads_flowerbiz_curing_workload c WHERE c.\"养护人\" LIKE '%' || :curing_user_name || '%' AND c.\"业务月份\" = :month GROUP BY c.\"养护人\"",
+                "{\"curing_user_name\":{\"type\":\"string\",\"required\":true},\"month\":{\"type\":\"string\",\"default\":\"CURRENT_MONTH\"}}",
+                "public.xycyl_ads_flowerbiz_curing_workload", "养护人本月报花工作量", 20));
 
         // TPL-20: 结算方式分布
         templates.add(buildTemplate(20L, "TPL-20", "project", null,

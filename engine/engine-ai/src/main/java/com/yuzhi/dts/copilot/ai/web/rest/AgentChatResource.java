@@ -146,6 +146,12 @@ public class AgentChatResource {
         map.put("routedDomain", msg.getRoutedDomain());
         map.put("targetView", msg.getTargetView());
         map.put("templateCode", msg.getTemplateCode());
+        map.put("dataSurface", msg.getDataSurface());
+        map.put("qualityLevel", msg.getQualityLevel());
+        map.put("qualityNotes", msg.getQualityNotes());
+        map.put("suggestedDisplay", msg.getSuggestedDisplay());
+        map.put("reportCode", msg.getReportCode());
+        map.put("sourceRefs", msg.getSourceRefs());
         map.put("createdAt", msg.getCreatedAt() != null ? msg.getCreatedAt().toString() : null);
         return map;
     }

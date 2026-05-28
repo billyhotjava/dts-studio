@@ -24,6 +24,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String DEFAULT_DATABASE_NAME = "园林业务库";
+    private static final String DEFAULT_DBT_DATABASE_NAME = "DTS dbt模型库";
     private static final String DATABASE_ROLE_SELECTOR_PREFIX = "__ROLE__:";
     private static final int PREVIEW_LIMIT = 50;
     private static final int QUERY_TIMEOUT_SECONDS = 60;
@@ -50,6 +51,10 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         }
 
         String normalizedTarget = normalize(contract.targetObject());
+        String normalizedSourceType = normalize(contract.sourceType());
+        if ("dbt_screen".equals(normalizedSourceType) || normalizedTarget.startsWith("screen.")) {
+            return Optional.of(executeDbtScreenTable(contract));
+        }
         if ("authority.procurement.purchase_summary".equals(normalizedTarget)) {
             return Optional.of(executeProcurementPurchaseSummary(contract, parameters));
         }
@@ -176,6 +181,22 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
                 sql.toString(),
                 new DatasetConstraints(PREVIEW_LIMIT, QUERY_TIMEOUT_SECONDS, null),
                 bindings);
+        return mapPreview(database, result);
+    }
+
+    private ExecutionResult executeDbtScreenTable(QueryContract contract) throws SQLException {
+        AnalyticsDatabase database = resolveDatabase(firstNonBlank(contract.databaseName(), DEFAULT_DBT_DATABASE_NAME));
+        String dbtModel = trimToNull(contract.primaryDbtModel());
+        if (dbtModel == null) {
+            throw new IllegalArgumentException("DBT screen template does not define a primary dbt model");
+        }
+        String relation = validateDbtRelation(dbtModel);
+        String sql = "SELECT * FROM " + relation + " LIMIT " + PREVIEW_LIMIT;
+        DatasetResult result = datasetQueryService.runNative(
+                database.getId(),
+                sql,
+                new DatasetConstraints(PREVIEW_LIMIT, QUERY_TIMEOUT_SECONDS, null),
+                List.of());
         return mapPreview(database, result);
     }
 
@@ -1475,7 +1496,44 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         String databaseName = firstNonBlank(
                 toRoleSelector(stringValue(queryContract.get("databaseRole"))),
                 stringValue(queryContract.get("databaseName")));
-        return new QueryContract(sourceType, targetObject, databaseName);
+        String primaryDbtModel = firstNonBlank(
+                stringValue(queryContract.get("primaryDbtModel")),
+                firstDbtModel(queryContract.get("dbtModels")));
+        JsonNode metricDefinition = parseJson(template.getMetricDefinitionJson());
+        primaryDbtModel = firstNonBlank(
+                primaryDbtModel,
+                metricDefinition == null ? null : stringValue(metricDefinition.get("primaryDbtModel")));
+        return new QueryContract(sourceType, targetObject, databaseName, primaryDbtModel);
+    }
+
+    private static String firstDbtModel(JsonNode dbtModels) {
+        if (dbtModels == null || !dbtModels.isArray()) {
+            return null;
+        }
+        for (JsonNode model : dbtModels) {
+            String value = stringValue(model);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String validateDbtRelation(String relation) {
+        String normalized = trimToNull(relation);
+        if (normalized == null) {
+            throw new IllegalArgumentException("DBT relation is required");
+        }
+        String[] parts = normalized.split("\\.");
+        if (parts.length < 1 || parts.length > 2) {
+            throw new IllegalArgumentException("Invalid DBT relation: " + relation);
+        }
+        for (String part : parts) {
+            if (!part.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                throw new IllegalArgumentException("Invalid DBT relation: " + relation);
+            }
+        }
+        return normalized;
     }
 
     private static JsonNode parseJson(String rawJson) {
@@ -1808,5 +1866,5 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         }
     }
 
-    private record QueryContract(String sourceType, String targetObject, String databaseName) {}
+    private record QueryContract(String sourceType, String targetObject, String databaseName, String primaryDbtModel) {}
 }

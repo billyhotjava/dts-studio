@@ -34,6 +34,17 @@ public class ReportExecutionPlanService {
         String displayDataSourceType = trimToNull(template.getDataSourceType());
         String displayRefreshPolicy = trimToNull(template.getRefreshPolicy());
 
+        if (isDbtScreenTarget(dataSourceType, targetObject)) {
+            return new ReportExecutionPlan(
+                    Route.MART_FACT,
+                    templateCode,
+                    "dbt.screen",
+                    displayTargetObject,
+                    "template uses dbt screen table route",
+                    displayDataSourceType,
+                    displayRefreshPolicy);
+        }
+
         if (isTrendOrRank(category) || isMartOrFactTarget(dataSourceType, targetObject)) {
             if (isCacheRoute(refreshPolicy, dataSourceType, targetObject)) {
                 return new ReportExecutionPlan(
@@ -103,6 +114,12 @@ public class ReportExecutionPlanService {
                 || "fact".equals(dataSourceType)
                 || targetObject.startsWith("mart.")
                 || targetObject.startsWith("fact.");
+    }
+
+    private static boolean isDbtScreenTarget(String dataSourceType, String targetObject) {
+        return "dbt_screen".equals(dataSourceType)
+                || "dbt".equals(dataSourceType)
+                || targetObject.startsWith("screen.");
     }
 
     private static boolean isCacheRoute(String refreshPolicy, String dataSourceType, String targetObject) {

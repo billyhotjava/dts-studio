@@ -311,6 +311,12 @@ public class AgentChatService {
         assistantMsg.setRoutedDomain(conversationPlan.routedDomain());
         assistantMsg.setTargetView(conversationPlan.primaryTarget());
         assistantMsg.setTemplateCode(conversationPlan.templateCode());
+        assistantMsg.setDataSurface(conversationPlan.dataSurface());
+        assistantMsg.setQualityLevel(conversationPlan.qualityLevel());
+        assistantMsg.setQualityNotes(String.join("；", conversationPlan.qualityNotes()));
+        assistantMsg.setSuggestedDisplay(conversationPlan.suggestedDisplay());
+        assistantMsg.setReportCode(conversationPlan.reportCode());
+        assistantMsg.setSourceRefs(String.join("；", conversationPlan.sourceRefs()));
     }
 
     static boolean isStreamInterrupted(Throwable throwable) {

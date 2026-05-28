@@ -21,4 +21,7 @@
     <include file="config/liquibase/changelog/v1_0_0_015__procurement_query_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_016__flowerbiz_supplemental.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_017__flowerbiz_query_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_018__flowerbiz_dbt_query_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_019__chat_message_agent_bi_metadata.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_020__chat_message_source_refs.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

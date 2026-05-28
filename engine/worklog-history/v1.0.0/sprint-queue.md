@@ -266,6 +266,40 @@
 
 **统计**: READY=1, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
+## Sprint-22: 报花域语义化收口 + dts-stack 治理层试点 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F0-业务发现与口径决策 | 5 | READY |
+| F1-报花域语义资产基线 | 4 | READY |
+| F2-报花NL2SQL快路径与planner直达 | 3 | READY |
+| F3-报花域回归与验收 | 3 | READY |
+| F4-dts-stack治理层试点 | 5 | READY |
+
+**统计**: READY=5, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-23: 基于现有业务优势的 Agent BI 报表 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-现有业务系统优势资产化 | 2 | DONE |
+| F2-Agent-BI语义与报表目录 | 3 | DONE |
+| F3-自然语言导报表闭环 | 3 | DONE |
+| F4-PRS租赁首个验收场景 | 3 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=4, BLOCKED=0
+
+## Sprint-24: 报表资产生产器 + 业务对象问答器 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-资产生产与业务对象路由 | 5 | IN_PROGRESS |
+| F2-候选ADS生产器 | 4 | READY |
+| F3-ODS业务对象问答器 | 4 | READY |
+| F4-资产晋升与验收闭环 | 3 | READY |
+
+**统计**: READY=3, IN_PROGRESS=1, DONE=0, BLOCKED=0
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
@@ -274,4 +308,4 @@
 
 ## 总体统计
 
-**READY=78, IN_PROGRESS=3, DONE=44, BLOCKED=0, DEFERRED=1 (总计 126 任务)**
+**READY=83, IN_PROGRESS=3, DONE=50, BLOCKED=0, DEFERRED=1 (总计 137 任务)**

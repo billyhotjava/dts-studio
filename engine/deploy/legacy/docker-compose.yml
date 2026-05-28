@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${PG_USER:-copilot}
       POSTGRES_PASSWORD: ${PG_PASSWORD:-copilot_dev}
     ports:
-      - "15432:5432"
+      - "${PG_HOST_PORT:-55432}:5432"
     volumes:
       - copilot-pg-data:/var/lib/postgresql/data
       - ./docker/postgres/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
@@ -23,7 +23,7 @@ services:
     container_name: dts-copilot-ollama
     profiles: ["ollama"]
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT:-51434}:11434"
     volumes:
       - copilot-ollama-data:/root/.ollama
     healthcheck:
@@ -52,6 +52,13 @@ services:
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
       LLM_API_KEY: ${LLM_API_KEY:-}
       COPILOT_ADMIN_SECRET: ${COPILOT_ADMIN_SECRET:-change-me-in-production}
+      DTS_DBT_DB_HOST: ${DTS_DBT_DB_HOST:-host.docker.internal}
+      DTS_DBT_DB_PORT: ${DTS_DBT_DB_PORT:-5432}
+      DTS_DBT_DB_NAME: ${DTS_DBT_DB_NAME:-biadmin}
+      DTS_DBT_DB_USER: ${DTS_DBT_DB_USER:-biadmin}
+      DTS_DBT_DB_PASSWORD: ${DTS_DBT_DB_PASSWORD:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${COPILOT_AI_PORT:-8091}:8091"
     depends_on:
@@ -81,6 +88,13 @@ services:
       PG_PASSWORD: ${PG_PASSWORD:-copilot_dev}
       COPILOT_AI_BASE_URL: http://copilot-ai:8091
       COPILOT_ADMIN_SECRET: ${COPILOT_ADMIN_SECRET:-change-me-in-production}
+      DTS_DBT_DB_HOST: ${DTS_DBT_DB_HOST:-host.docker.internal}
+      DTS_DBT_DB_PORT: ${DTS_DBT_DB_PORT:-5432}
+      DTS_DBT_DB_NAME: ${DTS_DBT_DB_NAME:-biadmin}
+      DTS_DBT_DB_USER: ${DTS_DBT_DB_USER:-biadmin}
+      DTS_DBT_DB_PASSWORD: ${DTS_DBT_DB_PASSWORD:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${COPILOT_ANALYTICS_PORT:-8092}:8092"
     depends_on:
@@ -105,6 +119,8 @@ services:
         IMAGE_NODE: ${IMAGE_NODE:-node:20-alpine}
         IMAGE_NGINX: ${IMAGE_NGINX:-nginx:alpine}
     container_name: dts-copilot-webapp
+    ports:
+      - "${COPILOT_WEBAPP_PORT:-50080}:80"
     depends_on:
       copilot-analytics:
         condition: service_healthy

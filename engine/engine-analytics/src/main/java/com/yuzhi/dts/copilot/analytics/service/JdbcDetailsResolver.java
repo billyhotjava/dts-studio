@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -17,10 +18,15 @@ public class JdbcDetailsResolver {
 
     private final PlatformInfraClient platformInfraClient;
     private final String pgHost;
+    private final Environment environment;
 
-    public JdbcDetailsResolver(PlatformInfraClient platformInfraClient, @Value("${PG_HOST:dts-pg}") String pgHost) {
+    public JdbcDetailsResolver(
+            PlatformInfraClient platformInfraClient,
+            @Value("${PG_HOST:dts-pg}") String pgHost,
+            Environment environment) {
         this.platformInfraClient = platformInfraClient;
         this.pgHost = pgHost;
+        this.environment = environment;
     }
 
     public JdbcDetails resolve(String engine, JsonNode details) {
@@ -55,17 +61,17 @@ public class JdbcDetailsResolver {
             throw new IllegalArgumentException("engine is required");
         }
 
-        String jdbcUrl = firstText(details, "jdbc-url", "jdbc_url", "jdbcUrl", "url");
+        String jdbcUrl = resolveConfiguredText(firstText(details, "jdbc-url", "jdbc_url", "jdbcUrl", "url"));
         if (jdbcUrl != null && jdbcUrl.startsWith("dbc:")) {
             jdbcUrl = "jdbc:" + jdbcUrl.substring(4);
         }
-        String username = firstText(details, "user", "username");
-        String password = firstText(details, "password");
+        String username = resolveConfiguredText(firstText(details, "user", "username"));
+        String password = resolveConfiguredText(firstText(details, "password"));
 
         if (jdbcUrl == null && "postgres".equalsIgnoreCase(engine)) {
-            String host = firstText(details, "host", "hostname", "hostName");
+            String host = resolveConfiguredText(firstText(details, "host", "hostname", "hostName"));
             Integer port = firstInt(details, "port").orElse(5432);
-            String dbName = firstText(details, "dbname", "db", "database", "dbName", "databaseName");
+            String dbName = resolveConfiguredText(firstText(details, "dbname", "db", "database", "dbName", "databaseName"));
             if (host == null || dbName == null) {
                 throw new IllegalArgumentException("Postgres database requires details.host and details.dbname");
             }
@@ -73,9 +79,9 @@ public class JdbcDetailsResolver {
         }
 
         if (jdbcUrl == null && "mysql".equalsIgnoreCase(engine)) {
-            String host = firstText(details, "host", "hostname", "hostName");
+            String host = resolveConfiguredText(firstText(details, "host", "hostname", "hostName"));
             Integer port = firstInt(details, "port").orElse(3306);
-            String dbName = firstText(details, "dbname", "db", "database", "dbName", "databaseName");
+            String dbName = resolveConfiguredText(firstText(details, "dbname", "db", "database", "dbName", "databaseName"));
             if (host == null || dbName == null) {
                 throw new IllegalArgumentException("MySQL database requires details.host and details.dbname");
             }
@@ -83,10 +89,10 @@ public class JdbcDetailsResolver {
         }
 
         if (jdbcUrl == null && "oracle".equalsIgnoreCase(engine)) {
-            String host = firstText(details, "host", "hostname", "hostName");
+            String host = resolveConfiguredText(firstText(details, "host", "hostname", "hostName"));
             Integer port = firstInt(details, "port").orElse(1521);
-            String serviceName = firstText(details, "service-name", "service_name", "serviceName", "service");
-            String sid = firstText(details, "sid", "database");
+            String serviceName = resolveConfiguredText(firstText(details, "service-name", "service_name", "serviceName", "service"));
+            String sid = resolveConfiguredText(firstText(details, "sid", "database"));
             if (host == null) {
                 throw new IllegalArgumentException("Oracle database requires details.host");
             }
@@ -120,6 +126,14 @@ public class JdbcDetailsResolver {
             }
         }
         return null;
+    }
+
+    private String resolveConfiguredText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        String resolved = environment.resolvePlaceholders(value);
+        return StringUtils.hasText(resolved) ? resolved.trim() : resolved;
     }
 
     private static Optional<Integer> firstInt(JsonNode node, String... fieldNames) {

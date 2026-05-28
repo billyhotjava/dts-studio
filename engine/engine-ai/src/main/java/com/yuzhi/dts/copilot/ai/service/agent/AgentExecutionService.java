@@ -3,6 +3,7 @@ package com.yuzhi.dts.copilot.ai.service.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
+import com.yuzhi.dts.copilot.ai.repository.AiDataSourceRepository;
 import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,8 @@ public class AgentExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(AgentExecutionService.class);
 
+    private static final String DEFAULT_DBT_DATA_SOURCE_NAME = "DTS dbt模型库";
+
     private static final String SYSTEM_PROMPT = """
             你是 DTS Copilot，一个智能数据分析助手。你由 DTS 智能平台提供，底层接入了用户配置的大语言模型。
             当用户问你是谁、什么模型时，回答"我是 DTS Copilot，由 DTS 智能平台提供的数据分析助手"，不要声称自己是其他产品。
@@ -46,6 +50,17 @@ public class AgentExecutionService {
             - 清晰解释你的推理和结果
             - 如果不确定，向用户请求澄清
             - 默认使用中文回复
+
+            ## 新报表草稿工作流
+
+            当用户明确要求生成新的报表、图表、看板草稿或自定义统计时：
+            1. 先结合业务路由和语义包确认优先数据层，优先使用 MART/ADS/DWS 聚合表，不要默认下钻 ODS 原始表
+            2. 先对目标 dbt 模型调用 schema_lookup 工具验证表名和字段名；SQL 只能使用 schema_lookup 返回字段，不要猜测旧 ODS 字段
+            3. 创建可保存的分析草稿：生成只读 SQL，并按需要调用 execute_query 做小样本预览
+            4. 回复中必须包含一个 ```sql 代码块，并说明统计口径、推荐图表类型和可能的数据质量 caveat
+            5. 不要把固定报表模板当成新报表草稿返回，除非用户明确要求打开已有报表
+            6. 指标摘要、口径说明、推荐图表和数据质量提示统一使用标准 Markdown 表格；报表摘要表固定使用表头 `| 指标 | 结果 | 说明 |`，第二行必须是 `| --- | --- | --- |`
+            7. 不要只输出指标说明表，必须包含 ```sql 代码块；如果字段不足以生成 SQL，明确说明缺失字段并请求补充，不要声称已生成报表草稿
 
             ## 数据查询工作流
 
@@ -76,6 +91,7 @@ public class AgentExecutionService {
     private final AiProviderConfigRepository providerConfigRepository;
     private final ConversationPlannerService conversationPlannerService;
     private final LlmProviderClientFactory clientFactory;
+    private final AiDataSourceRepository dataSourceRepository;
 
     private volatile LlmProviderClient cachedClient;
     private volatile String cachedClientKey;
@@ -84,12 +100,14 @@ public class AgentExecutionService {
                                  RagService ragService,
                                  AiProviderConfigRepository providerConfigRepository,
                                  ConversationPlannerService conversationPlannerService,
-                                 LlmProviderClientFactory clientFactory) {
+                                 LlmProviderClientFactory clientFactory,
+                                 AiDataSourceRepository dataSourceRepository) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
         this.conversationPlannerService = conversationPlannerService;
         this.clientFactory = clientFactory;
+        this.dataSourceRepository = dataSourceRepository;
     }
 
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
@@ -135,7 +153,7 @@ public class AgentExecutionService {
         userMsg.put("content", userMessage);
         messages.add(userMsg);
 
-        ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
+        ToolContext toolContext = new ToolContext(userId, sessionId, resolveToolDataSourceId(dataSourceId, conversationPlan));
         String response = reActEngine.execute(
                 client,
                 provider.getModel(),
@@ -164,20 +182,20 @@ public class AgentExecutionService {
                                                  OutputStream sseOutput) {
         ConversationPlan conversationPlan = conversationPlannerService.plan(userMessage, martHealthSnapshot);
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
-            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan);
+            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan, null);
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
         }
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan);
+            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null);
             return new ChatExecutionResult(response, generatedSql, conversationPlan, null);
         }
 
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
             String message = "No AI provider is configured. Please configure a provider in the settings.";
-            writeTokenAndDone(sseOutput, message, null, conversationPlan);
+            writeTokenAndDone(sseOutput, message, null, conversationPlan, null);
             return new ChatExecutionResult(message, null, conversationPlan, null);
         }
 
@@ -195,7 +213,7 @@ public class AgentExecutionService {
         userMsg.put("content", userMessage);
         messages.add(userMsg);
 
-        ToolContext toolContext = new ToolContext(userId, sessionId, dataSourceId);
+        ToolContext toolContext = new ToolContext(userId, sessionId, resolveToolDataSourceId(dataSourceId, conversationPlan));
         String response = reActEngine.executeStreaming(
                 client,
                 provider.getModel(),
@@ -205,7 +223,7 @@ public class AgentExecutionService {
                 provider.getMaxTokens(),
                 sseOutput);
         String sql = resolveGeneratedSql(response, conversationPlan);
-        writeDoneEvent(sseOutput, sql, conversationPlan);
+        writeDoneEvent(sseOutput, sql, conversationPlan, inferSuggestedDisplay(userMessage, sql, conversationPlan));
 
         return new ChatExecutionResult(
                 response,
@@ -249,12 +267,51 @@ public class AgentExecutionService {
     private String resolveGeneratedSql(String response, ConversationPlan conversationPlan) {
         String generatedSql = extractSqlFromMarkdown(response);
         if (StringUtils.hasText(generatedSql)) {
-            return generatedSql;
+            return normalizeReadOnlySql(generatedSql);
         }
         if (conversationPlan != null && StringUtils.hasText(conversationPlan.resolvedSql())) {
-            return conversationPlan.resolvedSql().trim();
+            return normalizeReadOnlySql(conversationPlan.resolvedSql());
         }
         return null;
+    }
+
+    private String normalizeReadOnlySql(String sql) {
+        if (!StringUtils.hasText(sql)) {
+            return null;
+        }
+        String trimmed = stripLeadingSqlComments(sql);
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
+        if (!(normalized.startsWith("select ") || normalized.startsWith("with "))) {
+            log.warn("Rejected non-read-only generated SQL because it does not start with SELECT/WITH");
+            return null;
+        }
+        if (normalized.matches("(?s).*;\\s*\\S+.*")) {
+            log.warn("Rejected generated SQL with multiple statements");
+            return null;
+        }
+        if (normalized.matches("(?s).*\\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|merge|call|execute)\\b.*")) {
+            log.warn("Rejected generated SQL containing a disallowed keyword");
+            return null;
+        }
+        return trimmed;
+    }
+
+    private String stripLeadingSqlComments(String sql) {
+        String trimmed = sql == null ? "" : sql.trim();
+        boolean changed = true;
+        while (changed && StringUtils.hasText(trimmed)) {
+            changed = false;
+            if (trimmed.startsWith("--")) {
+                int newline = trimmed.indexOf('\n');
+                trimmed = newline >= 0 ? trimmed.substring(newline + 1).trim() : "";
+                changed = true;
+            } else if (trimmed.startsWith("/*")) {
+                int end = trimmed.indexOf("*/", 2);
+                trimmed = end >= 0 ? trimmed.substring(end + 2).trim() : "";
+                changed = true;
+            }
+        }
+        return trimmed;
     }
 
     private String extractSqlFromMarkdown(String content) {
@@ -277,6 +334,38 @@ public class AgentExecutionService {
     private boolean isTemplateFastPath(ConversationPlan conversationPlan) {
         return conversationPlan.mode() == PlanMode.TEMPLATE_FAST_PATH
                 && StringUtils.hasText(conversationPlan.templateCode());
+    }
+
+    private Long resolveToolDataSourceId(Long requestedDataSourceId, ConversationPlan conversationPlan) {
+        if (!isDbtMartPlan(conversationPlan)) {
+            return requestedDataSourceId;
+        }
+        try {
+            return dataSourceRepository.findAllByOrderByUpdatedAtDescIdDesc().stream()
+                    .filter(source -> DEFAULT_DBT_DATA_SOURCE_NAME.equalsIgnoreCase(String.valueOf(source.getName())))
+                    .filter(source -> !StringUtils.hasText(source.getStatus()) || "ACTIVE".equalsIgnoreCase(source.getStatus()))
+                    .map(source -> source.getId())
+                    .filter(id -> id != null && id > 0)
+                    .findFirst()
+                    .orElse(requestedDataSourceId);
+        } catch (Exception ex) {
+            log.warn("Failed to resolve dbt mart datasource for agent tools: {}", ex.getMessage());
+            return requestedDataSourceId;
+        }
+    }
+
+    private boolean isDbtMartPlan(ConversationPlan conversationPlan) {
+        if (conversationPlan == null) {
+            return false;
+        }
+        if ("L1_DBT_MART".equalsIgnoreCase(String.valueOf(conversationPlan.dataSurface()))) {
+            return true;
+        }
+        String target = String.valueOf(conversationPlan.primaryTarget()).toLowerCase(Locale.ROOT);
+        return target.contains("xycyl_ads_flowerbiz_")
+                || target.contains("xycyl_dws_flowerbiz_")
+                || target.contains("xycyl_dwd_flowerbiz_")
+                || target.contains("xycyl_dim_flowerbiz_");
     }
 
     private String resolveFastPathGeneratedSql(ConversationPlan plan) {
@@ -342,26 +431,45 @@ public class AgentExecutionService {
         }
     }
 
-    private void writeTokenAndDone(OutputStream out, String text, String sql, ConversationPlan conversationPlan) {
+    private void writeTokenAndDone(
+            OutputStream out,
+            String text,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay) {
         try {
             String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
-            writeDoneEvent(out, sql, conversationPlan);
+            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay);
             out.flush();
         } catch (IOException e) {
             log.debug("SSE write failed: {}", e.getMessage());
         }
     }
 
-    private void writeDoneEvent(OutputStream out, String sql, ConversationPlan conversationPlan) {
+    private void writeDoneEvent(
+            OutputStream out,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay) {
         try {
             ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
                 done.put("generatedSql", sql);
             }
+            String effectiveSuggestedDisplay = conversationPlan != null
+                    && StringUtils.hasText(conversationPlan.suggestedDisplay())
+                    ? conversationPlan.suggestedDisplay()
+                    : suggestedDisplay;
+            if (StringUtils.hasText(effectiveSuggestedDisplay)) {
+                done.put("suggestedDisplay", effectiveSuggestedDisplay);
+            }
             if (conversationPlan != null) {
                 if (StringUtils.hasText(conversationPlan.templateCode())) {
                     done.put("templateCode", conversationPlan.templateCode());
+                }
+                if (StringUtils.hasText(conversationPlan.reportCode())) {
+                    done.put("reportCode", conversationPlan.reportCode());
                 }
                 if (conversationPlan.responseKind() != null) {
                     done.put("responseKind", conversationPlan.responseKind().name());
@@ -372,12 +480,63 @@ public class AgentExecutionService {
                 if (StringUtils.hasText(conversationPlan.primaryTarget())) {
                     done.put("targetView", conversationPlan.primaryTarget());
                 }
+                if (StringUtils.hasText(conversationPlan.dataSurface())) {
+                    done.put("dataSurface", conversationPlan.dataSurface());
+                }
+                if (StringUtils.hasText(conversationPlan.qualityLevel())) {
+                    done.put("qualityLevel", conversationPlan.qualityLevel());
+                }
+                if (!conversationPlan.qualityNotes().isEmpty()) {
+                    var qualityNotes = done.putArray("qualityNotes");
+                    conversationPlan.qualityNotes().forEach(qualityNotes::add);
+                }
+                if (!conversationPlan.sourceRefs().isEmpty()) {
+                    var sourceRefs = done.putArray("sourceRefs");
+                    conversationPlan.sourceRefs().forEach(sourceRefs::add);
+                }
             }
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
         } catch (IOException e) {
             log.debug("SSE done event write failed: {}", e.getMessage());
         }
+    }
+
+    private String inferSuggestedDisplay(String userMessage, String sql, ConversationPlan conversationPlan) {
+        if (conversationPlan == null
+                || conversationPlan.responseKind() != ConversationPlannerService.ResponseKind.REPORT_DRAFT) {
+            return null;
+        }
+        if (StringUtils.hasText(conversationPlan.suggestedDisplay())) {
+            return conversationPlan.suggestedDisplay();
+        }
+        String text = (String.valueOf(userMessage) + "\n" + String.valueOf(sql) + "\n"
+                + String.valueOf(conversationPlan.primaryTarget())).toLowerCase();
+        if (containsAny(text, "趋势", "走势", "月度", "按月", "按日", "date_trunc", "month_id", "day_id", "order by month")) {
+            return "line";
+        }
+        if (containsAny(text, "排行", "排名", "top", "最多", "最高", "最低", "rank")) {
+            return "bar";
+        }
+        if (containsAny(text, "占比", "比例", "构成", "分布", "rate", "ratio", "percent")) {
+            return "pie";
+        }
+        if (containsAny(text, "总览", "指标", "kpi", "总数", "合计")) {
+            return "scalar";
+        }
+        return "table";
+    }
+
+    private boolean containsAny(String text, String... patterns) {
+        if (!StringUtils.hasText(text)) {
+            return false;
+        }
+        for (String pattern : patterns) {
+            if (text.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String extractReasoningFromMessages(List<Map<String, Object>> messages) {

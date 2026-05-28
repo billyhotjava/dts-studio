@@ -52,10 +52,10 @@ public class CopilotChatDataSourceResolver {
         }
         try {
             JsonNode details = objectMapper.readTree(detailsJson);
-            JsonNode value = details.get("dataSourceId");
-            if (value == null || value.isNull()) {
-                return null;
-            }
+        JsonNode value = firstPresent(details, "dataSourceId", "datasourceId", "copilotDataSourceId", "copilot_datasource_id");
+        if (value == null || value.isNull()) {
+            return null;
+        }
             if (value.canConvertToLong()) {
                 return value.asLong();
             }
@@ -66,6 +66,19 @@ public class CopilotChatDataSourceResolver {
         } catch (IOException e) {
             throw new IllegalArgumentException("Selected database details are invalid JSON", e);
         }
+    }
+
+    private JsonNode firstPresent(JsonNode node, String... fieldNames) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+        for (String fieldName : fieldNames) {
+            JsonNode value = node.get(fieldName);
+            if (value != null && !value.isNull()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private Long parseLong(String value) {

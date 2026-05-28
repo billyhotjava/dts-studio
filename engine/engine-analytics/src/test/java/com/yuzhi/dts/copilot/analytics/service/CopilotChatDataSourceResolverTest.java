@@ -35,6 +35,24 @@ class CopilotChatDataSourceResolverTest {
     }
 
     @Test
+    void resolvesDedicatedCopilotDatasourceIdWithoutOverridingJdbcDetails() {
+        AnalyticsDatabase database = new AnalyticsDatabase();
+        database.setId(8L);
+        database.setDetailsJson("""
+                {
+                  "jdbc-url": "jdbc:postgresql://${DTS_DBT_DB_HOST:host.docker.internal}:5432/biadmin",
+                  "copilotDataSourceId": 92
+                }
+                """);
+        when(databaseRepository.findById(8L)).thenReturn(Optional.of(database));
+
+        CopilotChatDataSourceResolver resolver =
+                new CopilotChatDataSourceResolver(databaseRepository, objectMapper);
+
+        assertThat(resolver.resolveSelectedDatasourceId("8")).isEqualTo(92L);
+    }
+
+    @Test
     void rejectsAnalyticsDatabaseWithoutLinkedAiDatasource() {
         AnalyticsDatabase database = new AnalyticsDatabase();
         database.setId(7L);

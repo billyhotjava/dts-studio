@@ -43,17 +43,19 @@ class TemplateFirstRoutingTest {
                 intentRouterService,
                 templateMatcherService,
                 semanticPackService,
-                directResponseCatalogService
+                directResponseCatalogService,
+                new AgentBiReportCatalogService(),
+                new BusinessObjectCatalogService()
         );
     }
 
     @Test
     void highConfidenceFixedReportQuestionUsesTemplateFastPath() {
-        String question = "客户欠款排行";
+        String question = "打开PRS租赁经营总览大屏";
         Nl2SqlQueryTemplate template = buildTemplate(
-                "FIN-CUSTOMER-AR-RANK",
-                "财务",
-                "mart.finance.customer_ar_rank_daily",
+                "PRS-FLOWERBIZ-OVERVIEW",
+                "flowerbiz",
+                "screen.prs-flowerbiz-overview-v1",
                 null
         );
         when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
@@ -64,54 +66,54 @@ class TemplateFirstRoutingTest {
                 null
         ));
         when(intentRouterService.routeWithDataLayer(question, Map.of())).thenReturn(new ExtendedRoutingResult(
-                new RoutingResult("财务", "v_monthly_settlement", List.of(), 0.98, false),
-                DataLayer.MART,
-                "mart.finance.customer_ar_rank_daily",
-                false,
-                null
-        ));
-        when(semanticPackService.getContextForDomain("财务")).thenReturn("finance semantic pack");
-
-        ConversationPlan plan = policy.plan(question, Map.of());
-
-        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
-        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
-        assertThat(plan.templateCode()).isEqualTo("FIN-CUSTOMER-AR-RANK");
-        assertThat(plan.resolvedSql()).isNull();
-        assertThat(plan.primaryTarget()).isEqualTo("mart.finance.customer_ar_rank_daily");
-    }
-
-    @Test
-    void parameterizedVariantStillPrefersTemplateFastPath() {
-        String question = "待收款明细";
-        Nl2SqlQueryTemplate template = buildTemplate(
-                "FIN-PENDING-RECEIPTS-DETAIL",
-                "财务",
-                "authority.finance.pending_receipts_detail",
-                null
-        );
-        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
-        when(templateMatcherService.match(question)).thenReturn(new TemplateMatchResult(
-                true,
-                template,
-                Map.of(),
-                null
-        ));
-        when(intentRouterService.routeWithDataLayer(question, Map.of())).thenReturn(new ExtendedRoutingResult(
-                new RoutingResult("财务", "v_monthly_settlement", List.of(), 0.95, false),
+                new RoutingResult("flowerbiz", "screen.prs-flowerbiz-overview-v1", List.of(), 0.98, false),
                 DataLayer.VIEW,
                 null,
                 false,
                 null
         ));
-        when(semanticPackService.getContextForDomain("财务")).thenReturn("finance semantic pack");
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
         assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
-        assertThat(plan.templateCode()).isEqualTo("FIN-PENDING-RECEIPTS-DETAIL");
-        assertThat(plan.primaryTarget()).isEqualTo("v_monthly_settlement");
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-OVERVIEW");
+        assertThat(plan.resolvedSql()).isNull();
+        assertThat(plan.primaryTarget()).isEqualTo("screen.prs-flowerbiz-overview-v1");
+    }
+
+    @Test
+    void parameterizedVariantStillPrefersTemplateFastPath() {
+        String question = "打开PRS回收明细钻取大屏";
+        Nl2SqlQueryTemplate template = buildTemplate(
+                "PRS-FLOWERBIZ-DRILL-RECOVERY-DETAIL",
+                "flowerbiz",
+                "screen.prs-flowerbiz-drill-recovery-detail-v1",
+                null
+        );
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(templateMatcherService.match(question)).thenReturn(new TemplateMatchResult(
+                true,
+                template,
+                Map.of(),
+                null
+        ));
+        when(intentRouterService.routeWithDataLayer(question, Map.of())).thenReturn(new ExtendedRoutingResult(
+                new RoutingResult("flowerbiz", "screen.prs-flowerbiz-drill-recovery-detail-v1", List.of(), 0.95, false),
+                DataLayer.VIEW,
+                null,
+                false,
+                null
+        ));
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-DRILL-RECOVERY-DETAIL");
+        assertThat(plan.primaryTarget()).isEqualTo("screen.prs-flowerbiz-drill-recovery-detail-v1");
         assertThat(plan.resolvedSql()).isNull();
     }
 

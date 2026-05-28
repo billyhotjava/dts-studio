@@ -212,6 +212,12 @@ public class InternalAgentChatResource {
         map.put("routedDomain", message.getRoutedDomain());
         map.put("targetView", message.getTargetView());
         map.put("templateCode", message.getTemplateCode());
+        map.put("dataSurface", message.getDataSurface());
+        map.put("qualityLevel", message.getQualityLevel());
+        map.put("qualityNotes", message.getQualityNotes());
+        map.put("suggestedDisplay", message.getSuggestedDisplay());
+        map.put("reportCode", message.getReportCode());
+        map.put("sourceRefs", message.getSourceRefs());
         map.put("createdAt", message.getCreatedAt() != null ? message.getCreatedAt().toString() : null);
         return map;
     }

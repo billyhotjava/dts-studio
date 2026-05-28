@@ -66,13 +66,23 @@ class AnalysisDraftResourceTest {
                                   "question":"中石油项目目前有多少在摆绿植",
                                   "database_id":6,
                                   "sql_text":"select 1",
-                                  "source_type":"copilot"
+                                  "source_type":"copilot",
+                                  "response_kind":"REPORT_DRAFT",
+                                  "data_surface":"L1_DBT_MART",
+                                  "quality_level":"MEDIUM",
+                                  "quality_notes":["2025年5月以后数据较可用"],
+                                  "report_code":"prs.flowerbiz.lease_execution_monthly"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.source_type").value("copilot"))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.database_id").value(6))
+                .andExpect(jsonPath("$.response_kind").value("REPORT_DRAFT"))
+                .andExpect(jsonPath("$.data_surface").value("L1_DBT_MART"))
+                .andExpect(jsonPath("$.quality_level").value("MEDIUM"))
+                .andExpect(jsonPath("$.quality_notes").value("2025年5月以后数据较可用"))
+                .andExpect(jsonPath("$.report_code").value("prs.flowerbiz.lease_execution_monthly"))
                 .andExpect(jsonPath("$.question").value("中石油项目目前有多少在摆绿植"));
 
         mockMvc.perform(get("/api/analysis-drafts"))

@@ -38,15 +38,23 @@ class AssetBackedPlannerPolicyTest {
     @Mock
     private BusinessDirectResponseCatalogService directResponseCatalogService;
 
+    private AgentBiReportCatalogService reportCatalogService;
+
+    private BusinessObjectCatalogService businessObjectCatalogService;
+
     private AssetBackedPlannerPolicy policy;
 
     @BeforeEach
     void setUp() {
+        reportCatalogService = new AgentBiReportCatalogService();
+        businessObjectCatalogService = new BusinessObjectCatalogService();
         policy = new AssetBackedPlannerPolicy(
                 intentRouterService,
                 templateMatcherService,
                 semanticPackService,
-                directResponseCatalogService
+                directResponseCatalogService,
+                reportCatalogService,
+                businessObjectCatalogService
         );
     }
 
@@ -127,30 +135,30 @@ class AssetBackedPlannerPolicyTest {
 
     @Test
     void fixedReportTemplateMatchUsesFixedReportFastPathWithoutResolvedSql() {
-        String question = "客户欠款排行";
+        String question = "打开PRS租赁经营总览大屏";
         when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
         when(templateMatcherService.match(question))
                 .thenReturn(new TemplateMatchResult(
                         true,
-                        buildTemplate("FIN-CUSTOMER-AR-RANK", "财务", "mart.finance.customer_ar_rank_daily"),
+                        buildTemplate("PRS-FLOWERBIZ-OVERVIEW", "flowerbiz", "screen.prs-flowerbiz-overview-v1"),
                         Map.of(),
                         null));
         when(intentRouterService.routeWithDataLayer(question, Map.of()))
                 .thenReturn(new ExtendedRoutingResult(
-                        new RoutingResult("财务", "v_monthly_settlement", List.of(), 0.95, false),
-                        DataLayer.MART,
-                        "mart.finance.customer_ar_rank_daily",
+                        new RoutingResult("flowerbiz", "screen.prs-flowerbiz-overview-v1", List.of(), 0.95, false),
+                        DataLayer.VIEW,
+                        null,
                         false,
                         null));
-        when(semanticPackService.getContextForDomain("财务")).thenReturn("finance semantic pack");
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
         assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
-        assertThat(plan.templateCode()).isEqualTo("FIN-CUSTOMER-AR-RANK");
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-OVERVIEW");
         assertThat(plan.resolvedSql()).isNull();
-        assertThat(plan.primaryTarget()).isEqualTo("mart.finance.customer_ar_rank_daily");
+        assertThat(plan.primaryTarget()).isEqualTo("screen.prs-flowerbiz-overview-v1");
     }
 
     @Test
@@ -204,30 +212,268 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
-    void genericFinanceReportQuestionReturnsFixedReportCandidatesBeforeExploration() {
-        String question = "看下财务报表";
+    void genericPrsReportQuestionReturnsScreenFixedReportCandidatesBeforeExploration() {
+        String question = "看下PRS租赁大屏";
         when(templateMatcherService.match(question))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));
         when(intentRouterService.routeWithDataLayer(question, Map.of()))
                 .thenReturn(new ExtendedRoutingResult(
-                        new RoutingResult("settlement", "v_monthly_settlement", List.of(), 0.18, true),
+                        new RoutingResult("flowerbiz", "xycyl_dws_flowerbiz_project_monthly", List.of(), 0.18, true),
                         DataLayer.VIEW,
                         null,
                         false,
                         null));
         when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
-        when(templateMatcherService.getFixedReportSuggestionsByDomain("财务", 3)).thenReturn(List.of(
-                new SuggestedQuestion("FIN-AR-OVERVIEW", "财务", "财务", "财务结算汇总", "desc"),
-                new SuggestedQuestion("FIN-PENDING-RECEIPTS-DETAIL", "财务", "财务", "财务结算列表待收款明细", "desc"),
-                new SuggestedQuestion("FIN-INVOICE-RECONCILIATION", "财务", "财务", "开票管理", "desc")
+        when(templateMatcherService.getFixedReportSuggestionsByDomain("flowerbiz", 3)).thenReturn(List.of(
+                new SuggestedQuestion("PRS-FLOWERBIZ-OVERVIEW", "flowerbiz", "flowerbiz", "PRS 租赁经营总览", "desc"),
+                new SuggestedQuestion("PRS-FLOWERBIZ-LEASE-EXECUTION", "flowerbiz", "flowerbiz", "PRS 租赁报花执行看板", "desc"),
+                new SuggestedQuestion("PRS-FLOWERBIZ-FINANCE-COST", "flowerbiz", "flowerbiz", "PRS 销售坏账与费用看板", "desc")
         ));
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
         assertThat(plan.mode()).isEqualTo(PlanMode.DIRECT_RESPONSE);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT_CANDIDATES);
-        assertThat(plan.directResponse()).contains("财务结算汇总");
-        assertThat(plan.directResponse()).contains("开票管理");
+        assertThat(plan.directResponse()).contains("PRS 租赁经营总览");
+        assertThat(plan.directResponse()).contains("PRS 销售坏账与费用看板");
+    }
+
+    @Test
+    void explicitNewReportRequestUsesAgentGeneratedReportDraftInsteadOfFixedReportCandidates() {
+        String question = "帮我生成一张PRS租赁项目月度趋势报表";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("flowerbiz", "xycyl_dws_flowerbiz_project_monthly", List.of(), 0.82, false),
+                        DataLayer.MART,
+                        "xycyl_dws_flowerbiz_project_monthly",
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.REPORT_DRAFT);
+        assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(plan.dataSurface()).isEqualTo("L1_DBT_MART");
+        assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
+        assertThat(plan.promptContext()).contains("报表草稿");
+        assertThat(plan.promptContext()).contains("xycyl_dws_flowerbiz_project_monthly");
+        assertThat(plan.promptContext()).contains("先对 data surface 指定的 dbt 模型调用 schema_lookup");
+        assertThat(plan.promptContext()).contains("只能使用 schema_lookup 返回字段");
+    }
+
+    @Test
+    void genericGeneratedReportDraftCarriesDataSurfaceAndQualityMetadata() {
+        String question = "帮我生成一张运营总览统计报表";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("operations", "v_operation_summary", List.of(), 0.42, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("operations")).thenReturn("operations semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.REPORT_DRAFT);
+        assertThat(plan.dataSurface()).isEqualTo("L1_SEMANTIC_VIEW");
+        assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
+        assertThat(plan.qualityNotes()).isNotEmpty();
+        assertThat(plan.suggestedDisplay()).isEqualTo("scalar");
+        assertThat(plan.promptContext()).contains("报表草稿");
+    }
+
+    @Test
+    void trendQuestionUsesAgentBiCatalogReportDraftEvenWithoutGenerateVerb() {
+        String question = "从2025年5月到现在，租赁收入按月趋势怎么样";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("flowerbiz", "v_flower_biz_detail", List.of(), 0.82, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.REPORT_DRAFT);
+        assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(plan.dataSurface()).isEqualTo("L1_DBT_MART");
+        assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
+        assertThat(plan.qualityNotes()).isNotEmpty();
+        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_dws_flowerbiz_project_monthly");
+        assertThat(plan.sourceRefs())
+                .contains("dbt-model:public.xycyl_dws_flowerbiz_project_monthly", "semantic-pack:flowerbiz");
+        assertThat(plan.promptContext())
+                .contains("source refs")
+                .contains("dbt-model:public.xycyl_dws_flowerbiz_project_monthly");
+        assertThat(plan.promptContext()).contains("先对 data surface 指定的 dbt 模型调用 schema_lookup");
+    }
+
+    @Test
+    void businessDetailQuestionUsesAdminApiReadonlySurface() {
+        String question = "这个项目有哪些待确认账单";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("project", "v_project_overview", List.of(), 0.42, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("project")).thenReturn("project semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_DETAIL);
+        assertThat(plan.reportCode()).isEqualTo("prs.rental.pending_bill_detail");
+        assertThat(plan.dataSurface()).isEqualTo("L0_ADMINAPI_READONLY");
+        assertThat(plan.primaryTarget()).contains("/operate/monthAccount");
+        assertThat(plan.promptContext()).contains("adminapi 只读");
+    }
+
+    @Test
+    void procurementDeliveryRecordStatusQuestionUsesBusinessObjectProfileSurface() {
+        String question = "采购配送记录各状态有多少";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("purchase_inventory", "ods_ptr_mysql_t_delivery_info", List.of(), 0.64, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("purchase_inventory")).thenReturn("");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_INSIGHT);
+        assertThat(plan.reportCode()).isEqualTo("prs.procurement.delivery_record.profile");
+        assertThat(plan.dataSurface()).isEqualTo("L0_BUSINESS_OBJECT_PROFILE");
+        assertThat(plan.primaryTarget()).isEqualTo("business-object:prs.procurement.delivery_record");
+        assertThat(plan.sourceRefs())
+                .contains("business-object:prs.procurement.delivery_record", "ods-profile:procurement.delivery_record");
+        assertThat(plan.promptContext())
+                .contains("采购管理 > 配送记录")
+                .contains("字段画像")
+                .contains("只读 ODS")
+                .contains("| 指标 | 结果 | 说明 |");
+    }
+
+    @Test
+    void flowerBizDocumentStatusQuestionUsesBusinessObjectProfileSurface() {
+        String question = "报花单据状态分布";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("flowerbiz", "ods_ptr_mysql_f_flower_biz_info", List.of(), 0.72, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_INSIGHT);
+        assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.biz_order.profile");
+        assertThat(plan.dataSurface()).isEqualTo("L0_BUSINESS_OBJECT_PROFILE");
+        assertThat(plan.primaryTarget()).isEqualTo("business-object:prs.flowerbiz.biz_order");
+        assertThat(plan.promptContext()).contains("报花管理 > 报花单据");
+        assertThat(plan.promptContext()).contains("项目点, 业务类型, 单号");
+    }
+
+    @Test
+    void projectSiteStatusQuestionUsesBusinessObjectProfileSurface() {
+        String question = "项目点状态统计";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("project", "ods_ptr_mysql_p_project", List.of(), 0.68, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("project")).thenReturn("");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_INSIGHT);
+        assertThat(plan.reportCode()).isEqualTo("prs.project.project_site.profile");
+        assertThat(plan.dataSurface()).isEqualTo("L0_BUSINESS_OBJECT_PROFILE");
+        assertThat(plan.primaryTarget()).isEqualTo("business-object:prs.project.project_site");
+        assertThat(plan.promptContext()).contains("项目点管理 > 项目点");
+    }
+
+    @Test
+    void financeBankStatementQuestionUsesBusinessObjectProfileSurface() {
+        String question = "银行流水未核对有多少";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("finance", "ods_ptr_mysql_f_bank_statement", List.of(), 0.7, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("finance")).thenReturn("");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_INSIGHT);
+        assertThat(plan.reportCode()).isEqualTo("prs.finance.bank_statement.profile");
+        assertThat(plan.dataSurface()).isEqualTo("L0_BUSINESS_OBJECT_PROFILE");
+        assertThat(plan.primaryTarget()).isEqualTo("business-object:prs.finance.bank_statement");
+        assertThat(plan.promptContext()).contains("财务管理 > 银行流水");
+    }
+
+    @Test
+    void actionRequestCreatesProposalInsteadOfExecutingBusinessWrite() {
+        String question = "帮我发起催收任务";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("settlement", "v_monthly_settlement", List.of(), 0.33, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.ACTION_PROPOSAL);
+        assertThat(plan.reportCode()).isEqualTo("prs.rental.collection_followup_proposal");
+        assertThat(plan.dataSurface()).isEqualTo("ACTION_PROPOSAL");
+        assertThat(plan.primaryTarget()).isEqualTo("rental.create_collection_followup");
+        assertThat(plan.promptContext()).contains("不得直接调用业务写接口");
+        assertThat(plan.promptContext()).contains("只生成动作提案");
     }
 
     private Nl2SqlQueryTemplate buildTemplate(String templateCode, String domain, String targetView) {
