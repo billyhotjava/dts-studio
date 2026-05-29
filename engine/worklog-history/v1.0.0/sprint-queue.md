@@ -300,6 +300,17 @@
 
 **统计**: READY=3, IN_PROGRESS=1, DONE=0, BLOCKED=0
 
+## Sprint-25: 项目管理域 + 共享维度数据面 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F0-项目域P0数据画像与口径决策 | 4 | BLOCKED |
+| F1-共享维度与项目域dbt建模 | 4 | BLOCKED |
+| F2-项目域NL2SQL接入 | 3 | BLOCKED |
+| F3-项目域回归与验收 | 3 | BLOCKED |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=0, BLOCKED=4
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
