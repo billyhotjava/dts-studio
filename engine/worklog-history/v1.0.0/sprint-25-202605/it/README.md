@@ -23,6 +23,8 @@ RUN_LIVE=1 bash worklog/v1.0.0/sprint-25-202605/it/test_project_source_profile_s
 
 `RUN_LIVE=1` 默认连接本地 `v223-dts-pg-1` / `biadmin`，执行 `it/sql/project_source_profile.sql`。2026-05-29 本地结果见 `it/evidence/20260529-local/project-source-profile.md`。
 
+2026-05-30 权限重试结果见 `it/evidence/20260530-local/project-source-profile-permission-retry.md`：本地 DTS ODS 仍只有 `p_project` / `p_customer` 有行，其余 9 张为 0；远端只读 row-count 未成功。
+
 ## F0 ODS 补表
 
 ```bash

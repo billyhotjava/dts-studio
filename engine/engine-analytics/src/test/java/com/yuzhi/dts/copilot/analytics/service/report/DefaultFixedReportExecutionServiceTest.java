@@ -85,10 +85,12 @@ class DefaultFixedReportExecutionServiceTest {
                 "租金净额全口径", new BigDecimal("12000.00")));
 
         verify(datasetQueryService).runNative(eq(8L), sqlCaptor.capture(), any(DatasetConstraints.class), bindingsCaptor.capture());
-        assertThat(sqlCaptor.getValue()).contains("FROM public.xycyl_ads_flowerbiz_overview");
-        assertThat(sqlCaptor.getValue()).contains("LIMIT 50");
-        assertThat(sqlCaptor.getValue()).doesNotContain("screen.prs-flowerbiz-overview-v1");
-        assertThat(bindingsCaptor.getValue()).isEmpty();
+	        assertThat(sqlCaptor.getValue()).contains("FROM public.xycyl_ads_flowerbiz_overview");
+	        assertThat(sqlCaptor.getValue()).contains("SELECT \"年份\", \"业务月份\", \"项目\", \"客户\", \"租金净额全口径\"");
+	        assertThat(sqlCaptor.getValue()).contains("ORDER BY \"租金净额全口径\" DESC NULLS LAST");
+	        assertThat(sqlCaptor.getValue()).contains("LIMIT 50");
+	        assertThat(sqlCaptor.getValue()).doesNotContain("screen.prs-flowerbiz-overview-v1");
+	        assertThat(bindingsCaptor.getValue()).isEmpty();
     }
 
     @Test
@@ -1874,12 +1876,14 @@ class DefaultFixedReportExecutionServiceTest {
                   "templateCode":"PRS-FLOWERBIZ-OVERVIEW",
                   "reportType":"fixed-screen",
                   "displayType":"table",
-                  "queryContract":{
-                    "sourceType":"DBT_SCREEN",
-                    "targetObject":"screen.prs-flowerbiz-overview-v1",
-                    "primaryDbtModel":"public.xycyl_ads_flowerbiz_overview",
-                    "dbtModels":["public.xycyl_dws_flowerbiz_project_monthly"]
-                  },
+	                  "queryContract":{
+	                    "sourceType":"DBT_SCREEN",
+	                    "targetObject":"screen.prs-flowerbiz-overview-v1",
+	                    "primaryDbtModel":"public.xycyl_ads_flowerbiz_overview",
+	                    "dbtModels":["public.xycyl_dws_flowerbiz_project_monthly"],
+	                    "outputColumns":["年份","业务月份","项目","客户","租金净额全口径"],
+	                    "orderBy":[{"column":"租金净额全口径","direction":"desc"}]
+	                  },
                   "placeholderReviewRequired":false
                 }
                 """);

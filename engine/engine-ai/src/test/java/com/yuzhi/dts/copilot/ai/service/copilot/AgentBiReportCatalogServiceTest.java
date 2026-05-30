@@ -30,15 +30,16 @@ class AgentBiReportCatalogServiceTest {
 
         assertThat(match).isPresent();
         assertThat(match.get().reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
-        assertThat(match.get().responseKind()).isEqualTo("REPORT_DRAFT");
-        assertThat(match.get().dataSurface()).isEqualTo("L1_DBT_MART");
-        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_dws_flowerbiz_project_monthly");
+        assertThat(match.get().responseKind()).isEqualTo("FIXED_REPORT");
+        assertThat(match.get().dataSurface()).isEqualTo("L2_FIXED_REPORT");
+        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_lease_summary");
         assertThat(match.get().qualityLevel()).isEqualTo("MEDIUM");
-        assertThat(match.get().defaultDisplay()).isEqualTo("line");
+        assertThat(match.get().defaultDisplay()).isEqualTo("table");
         assertThat(match.get().qualityNotes()).isNotEmpty();
         assertThat(match.get().sourceRefs())
                 .contains(
-                        "dbt-model:public.xycyl_dws_flowerbiz_project_monthly",
+                        "fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION",
+                        "dbt-model:public.xycyl_ads_flowerbiz_lease_summary",
                         "semantic-pack:flowerbiz"
                 );
     }
@@ -59,6 +60,20 @@ class AgentBiReportCatalogServiceTest {
     }
 
     @Test
+    void matchesProjectTopQuestionToUnifiedFixedReportAsset() {
+        Optional<ReportCatalogEntry> match =
+                catalog.findBestMatch("项目经营 TOP", "project");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().reportCode()).isEqualTo("prs.project.customer_value");
+        assertThat(match.get().responseKind()).isEqualTo("FIXED_REPORT");
+        assertThat(match.get().dataSurface()).isEqualTo("L2_FIXED_REPORT");
+        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_project_customer");
+        assertThat(match.get().sourceRefs())
+                .contains("fixed-report:PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP");
+    }
+
+    @Test
     void matchesCollectionFollowupRequestToSafeActionProposal() {
         Optional<ReportCatalogEntry> match =
                 catalog.findBestMatch("帮我发起催收任务", "rental_receivable");
@@ -76,10 +91,10 @@ class AgentBiReportCatalogServiceTest {
         Nl2SqlQueryTemplate template = new Nl2SqlQueryTemplate();
         template.setTemplateCode("TPL-PRS-LEASE-TREND");
         template.setDomain("flowerbiz");
-        template.setTargetView("public.xycyl_dws_flowerbiz_project_monthly");
+        template.setTargetView("public.xycyl_ads_flowerbiz_lease_summary");
         template.setQuestionSamples("[\"租赁收入趋势\"]");
         template.setIntentPatterns("[\".*租赁.*趋势.*\"]");
-        template.setSqlTemplate("select * from public.xycyl_dws_flowerbiz_project_monthly");
+        template.setSqlTemplate("select * from public.xycyl_ads_flowerbiz_lease_summary");
         template.setIsActive(true);
         template.setPriority(100);
 

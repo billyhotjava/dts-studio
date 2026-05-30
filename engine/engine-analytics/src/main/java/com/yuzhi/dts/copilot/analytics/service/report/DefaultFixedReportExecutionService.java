@@ -52,7 +52,7 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
 
         String normalizedTarget = normalize(contract.targetObject());
         String normalizedSourceType = normalize(contract.sourceType());
-        if ("dbt_screen".equals(normalizedSourceType) || normalizedTarget.startsWith("screen.")) {
+        if (normalizedSourceType.startsWith("dbt") || normalizedTarget.startsWith("screen.")) {
             return Optional.of(executeDbtScreenTable(contract));
         }
         if ("authority.procurement.purchase_summary".equals(normalizedTarget)) {
@@ -191,7 +191,13 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
             throw new IllegalArgumentException("DBT screen template does not define a primary dbt model");
         }
         String relation = validateDbtRelation(dbtModel);
-        String sql = "SELECT * FROM " + relation + " LIMIT " + PREVIEW_LIMIT;
+        String sql = "SELECT "
+                + buildDbtSelectClause(contract.outputColumns())
+                + " FROM "
+                + relation
+                + buildDbtOrderByClause(contract.orderBy())
+                + " LIMIT "
+                + PREVIEW_LIMIT;
         DatasetResult result = datasetQueryService.runNative(
                 database.getId(),
                 sql,
@@ -1503,7 +1509,53 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         primaryDbtModel = firstNonBlank(
                 primaryDbtModel,
                 metricDefinition == null ? null : stringValue(metricDefinition.get("primaryDbtModel")));
-        return new QueryContract(sourceType, targetObject, databaseName, primaryDbtModel);
+        return new QueryContract(
+                sourceType,
+                targetObject,
+                databaseName,
+                primaryDbtModel,
+                stringArray(queryContract.get("outputColumns")),
+                orderByColumns(queryContract.get("orderBy")));
+    }
+
+    private static String buildDbtSelectClause(List<String> outputColumns) {
+        if (outputColumns == null || outputColumns.isEmpty()) {
+            return "*";
+        }
+        return outputColumns.stream()
+                .map(DefaultFixedReportExecutionService::quoteDbtIdentifier)
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("*");
+    }
+
+    private static String buildDbtOrderByClause(List<OrderByColumn> orderBy) {
+        if (orderBy == null || orderBy.isEmpty()) {
+            return "";
+        }
+        String clause = orderBy.stream()
+                .map(column -> quoteDbtIdentifier(column.column()) + " " + normalizeSortDirection(column.direction()) + " NULLS LAST")
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
+        return clause.isBlank() ? "" : " ORDER BY " + clause;
+    }
+
+    private static String quoteDbtIdentifier(String identifier) {
+        String normalized = trimToNull(identifier);
+        if (normalized == null) {
+            throw new IllegalArgumentException("DBT output column is required");
+        }
+        if (!normalized.matches("[\\p{L}\\p{N}_]+")) {
+            throw new IllegalArgumentException("Invalid DBT output column: " + identifier);
+        }
+        return "\"" + normalized.replace("\"", "\"\"") + "\"";
+    }
+
+    private static String normalizeSortDirection(String direction) {
+        String normalized = normalize(direction);
+        if ("asc".equals(normalized)) {
+            return "ASC";
+        }
+        return "DESC";
     }
 
     private static String firstDbtModel(JsonNode dbtModels) {
@@ -1517,6 +1569,52 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
             }
         }
         return null;
+    }
+
+    private static List<String> stringArray(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonNode item : node) {
+            String value = stringValue(item);
+            if (value != null) {
+                values.add(value);
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private static List<OrderByColumn> orderByColumns(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return List.of();
+        }
+        if (node.isObject()) {
+            OrderByColumn column = orderByColumn(node);
+            return column == null ? List.of() : List.of(column);
+        }
+        if (!node.isArray()) {
+            return List.of();
+        }
+        List<OrderByColumn> columns = new ArrayList<>();
+        for (JsonNode item : node) {
+            OrderByColumn column = orderByColumn(item);
+            if (column != null) {
+                columns.add(column);
+            }
+        }
+        return List.copyOf(columns);
+    }
+
+    private static OrderByColumn orderByColumn(JsonNode node) {
+        if (node == null || !node.isObject()) {
+            return null;
+        }
+        String column = stringValue(node.get("column"));
+        if (column == null) {
+            return null;
+        }
+        return new OrderByColumn(column, stringValue(node.get("direction")));
     }
 
     private static String validateDbtRelation(String relation) {
@@ -1866,5 +1964,13 @@ public class DefaultFixedReportExecutionService implements FixedReportExecutionS
         }
     }
 
-    private record QueryContract(String sourceType, String targetObject, String databaseName, String primaryDbtModel) {}
+    private record QueryContract(
+            String sourceType,
+            String targetObject,
+            String databaseName,
+            String primaryDbtModel,
+            List<String> outputColumns,
+            List<OrderByColumn> orderBy) {}
+
+    private record OrderByColumn(String column, String direction) {}
 }

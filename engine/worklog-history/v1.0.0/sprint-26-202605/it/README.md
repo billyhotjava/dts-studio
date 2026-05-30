@@ -29,7 +29,8 @@ it/
 | F3 | Action 安全边界（只到草稿） | test_action_executor_safety.sh + evidence/20260530-local/action-safety.md | ✅ 静态校验通过；JUnit 9/9 绿 |
 | F3 | 审批卡片 + guard + 审计 | test_action_guard_audit.sh + evidence/20260530-local/action-guard-audit.md | ✅ 静态校验通过；JUnit 12/12 绿 |
 | F3 | 聊天 approve/cancel API 接线 | test_action_chat_approval_api.sh + evidence/20260530-local/action-chat-approval-api.md | ✅ 静态校验通过；JUnit 8/8 绿 |
-| F3 | 一键坏账草稿端到端审计链路 | evidence/20260530-local/baddebt-e2e-auth-blocker.md | BLOCKED：当前 base URL 指到 v2.2.3 admin/copilot proxy，缺正确 PRS adminapi gateway + 业务 Authorization |
+| F3 | copilot-ai 运行态 adminapi 写回配置 | test_action_runtime_env_wiring.sh + evidence/20260530-local/action-runtime-live.md | ✅ compose env 可渲染；live approve 已创建 PRS 草稿 |
+| F3 | 一键坏账草稿端到端审计链路 | evidence/20260530-local/baddebt-e2e-auth-blocker.md + evidence/20260530-local/action-runtime-live.md | ✅ guard 通过；`saveDraftFlowerBadDebt` 返回 200；审计日志 id=326；adminweb listPage 数据源返回草稿 |
 | F4 | 本体化域接入 checklist | test_ontology_onboarding_checklist.sh + evidence/20260530-local/ontology-onboarding-checklist.md | ✅ 静态校验通过；项目域纸面演练已覆盖 |
 
 ## 重跑约定

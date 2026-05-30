@@ -155,6 +155,13 @@ public class TemplateMatcherService {
                     List.of("低库存预警", "低库存清单", "库存现量低库存预警"),
                     List.of(".*(库存现量.*低库存|低库存|缺货).*(预警|告警|清单|列表).*")),
             new FixedReportIntent(
+                    "WH-INOUT-RECORD",
+                    "仓库",
+                    "authority.inventory.inout_record",
+                    "库存管理-出入库记录",
+                    List.of("出入库记录", "本月出入库记录", "库存出入库明细"),
+                    List.of(".*(出入库|入库.*出库|出库.*入库).*(记录|明细|清单|变化|统计)?.*")),
+            new FixedReportIntent(
                     "PRS-FLOWERBIZ-OVERVIEW",
                     "flowerbiz",
                     "screen.prs-flowerbiz-overview-v1",
@@ -168,13 +175,20 @@ public class TemplateMatcherService {
                     "PRS 租赁报花执行看板",
                     List.of("PRS 租赁报花执行看板", "租赁报花执行看板", "租赁执行大屏"),
                     List.of(".*(租赁|报花).*(执行|加摆|撤摆|换花|调花).*(看板|大屏|报表).*")),
-            new FixedReportIntent(
-                    "PRS-FLOWERBIZ-FINANCE-COST",
-                    "flowerbiz",
-                    "screen.prs-flowerbiz-finance-cost-v1",
-                    "PRS 销售坏账与费用看板",
-                    List.of("PRS 销售坏账与费用看板", "销售坏账费用看板", "报花费用成本大屏"),
-                    List.of(".*(销售|坏账|费用|成本).*(看板|大屏|报表).*")),
+	            new FixedReportIntent(
+	                    "PRS-FLOWERBIZ-FINANCE-COST",
+	                    "flowerbiz",
+	                    "screen.prs-flowerbiz-finance-cost-v1",
+	                    "PRS 销售坏账与费用看板",
+	                    List.of("PRS 销售坏账与费用看板", "销售坏账费用看板", "报花费用成本大屏"),
+	                    List.of(".*(销售|坏账|费用|成本).*(看板|大屏|报表).*")),
+	            new FixedReportIntent(
+	                    "PRS-FLOWERBIZ-FINANCE-BADDEBT",
+	                    "flowerbiz",
+	                    "public.xycyl_ads_flowerbiz_baddebt_summary",
+	                    "PRS 坏账排行",
+	                    List.of("PRS 坏账排行", "报花坏账 TOP", "坏账金额排名"),
+	                    List.of(".*(坏账).*(top|排行|排名|最高).*")),
             new FixedReportIntent(
                     "PRS-FLOWERBIZ-CURING-WORKLOAD",
                     "flowerbiz",
@@ -182,16 +196,30 @@ public class TemplateMatcherService {
                     "PRS 养护人工作量看板",
                     List.of("PRS 养护人工作量看板", "养护人工作量看板", "养护工作量大屏"),
                     List.of(".*(养护人|养护师傅|师傅|养护).*(工作量|经手|绩效).*(看板|大屏|报表).*")),
-            new FixedReportIntent(
-                    "PRS-FLOWERBIZ-PENDING-APPROVAL",
-                    "flowerbiz",
-                    "screen.prs-flowerbiz-pending-approval-v1",
-                    "PRS 在途审批与操作监控",
-                    List.of("PRS 在途审批与操作监控", "待审批报花看板", "在途审批监控"),
-                    List.of(".*(待审批|审核中|在途|待处理|滞留).*(报花|审批|操作).*(看板|监控|大屏|报表).*")),
-            new FixedReportIntent(
-                    "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
-                    "flowerbiz",
+	            new FixedReportIntent(
+	                    "PRS-FLOWERBIZ-PENDING-APPROVAL",
+	                    "flowerbiz",
+	                    "screen.prs-flowerbiz-pending-approval-v1",
+	                    "PRS 在途审批与操作监控",
+	                    List.of("PRS 在途审批与操作监控", "待审批报花看板", "在途审批监控"),
+	                    List.of(".*(待审批|审核中|在途|待处理|滞留).*(报花|审批|操作).*(看板|监控|大屏|报表).*")),
+	            new FixedReportIntent(
+	                    "PRS-FLOWERBIZ-PENDING-STATUS",
+	                    "flowerbiz",
+	                    "public.xycyl_ads_flowerbiz_pending",
+	                    "PRS 在途状态清单",
+	                    List.of("PRS 在途状态清单", "报花待处理状态", "超期待处理报花"),
+	                    List.of(".*(待审批|审核中|在途|待处理|滞留|超期).*(状态|清单|列表).*")),
+	            new FixedReportIntent(
+	                    "PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
+	                    "flowerbiz",
+	                    "public.xycyl_ads_flowerbiz_project_customer",
+	                    "PRS 项目经营 TOP",
+	                    List.of("PRS 项目经营 TOP", "项目租金 TOP", "项目经营排行"),
+	                    List.of(".*项目.*(经营|租金|收入|贡献).*(top|排行|排名).*", ".*项目.*top.*")),
+	            new FixedReportIntent(
+	                    "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+	                    "flowerbiz",
                     "screen.prs-flowerbiz-project-customer-v1",
                     "PRS 项目客户经营看板",
                     List.of("PRS 项目客户经营看板", "项目客户经营看板", "项目客户大屏"),
@@ -423,7 +451,8 @@ public class TemplateMatcherService {
     private static boolean isActiveFixedReportIntent(FixedReportIntent intent) {
         return intent != null
                 && intent.templateCode() != null
-                && intent.templateCode().startsWith("PRS-FLOWERBIZ-");
+                && (intent.templateCode().startsWith("PRS-FLOWERBIZ-")
+                    || intent.templateCode().startsWith("WH-"));
     }
 
     private String normalizeFixedReportDomain(String domain) {

@@ -1,6 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.yuzhi.dts.copilot.ai.domain.Nl2SqlQueryTemplate;
@@ -52,6 +53,7 @@ class AssetBackedPlannerPolicyTest {
                 intentRouterService,
                 templateMatcherService,
                 semanticPackService,
+                new OntologyService(semanticPackService),
                 directResponseCatalogService,
                 reportCatalogService,
                 businessObjectCatalogService
@@ -212,7 +214,7 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
-    void genericPrsReportQuestionReturnsScreenFixedReportCandidatesBeforeExploration() {
+    void genericPrsReportQuestionUsesUnifiedFixedReportCatalogBeforeExploration() {
         String question = "看下PRS租赁大屏";
         when(templateMatcherService.match(question))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));
@@ -224,22 +226,19 @@ class AssetBackedPlannerPolicyTest {
                         false,
                         null));
         when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
-        when(templateMatcherService.getFixedReportSuggestionsByDomain("flowerbiz", 3)).thenReturn(List.of(
-                new SuggestedQuestion("PRS-FLOWERBIZ-OVERVIEW", "flowerbiz", "flowerbiz", "PRS 租赁经营总览", "desc"),
-                new SuggestedQuestion("PRS-FLOWERBIZ-LEASE-EXECUTION", "flowerbiz", "flowerbiz", "PRS 租赁报花执行看板", "desc"),
-                new SuggestedQuestion("PRS-FLOWERBIZ-FINANCE-COST", "flowerbiz", "flowerbiz", "PRS 销售坏账与费用看板", "desc")
-        ));
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
-        assertThat(plan.mode()).isEqualTo(PlanMode.DIRECT_RESPONSE);
-        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT_CANDIDATES);
-        assertThat(plan.directResponse()).contains("PRS 租赁经营总览");
-        assertThat(plan.directResponse()).contains("PRS 销售坏账与费用看板");
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
+        assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.overview");
+        assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
+        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_overview");
+        assertThat(plan.promptContext()).contains("L2 固定报表资产");
     }
 
     @Test
-    void explicitNewReportRequestUsesAgentGeneratedReportDraftInsteadOfFixedReportCandidates() {
+    void explicitNewReportRequestUsesUnifiedFixedReportCatalogWhenAssetExists() {
         String question = "帮我生成一张PRS租赁项目月度趋势报表";
         when(templateMatcherService.match(question))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));
@@ -256,14 +255,14 @@ class AssetBackedPlannerPolicyTest {
         ConversationPlan plan = policy.plan(question, Map.of());
 
         assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
-        assertThat(plan.responseKind()).isEqualTo(ResponseKind.REPORT_DRAFT);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
         assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
-        assertThat(plan.dataSurface()).isEqualTo("L1_DBT_MART");
+        assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
         assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
-        assertThat(plan.promptContext()).contains("报表草稿");
-        assertThat(plan.promptContext()).contains("xycyl_dws_flowerbiz_project_monthly");
-        assertThat(plan.promptContext()).contains("先对 data surface 指定的 dbt 模型调用 schema_lookup");
-        assertThat(plan.promptContext()).contains("只能使用 schema_lookup 返回字段");
+        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_lease_summary");
+        assertThat(plan.sourceRefs())
+                .contains("fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION", "semantic-pack:flowerbiz");
+        assertThat(plan.promptContext()).contains("L2 固定报表资产");
     }
 
     @Test
@@ -293,7 +292,7 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
-    void trendQuestionUsesAgentBiCatalogReportDraftEvenWithoutGenerateVerb() {
+    void trendQuestionUsesUnifiedFixedReportCatalogEvenWithoutGenerateVerb() {
         String question = "从2025年5月到现在，租赁收入按月趋势怎么样";
         when(templateMatcherService.match(question))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));
@@ -310,18 +309,18 @@ class AssetBackedPlannerPolicyTest {
         ConversationPlan plan = policy.plan(question, Map.of());
 
         assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
-        assertThat(plan.responseKind()).isEqualTo(ResponseKind.REPORT_DRAFT);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
         assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
-        assertThat(plan.dataSurface()).isEqualTo("L1_DBT_MART");
+        assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
         assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
         assertThat(plan.qualityNotes()).isNotEmpty();
-        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_dws_flowerbiz_project_monthly");
+        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_lease_summary");
         assertThat(plan.sourceRefs())
-                .contains("dbt-model:public.xycyl_dws_flowerbiz_project_monthly", "semantic-pack:flowerbiz");
+                .contains("fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION", "semantic-pack:flowerbiz");
         assertThat(plan.promptContext())
                 .contains("source refs")
-                .contains("dbt-model:public.xycyl_dws_flowerbiz_project_monthly");
-        assertThat(plan.promptContext()).contains("先对 data surface 指定的 dbt 模型调用 schema_lookup");
+                .contains("dbt-model:public.xycyl_ads_flowerbiz_lease_summary");
+        assertThat(plan.promptContext()).contains("L2 固定报表资产");
     }
 
     @Test
@@ -405,6 +404,72 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
+    void traversalQuestionUsesObjectGraphNavigationInsteadOfSingleObjectProfile() {
+        String question = "从客户到项目再到租赁报花明细的全链路追溯";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("flowerbiz", "public.xycyl_ads_flowerbiz_lease_detail", List.of(), 0.86, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        lenient().when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
+        lenient().when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizGraphPack()));
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.OBJECT_GRAPH_NAVIGATION);
+        assertThat(plan.dataSurface()).isEqualTo("L1_ONTOLOGY_GRAPH");
+        assertThat(plan.primaryTarget()).isEqualTo("ontology:flowerbiz");
+        assertThat(plan.sourceRefs()).containsExactly(
+                "public.xycyl_dim_customer",
+                "public.xycyl_dim_project",
+                "public.xycyl_ads_flowerbiz_lease_detail");
+        assertThat(plan.promptContext())
+                .contains("对象图导航")
+                .contains("LEFT JOIN public.xycyl_dim_project")
+                .contains("LEFT JOIN public.xycyl_ads_flowerbiz_lease_detail")
+                .contains("source refs");
+    }
+
+    @Test
+    void riskQuestionUsesOntologySignalBranchBeforeReportCatalog() {
+        String question = "哪些项目有坏账风险需要关注";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("flowerbiz", "public.xycyl_ads_flowerbiz_baddebt_summary", List.of(), 0.86, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        lenient().when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
+        lenient().when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizSignalPack()));
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.RISK_SIGNAL_QUERY);
+        assertThat(plan.dataSurface()).isEqualTo("L2_ONTOLOGY_SIGNAL");
+        assertThat(plan.primaryTarget()).isEqualTo("ontology:flowerbiz:signals");
+        assertThat(plan.reportCode()).isEqualTo("ontology.flowerbiz.signals");
+        assertThat(plan.sourceRefs()).containsExactly("public.xycyl_ads_flowerbiz_baddebt_summary");
+        assertThat(plan.promptContext())
+                .contains("预警查询")
+                .contains("坏账风险")
+                .contains("severity: high")
+                .contains("建议发起坏账处理单草稿")
+                .contains("创建坏账处理单")
+                .contains("HAVING");
+    }
+
+    @Test
     void projectSiteStatusQuestionUsesBusinessObjectProfileSurface() {
         String question = "项目点状态统计";
         when(templateMatcherService.match(question))
@@ -485,5 +550,106 @@ class AssetBackedPlannerPolicyTest {
         template.setQuestionSamples("[]");
         template.setSqlTemplate("SELECT 1");
         return template;
+    }
+
+    private static SemanticPackService.SemanticPack flowerbizGraphPack() {
+        return new SemanticPackService.SemanticPack(
+                "flowerbiz",
+                "flowerbiz graph",
+                List.of(
+                        object("客户", "public.xycyl_dim_customer", List.of("customer_code", "customer_name")),
+                        object("项目", "public.xycyl_dim_project", List.of("project_id", "customer_code")),
+                        object("租赁报花明细", "public.xycyl_ads_flowerbiz_lease_detail",
+                                List.of("报花单id", "项目id", "明细id"))),
+                Map.of(),
+                List.of(),
+                List.of(),
+                List.of(
+                        new SemanticPackService.OntologyLink(
+                                "客户_项目",
+                                "客户",
+                                "项目",
+                                "customer_code",
+                                "customer_code",
+                                "1:N",
+                                "可能孤儿",
+                                "shared dimension may have orphan rows"),
+                        new SemanticPackService.OntologyLink(
+                                "项目_报花",
+                                "项目",
+                                "租赁报花明细",
+                                "project_id",
+                                "项目id",
+                                "1:N",
+                                "",
+                                "project to lease detail")),
+                List.of(),
+                List.of(),
+                List.of());
+    }
+
+    private static SemanticPackService.SemanticPack flowerbizSignalPack() {
+        SemanticPackService.SemanticObject baddebt = objectWithMeasures(
+                "坏账汇总",
+                "public.xycyl_ads_flowerbiz_baddebt_summary",
+                List.of("业务月份", "项目", "客户"),
+                List.of("坏账成本全口径", "坏账租金损失全口径"));
+        return new SemanticPackService.SemanticPack(
+                "flowerbiz",
+                "flowerbiz signals",
+                List.of(baddebt),
+                Map.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(
+                        new SemanticPackService.OntologyMetric(
+                                "坏账租金损失",
+                                "坏账汇总",
+                                "SUM(\"坏账租金损失全口径\")",
+                                "CNY",
+                                "currency",
+                                "dbt_amount:rent"),
+                        new SemanticPackService.OntologyMetric(
+                                "项目坏账率",
+                                "坏账汇总",
+                                "SUM(\"坏账租金损失全口径\") / NULLIF(SUM(\"坏账成本全口径\") + SUM(\"坏账租金损失全口径\"), 0)",
+                                "%",
+                                "percent",
+                                "dbt_amount:rent + dbt_amount:cost")),
+                List.of(new SemanticPackService.OntologySignal(
+                        "坏账风险",
+                        "坏账汇总",
+                        "high",
+                        "项目坏账率 > 0.15 AND 坏账租金损失 > 0",
+                        "建议发起坏账处理单草稿",
+                        List.of("创建坏账处理单"))),
+                List.of());
+    }
+
+    private static SemanticPackService.SemanticObject object(String name, String view, List<String> keyDimensions) {
+        return new SemanticPackService.SemanticObject(
+                name,
+                view,
+                name + " description",
+                keyDimensions,
+                List.of(),
+                keyDimensions,
+                "");
+    }
+
+    private static SemanticPackService.SemanticObject objectWithMeasures(
+            String name,
+            String view,
+            List<String> keyDimensions,
+            List<String> keyMeasures) {
+        return new SemanticPackService.SemanticObject(
+                name,
+                view,
+                name + " description",
+                keyDimensions,
+                keyMeasures,
+                keyDimensions,
+                keyDimensions.getFirst());
     }
 }

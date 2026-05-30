@@ -56,6 +56,8 @@ public class ConversationPlannerService {
         GENERIC_ANALYSIS,
         TEMPLATE_SQL,
         REPORT_DRAFT,
+        OBJECT_GRAPH_NAVIGATION,
+        RISK_SIGNAL_QUERY,
         BUSINESS_DETAIL,
         BUSINESS_INSIGHT,
         ACTION_PROPOSAL

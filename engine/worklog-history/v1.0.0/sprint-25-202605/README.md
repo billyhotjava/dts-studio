@@ -64,3 +64,10 @@
 - 已通过 `it/sql/project_ods_create_tables.sql` 在本地 DTS `biadmin.public` 补齐 9 张缺失 ODS 空表：`p_contract`、`p_position`、`p_floor_layer`、`p_floor_number`、`b_goods`、`b_goods_price`、`p_project_green`、`p_position_adjustment`、`p_position_adjustment_item`。
 - 2026-05-29 live profile 确认 11 张 Sprint-25 必需 ODS 均为 FOUND 且有 `_dts_*`；其中新建 9 张表当前 0 行，F0-T02/F1/F2/F3 仍等待源业务数据入数和 P0 口径决策。
 - 已补齐 `assets/xycyl-project-dbt-model.zip`，包含 11 sources、27 models、50 data tests；本地 DTS PostgreSQL 已通过 dbt parse/run/test，导入后仍需等待源业务数据入数再复核事实口径。
+
+## 2026-05-30 权限重试记录
+
+- 重跑 `RUN_LIVE=1 bash worklog/v1.0.0/sprint-25-202605/it/test_project_source_profile_sql.sh`：本地 DTS `biadmin.public` 中 11 张 ODS 仍均为 FOUND；`p_project=242`、`p_customer=180`，其余 9 张项目域事实/维表仍为 0 行。
+- 本地临时 old PRS MySQL `rs_cloud_flower` 的同名 11 张源表也均为 0 行，不能作为 Sprint-25 入数来源。
+- 使用仓库敏感账号说明做只读远端探测：数据库端口 TCP 可达，但 MySQL 握手被服务端中断；SSH 22 端口可达但连接被服务端关闭，未取得远端 row-count。
+- 当前阻塞未解除：仍需可访问的真实源业务数据入湖，或业务方提供 `p_project_green` / 摆位 / 合同 / 物品等项目域表的有效数据快照；P0 口径决策仍不能由开发侧猜测。

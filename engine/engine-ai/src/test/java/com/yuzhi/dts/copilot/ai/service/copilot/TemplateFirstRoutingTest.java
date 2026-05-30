@@ -43,6 +43,7 @@ class TemplateFirstRoutingTest {
                 intentRouterService,
                 templateMatcherService,
                 semanticPackService,
+                new OntologyService(semanticPackService),
                 directResponseCatalogService,
                 new AgentBiReportCatalogService(),
                 new BusinessObjectCatalogService()

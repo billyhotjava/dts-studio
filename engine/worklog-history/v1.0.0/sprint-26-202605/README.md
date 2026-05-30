@@ -2,7 +2,7 @@
 
 **时间**: 2026-05
 **前缀**: ON (Ontology)
-**状态**: IN_PROGRESS
+**状态**: DONE
 **目标**: 在报花域已建好的 dbt mart 之上，落地 Palantir 式本体三层（Links / Metrics+Signals / Actions），把 dts-copilot 从"只读报表"升级为"对象图导航 + 风险预警 + 一键写回 adminapi"的业务指导闭环。
 
 ## 背景
@@ -30,8 +30,8 @@ Sprint-26 用**垂直切片**策略：只在报花域把本体三层一次走通
 | F0 | 本体运行时骨架与 schema 扩展 | 3 | P0 | DONE | T01/T02/T03 均有可重跑测试证据 |
 | F1 | Tier1 对象图与导航 | 4 | P0 | DONE | Golden Questions 4/4 命中对象图导航 |
 | F2 | Tier2 指标与预警 | 4 | P1 | DONE | T01/T02/T03/T04 均有可重跑测试证据 |
-| F3 | Tier3 写回 Action 闭环 | 4 | P1 | BLOCKED | T01/T02/T03 完成；T04 阻塞在正确 PRS adminapi gateway + 业务 Authorization |
-| F4 | 本体范式固化与验收 | 2 | P2 | IN_PROGRESS | T01 checklist 完成；T02 受 F3/T04 运行态入口阻塞影响 |
+| F3 | Tier3 写回 Action 闭环 | 4 | P1 | DONE | T04 已通过 copilot approve -> PRS adminapi 草稿 -> 审计日志 -> adminweb listPage 数据源可见 |
+| F4 | 本体范式固化与验收 | 2 | P2 | DONE | T01 checklist 与 T02 IT 证据包均已补齐 |
 
 ## 本 sprint 不做
 
@@ -47,9 +47,9 @@ Sprint-26 用**垂直切片**策略：只在报花域把本体三层一次走通
 - [x] `OntologyService` 运行时加载有单测，不只检查文件存在。
 - [x] flowerbiz 对象图打通"客户→项目→报花→采购→结算"软外键链路，贯穿类 Golden Questions 命中 ≥90%。
 - [x] metrics 口径集中定义，与 dbt 4 列金额标准一致；signals 命中结果与 adminweb 固定报表对账误差 <0.5%。
-- [ ] "一键创建坏账处理单草稿"端到端跑通：guard 鉴权 → 调 `saveDraftFlowerBadDebt` → 回审批卡片 → 写审计日志；正式提交仍由 adminweb 人工完成。
+- [x] "一键创建坏账处理单草稿"端到端跑通：guard 鉴权 → 调 `saveDraftFlowerBadDebt` → 回审批卡片 → 写审计日志；正式提交仍由 adminweb 人工完成。（2026-05-30 已验证 `dts-copilot-ai` 运行态 approve 创建 PRS 草稿，审计日志 id=326，adminweb 使用的 listPage 数据源返回该草稿。）
 - [x] 产出一份《本体化域接入 checklist》，可被项目/采购/财务域直接复用。
-- [ ] IT 证据包含：pack schema 兼容性测试、运行时加载测试、对象图导航回归、预警对账、Action 端到端审计链路。
+- [x] IT 证据包含：pack schema 兼容性测试、运行时加载测试、对象图导航回归、预警对账、Action 端到端审计链路。
 
 ## 与相邻 sprint 的关系
 

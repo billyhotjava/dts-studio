@@ -305,6 +305,60 @@ class ReportTemplateCatalogResourceTest {
         assertThat(row).containsEntry("placeholderReviewRequired", true);
     }
 
+    @Test
+    void getTemplateShouldExposeUnifiedDbtAssetMetadata() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        when(sessionService.resolveUser(request)).thenReturn(Optional.of(buildUser()));
+
+        AnalyticsReportTemplate entity = toEntity(row(
+                701L,
+                "PRS 项目经营 TOP",
+                "PRS租赁",
+                "项目客户-TOP",
+                "PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
+                "DBT_ADS",
+                "public.xycyl_ads_flowerbiz_project_customer",
+                "DBT_BUILD",
+                "certified",
+                true,
+                false,
+                Instant.parse("2026-05-29T08:00:00Z")));
+        entity.setSpecJson("""
+                {
+                  "assetKind":"DBT_SPLIT",
+                  "assetGroup":{"code":"PRS-FLOWERBIZ-PROJECT-CUSTOMER","name":"PRS 项目客户经营","parentTemplateCode":"PRS-FLOWERBIZ-PROJECT-CUSTOMER"},
+                  "queryContract":{
+                    "sourceType":"DBT_ADS",
+                    "targetObject":"public.xycyl_ads_flowerbiz_project_customer",
+                    "primaryDbtModel":"public.xycyl_ads_flowerbiz_project_customer",
+                    "dbtModels":["public.xycyl_ads_flowerbiz_project_customer"],
+                    "outputColumns":["项目","客户","租金净额"]
+                  },
+                  "placeholderReviewRequired":false
+                }
+                """);
+
+        when(templateRepository.findLatestRunnableTemplateByTemplateCode("prs-flowerbiz-project-customer-top"))
+                .thenReturn(Optional.of(entity));
+
+        ReportTemplateCatalogService service =
+                new ReportTemplateCatalogService(templateRepository, PAGE_ANCHOR_SERVICE);
+        ReportTemplateCatalogResource resource = new ReportTemplateCatalogResource(sessionService, service);
+
+        ResponseEntity<?> response = resource.getTemplate("PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP", request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = (Map<String, Object>) response.getBody();
+        assertThat(row).containsEntry("assetKind", "DBT_SPLIT");
+        assertThat(row).containsEntry("assetGroupCode", "PRS-FLOWERBIZ-PROJECT-CUSTOMER");
+        assertThat(row).containsEntry("assetGroupName", "PRS 项目客户经营");
+        assertThat(row).containsEntry("parentTemplateCode", "PRS-FLOWERBIZ-PROJECT-CUSTOMER");
+        assertThat(row).containsEntry("primaryDbtModel", "public.xycyl_ads_flowerbiz_project_customer");
+        assertThat(row).containsEntry("outputColumnCount", 3);
+        assertThat(row.get("sourceRefs")).isEqualTo(List.of("dbt-model:public.xycyl_ads_flowerbiz_project_customer"));
+    }
+
     private void stubCatalogTemplates(List<AnalyticsReportTemplateRow> rows) {
         when(templateRepository.findCatalogTemplates(any(), any(), any())).thenAnswer(invocation -> {
             String domain = invocation.getArgument(0);

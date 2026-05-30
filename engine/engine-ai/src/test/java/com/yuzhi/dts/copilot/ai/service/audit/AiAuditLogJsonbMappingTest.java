@@ -21,9 +21,12 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class AiAuditLogJsonbMappingTest {
 
     private static final String SCHEMA = "copilot_ai_jsonb_test";
-    private static final String JDBC_URL = "jdbc:postgresql://localhost:5432/copilot";
-    private static final String JDBC_USER = "copilot";
-    private static final String JDBC_PASSWORD = "copilot_dev";
+    private static final String JDBC_URL = "jdbc:postgresql://%s:%s/%s".formatted(
+            env("PG_HOST", "localhost"),
+            env("PG_PORT", "55432"),
+            env("PG_DB", "copilot"));
+    private static final String JDBC_USER = env("PG_USER", "copilot");
+    private static final String JDBC_PASSWORD = env("PG_PASSWORD", "copilot_dev");
 
     @Test
     void persistsAuditLogWhenMetadataColumnUsesJsonb() throws Exception {
@@ -135,6 +138,7 @@ class AiAuditLogJsonbMappingTest {
                         tool_call_id varchar(128),
                         tokens_used integer,
                         generated_sql text,
+                        reasoning_content text,
                         routed_domain varchar(32),
                         target_view varchar(128),
                         template_code varchar(64),
@@ -144,6 +148,7 @@ class AiAuditLogJsonbMappingTest {
                         quality_notes text,
                         suggested_display varchar(64),
                         report_code varchar(128),
+                        source_refs text,
                         created_at timestamptz
                     )
                     """.formatted(SCHEMA, SCHEMA));
@@ -180,5 +185,10 @@ class AiAuditLogJsonbMappingTest {
              Statement statement = connection.createStatement()) {
             statement.execute("drop schema if exists " + SCHEMA + " cascade");
         }
+    }
+
+    private static String env(String name, String fallback) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

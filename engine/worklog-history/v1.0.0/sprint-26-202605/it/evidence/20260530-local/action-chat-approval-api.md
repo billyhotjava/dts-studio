@@ -31,6 +31,7 @@ RUN_TEST=1 bash worklog/v1.0.0/sprint-26-202605/it/test_action_chat_approval_api
 - `OntologyActionExecutorTest` 4/4 绿。
 - `HttpAdminApiActionClientTest` 2/2 绿。
 
-## 仍未覆盖
+## 补充覆盖
 
-- 真实 `saveDraftFlowerBadDebt` 端到端仍受 `baddebt-e2e-auth-blocker.md` 记录的运行态入口阻塞影响：需要正确 PRS adminapi gateway base URL 与业务 Authorization。
+- 真实 PRS adminapi `saveDraftFlowerBadDebt` 已在 `baddebt-e2e-auth-blocker.md` 中通过 direct gateway + 业务 Authorization 验证。
+- 已在 `action-runtime-live.md` 中补齐正在运行的 `dts-copilot-ai` 容器链路：聊天 approve -> PRS adminapi draft -> Copilot 审计日志。

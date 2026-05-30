@@ -39,7 +39,43 @@ class BusinessObjectCatalogServiceTest {
                         "prs.project.project_site",
                         "prs.finance.settlement",
                         "prs.finance.bank_statement",
-                        "prs.warehouse.stock_movement");
+                        "prs.warehouse.stock_info",
+                        "prs.warehouse.inout_record");
+    }
+
+    @Test
+    void warehouseStockQuestionsExposeRealInventoryTablesAndApis() {
+        Optional<BusinessObjectEntry> match = catalog.findBestMatch("库存现量按仓库统计", "warehouse");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().objectCode()).isEqualTo("prs.warehouse.stock_info");
+        assertThat(match.get().pagePath()).isEqualTo("仓库管理 > 库存管理 > 库存");
+        assertThat(match.get().sourceRefs())
+                .contains(
+                        "mysql-table:s_stock_info",
+                        "mysql-table:s_stock_item",
+                        "mysql-table:s_storehouse_info",
+                        "adminapi:/rs-flowers-base/store/info/listPage");
+        assertThat(match.get().qualityNotes())
+                .anySatisfy(note -> assertThat(note).contains("s_stock_info"));
+    }
+
+    @Test
+    void warehouseInOutQuestionsExposeMovementTablesAndApis() {
+        Optional<BusinessObjectEntry> match = catalog.findBestMatch("本月出入库记录按仓库统计", "warehouse");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().objectCode()).isEqualTo("prs.warehouse.inout_record");
+        assertThat(match.get().pagePath()).isEqualTo("仓库管理 > 库存管理 > 出入库记录");
+        assertThat(match.get().sourceRefs())
+                .contains(
+                        "mysql-table:t_warehousing_info",
+                        "mysql-table:t_warehousing_item",
+                        "mysql-table:t_ex_warehouse_info",
+                        "mysql-table:t_ex_warehouse_item",
+                        "adminapi:/rs-flowers-base/store/info/listInOutItemPage");
+        assertThat(match.get().qualityNotes())
+                .anySatisfy(note -> assertThat(note).contains("t_warehousing_info/item"));
     }
 
     @Test

@@ -66,4 +66,5 @@
     <include file="config/liquibase/changelog/0059_prs_flowerbiz_dbt_report_database.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0060_prs_flowerbiz_dbt_agent_datasource.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0061_prs_flowerbiz_fixed_report_primary_models.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0062_prs_flowerbiz_unified_report_assets.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

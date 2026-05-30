@@ -4,6 +4,24 @@
 
   "objects": [
     {
+      "name": "客户",
+      "view": "public.xycyl_dim_customer",
+      "description": "Sprint-25 共享客户维度，作为报花对象图的客户主轴。客户维度源系统关联存在缺失风险，回答客户级结论时需要提示数据质量。",
+      "keyDimensions": ["customer_id", "customer_code", "customer_name", "customer_abbreviation"],
+      "keyMeasures": [],
+      "commonFilters": ["customer_code", "customer_name"],
+      "defaultTimeField": ""
+    },
+    {
+      "name": "项目",
+      "view": "public.xycyl_dim_project",
+      "description": "Sprint-25 共享项目维度，连接客户、合同和报花明细，是报花对象图的项目主轴。",
+      "keyDimensions": ["project_id", "project_code", "project_name", "customer_id", "customer_code", "customer_name"],
+      "keyMeasures": [],
+      "commonFilters": ["project_code", "project_name", "customer_name"],
+      "defaultTimeField": ""
+    },
+    {
       "name": "租赁经营汇总",
       "view": "public.xycyl_ads_flowerbiz_lease_summary",
       "description": "项目、客户、业务月份维度的租赁类报花汇总，覆盖加摆、撤摆、换花、调花及租金净额。",
@@ -16,10 +34,28 @@
       "name": "租赁报花明细",
       "view": "public.xycyl_ads_flowerbiz_lease_detail",
       "description": "单据级租赁报花明细，用于报花单钻取、申请时间、状态、项目、客户、养护人和金额明细追踪。",
-      "keyDimensions": ["报花单号", "业务类型", "项目", "客户", "状态", "养护人", "申请人"],
+      "keyDimensions": ["报花单id", "报花单号", "项目id", "业务类型", "项目", "客户", "状态", "养护人", "申请人", "明细id"],
       "keyMeasures": ["行租金合计", "行成本合计", "数量"],
-      "commonFilters": ["业务时间", "业务月份", "项目", "客户", "状态", "业务类型"],
+      "commonFilters": ["业务时间", "业务月份", "报花单id", "项目id", "项目", "客户", "状态", "业务类型"],
       "defaultTimeField": "业务时间"
+    },
+    {
+      "name": "采购明细",
+      "view": "authority.procurement.purchase_item_detail",
+      "description": "采购明细对象，复用采购域 authority 取数面。用于从报花明细沿 flower_item_id 追溯采购计划和采购金额。",
+      "keyDimensions": ["flower_item_id", "purchase_user_name", "purchase_time", "good_name", "supply_name", "biz_code", "project_name"],
+      "keyMeasures": ["parchase_number", "parchase_price", "total_amount", "purchase_amount"],
+      "commonFilters": ["flower_item_id", "good_name", "purchase_user_name", "purchase_time", "biz_code", "project_name"],
+      "defaultTimeField": "purchase_time"
+    },
+    {
+      "name": "结算单",
+      "view": "public.ods_ptr_mysql_f_settlement",
+      "description": "财务结算源对象，用于通过 biz_ids_json 从报花单追溯结算单。经营金额、应收和欠款类问句仍优先走财务 ADS/DWS 或固定报表。",
+      "keyDimensions": ["id", "code", "biz_ids_json", "status", "settle_type", "settle_time", "apply_name", "settle_name"],
+      "keyMeasures": ["income", "rent_income", "cost", "supply_cost", "storehouse_cost", "cash_cost"],
+      "commonFilters": ["code", "status", "settle_time", "apply_name", "settle_name"],
+      "defaultTimeField": "settle_time"
     },
     {
       "name": "在途审批与待处理",
@@ -92,6 +128,145 @@
       "keyMeasures": ["单据数", "租金净额全口径", "销售金额全口径", "坏账成本全口径"],
       "commonFilters": ["业务月份", "客户"],
       "defaultTimeField": "业务月份"
+    }
+  ],
+
+  "links": [
+    {
+      "name": "客户_项目",
+      "from": "客户",
+      "to": "项目",
+      "fromKey": "customer_code",
+      "toKey": "customer_code",
+      "cardinality": "1:N",
+      "joinHint": "可能孤儿",
+      "note": "复用 Sprint-25 xycyl_dim_customer/xycyl_dim_project 共享维度；历史项目可能缺客户编码，必须 LEFT JOIN 并保留孤儿提示。"
+    },
+    {
+      "name": "项目_报花",
+      "from": "项目",
+      "to": "租赁报花明细",
+      "fromKey": "project_id",
+      "toKey": "项目id",
+      "cardinality": "1:N",
+      "joinHint": "",
+      "note": "项目维度连接租赁报花明细，报花 ADS 透传项目id。"
+    },
+    {
+      "name": "报花_采购",
+      "from": "租赁报花明细",
+      "to": "采购明细",
+      "fromKey": "明细id",
+      "toKey": "flower_item_id",
+      "cardinality": "1:N",
+      "joinHint": "采购 flower_item_id 软外键",
+      "note": "采购计划明细通过 flower_item_id 软外键回到报花明细；需保留未触发采购或采购关联缺失的报花行。"
+    },
+    {
+      "name": "报花_结算",
+      "from": "租赁报花明细",
+      "to": "结算单",
+      "fromKey": "报花单id",
+      "toKey": "biz_ids_json",
+      "cardinality": "N:1",
+      "joinHint": "biz_ids_json 多报花 JSON 数组需展开",
+      "note": "f_settlement.biz_ids_json 以 JSON/数组文本记录多个报花单 id；JOIN 时必须展开匹配，不能简单等值比较。"
+    }
+  ],
+  "metrics": [
+    {
+      "name": "租金净额",
+      "object": "租赁经营汇总",
+      "expr": "SUM(\"租金净额全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:rent；租赁口径，沿用 dim_biztype 加摆正向/撤摆负向符号约定，已结状态优先。"
+    },
+    {
+      "name": "处理成本",
+      "object": "租赁经营汇总",
+      "expr": "SUM(\"处理成本全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:cost；租赁处理成本口径，按报花业务类型符号归集。"
+    },
+    {
+      "name": "销售金额",
+      "object": "销售汇总",
+      "expr": "SUM(\"销售金额全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:sale；销售/售花收入口径，赠送成本单列不并入销售金额。"
+    },
+    {
+      "name": "额外费用",
+      "object": "额外费用汇总",
+      "expr": "SUM(\"含税金额合计\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:extra_cost；额外费用含税金额口径，对应费用类型维度。"
+    },
+    {
+      "name": "坏账租金损失",
+      "object": "坏账汇总",
+      "expr": "SUM(\"坏账租金损失全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:rent；坏账导致的租金损失，按坏账汇总 ADS 已归集口径。"
+    },
+    {
+      "name": "项目坏账率",
+      "object": "坏账汇总",
+      "expr": "SUM(\"坏账租金损失全口径\") / NULLIF(SUM(\"坏账成本全口径\") + SUM(\"坏账租金损失全口径\"), 0)",
+      "unit": "%",
+      "format": "percent",
+      "caliber": "dbt_amount:rent + dbt_amount:cost；项目维度坏账风险比例，分母为坏账成本与租金损失合计。"
+    },
+    {
+      "name": "客户在租金额",
+      "object": "客户月度汇总",
+      "expr": "SUM(\"租金净额全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:rent；客户月度在租经营金额，客户关联缺失时需保留数据质量提示。"
+    }
+  ],
+  "signals": [
+    {
+      "name": "坏账风险",
+      "object": "坏账汇总",
+      "severity": "high",
+      "when": "项目坏账率 > 0.15 AND 坏账租金损失 > 0",
+      "advice": "项目坏账率超过 15% 且存在租金损失，建议核对坏账明细并发起坏账处理单草稿。",
+      "linkedActions": ["创建坏账处理单"]
+    },
+    {
+      "name": "欠费预警",
+      "object": "客户月度汇总",
+      "severity": "medium",
+      "when": "客户在租金额 > 50000 AND 坏账租金损失 > 0",
+      "advice": "客户在租金额较高且存在坏账租金损失，建议跟进回款状态并复核客户侧未结风险。",
+      "linkedActions": []
+    }
+  ],
+  "actions": [
+    {
+      "name": "创建坏账处理单",
+      "object": "租赁报花明细",
+      "intent": "基于坏账风险命中的报花明细生成坏账处理单草稿，正式提交仍由 adminweb 人工确认。",
+      "endpoint": {
+        "service": "adminapi",
+        "draft": "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt",
+        "commit": "/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt"
+      },
+      "params": [
+        { "name": "projectId", "source": "租赁报花明细.项目id", "required": true },
+        { "name": "draftItemJson", "source": "租赁报花明细.明细id", "required": true },
+        { "name": "badDebtType", "source": "租赁报花明细.业务类型", "required": true }
+      ],
+      "approval": "human",
+      "audit": true,
+      "guard": "flowerbiz:baddebt:draft"
     }
   ],
 

@@ -3,7 +3,11 @@ package com.yuzhi.dts.copilot.ai.web.rest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
+import com.yuzhi.dts.copilot.ai.security.CopilotUserContext;
+import com.yuzhi.dts.copilot.ai.security.CopilotUserContextHolder;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionApprovalService;
+import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionExecutor;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +40,13 @@ public class AgentChatResource {
     private static final Logger log = LoggerFactory.getLogger(AgentChatResource.class);
 
     private final AgentChatService agentChatService;
+    private final OntologyActionApprovalService actionApprovalService;
 
-    public AgentChatResource(AgentChatService agentChatService) {
+    public AgentChatResource(
+            AgentChatService agentChatService,
+            OntologyActionApprovalService actionApprovalService) {
         this.agentChatService = agentChatService;
+        this.actionApprovalService = actionApprovalService;
     }
 
     /**
@@ -156,6 +164,45 @@ public class AgentChatResource {
         return map;
     }
 
+    @PostMapping("/approve")
+    public ResponseEntity<Map<String, Object>> approveAction(@RequestBody ApproveActionRequest request) {
+        ActionRef actionRef = parseActionRef(request == null ? null : request.actionId());
+        if (actionRef == null) {
+            return ResponseEntity.badRequest().body(errorResponse(
+                    request == null ? null : request.sessionId(),
+                    "Invalid actionId, expected '<domain>:<actionName>'"));
+        }
+        CopilotUserContext userContext = CopilotUserContextHolder.get();
+        Map<String, Object> formData = request.formData() == null ? Map.of() : request.formData();
+        OntologyActionApprovalService.ActionApprovalResult result = actionApprovalService.requestDraft(
+                new OntologyActionApprovalService.ActionApprovalRequest(
+                        actionRef.domain(),
+                        actionRef.actionName(),
+                        formData,
+                        true,
+                        userContext,
+                        request.sessionId()));
+        return ResponseEntity.ok(toActionChatResponse(request.sessionId(), result));
+    }
+
+    @PostMapping("/cancel")
+    public ResponseEntity<Map<String, Object>> cancelAction(@RequestBody CancelActionRequest request) {
+        String sessionId = request == null ? null : request.sessionId();
+        String actionId = request == null ? null : request.actionId();
+        String message = StringUtils.hasText(actionId)
+                ? "已取消建议动作：" + actionId
+                : "已取消建议动作。";
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("sessionId", sessionId);
+        body.put("agentMessage", message);
+        body.put("response", message);
+        body.put("timestamp", Instant.now().toString());
+        body.put("toolCalls", List.of());
+        body.put("requiresApproval", false);
+        body.put("pendingAction", null);
+        return ResponseEntity.ok(body);
+    }
+
     /**
      * Request body for chat send/stream endpoints.
      */
@@ -165,6 +212,75 @@ public class AgentChatResource {
             String message,
             @JsonProperty("datasourceId") Long datasourceId
     ) {}
+
+    public record ApproveActionRequest(
+            String sessionId,
+            String actionId,
+            Map<String, Object> formData
+    ) {}
+
+    public record CancelActionRequest(
+            String sessionId,
+            String actionId
+    ) {}
+
+    private Map<String, Object> toActionChatResponse(
+            String sessionId,
+            OntologyActionApprovalService.ActionApprovalResult result) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        String message = result == null ? "动作处理失败" : result.message();
+        body.put("sessionId", sessionId);
+        body.put("agentMessage", message);
+        body.put("response", message);
+        body.put("timestamp", Instant.now().toString());
+        body.put("toolCalls", result == null ? List.of() : toToolCalls(result));
+        body.put("requiresApproval", result != null && result.requiresApproval());
+        body.put("pendingAction", result != null && result.requiresApproval() ? result.card() : null);
+        return body;
+    }
+
+    private List<Map<String, Object>> toToolCalls(OntologyActionApprovalService.ActionApprovalResult result) {
+        OntologyActionExecutor.ActionDraftResult draftResult = result.draftResult();
+        if (draftResult == null) {
+            return List.of();
+        }
+        Map<String, Object> toolResult = new LinkedHashMap<>();
+        toolResult.put("success", draftResult.success());
+        toolResult.put("textSummary", draftResult.message());
+        toolResult.put("data", draftResult.responseBody());
+
+        Map<String, Object> toolCall = new LinkedHashMap<>();
+        toolCall.put("toolId", result.card() == null ? "ontology.action.createDraft" : result.card().toolId());
+        toolCall.put("params", draftResult.payload());
+        toolCall.put("result", toolResult);
+        return List.of(toolCall);
+    }
+
+    private Map<String, Object> errorResponse(String sessionId, String message) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("sessionId", sessionId);
+        body.put("agentMessage", message);
+        body.put("response", message);
+        body.put("timestamp", Instant.now().toString());
+        body.put("toolCalls", List.of());
+        body.put("requiresApproval", false);
+        body.put("pendingAction", null);
+        return body;
+    }
+
+    private ActionRef parseActionRef(String actionId) {
+        if (!StringUtils.hasText(actionId)) {
+            return null;
+        }
+        int separator = actionId.indexOf(':');
+        if (separator <= 0 || separator >= actionId.length() - 1) {
+            return null;
+        }
+        return new ActionRef(actionId.substring(0, separator), actionId.substring(separator + 1));
+    }
+
+    private record ActionRef(String domain, String actionName) {
+    }
 
     private String resolveSessionIdForResponse(String requestedSessionId, String userId) {
         if (StringUtils.hasText(requestedSessionId)) {

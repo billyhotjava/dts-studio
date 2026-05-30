@@ -135,11 +135,32 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("固定报表意图: 旧财务采购仓库模板不再作为固定报表快路径")
-    void legacyFixedReportPageLabelsNoLongerMatchFixedReportFastPath() {
+    @DisplayName("固定报表意图: 旧财务采购模板不再作为固定报表快路径")
+    void legacyFinanceAndProcurementPageLabelsNoLongerMatchFixedReportFastPath() {
         assertThat(matcherService.match("打开财务结算汇总").matched()).isFalse();
         assertThat(matcherService.match("查看采购汇总").matched()).isFalse();
-        assertThat(matcherService.match("库存现量").matched()).isFalse();
+    }
+
+    @Test
+    @DisplayName("仓库固定报表意图: 库存现量命中库存固定报表")
+    void matchWarehouseStockOverviewFixedReport() {
+        TemplateMatchResult result = matcherService.match("库存现量");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("WH-STOCK-OVERVIEW");
+        assertThat(result.template().getTargetView()).isEqualTo("authority.inventory.stock_overview");
+        assertThat(result.resolvedSql()).isNull();
+    }
+
+    @Test
+    @DisplayName("仓库固定报表意图: 出入库记录命中出入库固定报表")
+    void matchWarehouseInOutRecordFixedReport() {
+        TemplateMatchResult result = matcherService.match("本月出入库记录");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("WH-INOUT-RECORD");
+        assertThat(result.template().getTargetView()).isEqualTo("authority.inventory.inout_record");
+        assertThat(result.resolvedSql()).isNull();
     }
 
     @Test
@@ -154,20 +175,35 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
+    @DisplayName("PRS 细分固定报表意图: 项目经营 TOP 命中项目客户 ADS 子报表")
+    void matchPrsProjectCustomerTopFixedReport() {
+        TemplateMatchResult result = matcherService.match("项目经营 TOP");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP");
+        assertThat(result.template().getTargetView()).isEqualTo("public.xycyl_ads_flowerbiz_project_customer");
+        assertThat(result.resolvedSql()).isNull();
+    }
+
+
+    @Test
     @DisplayName("PRS 大屏候选: flowerbiz 域返回页面化大屏候选")
     void fixedReportSuggestionsIncludePrsFlowerbizScreens() {
         List<SuggestedQuestion> suggestions = matcherService.getFixedReportSuggestionsByDomain("flowerbiz", 20);
 
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::question)
-                .containsExactly(
-                        "PRS 租赁经营总览",
-                        "PRS 租赁报花执行看板",
-                        "PRS 销售坏账与费用看板",
-                        "PRS 养护人工作量看板",
-                        "PRS 在途审批与操作监控",
-                        "PRS 项目客户经营看板",
-                        "PRS 变更与租期调整看板",
+	                .containsExactly(
+	                        "PRS 租赁经营总览",
+	                        "PRS 租赁报花执行看板",
+	                        "PRS 销售坏账与费用看板",
+	                        "PRS 坏账排行",
+	                        "PRS 养护人工作量看板",
+	                        "PRS 在途审批与操作监控",
+	                        "PRS 在途状态清单",
+	                        "PRS 项目经营 TOP",
+	                        "PRS 项目客户经营看板",
+	                        "PRS 变更与租期调整看板",
                         "PRS 回收撤摆与去向看板",
                         "PRS 报花单明细钻取",
                         "PRS 变更明细钻取",
@@ -331,16 +367,16 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("getSuggestedQuestions 优先包含 PRS 大屏固定报表建议")
+    @DisplayName("getSuggestedQuestions 优先包含已激活固定报表建议")
     void suggestedQuestionsIncludeCurrentPagePhrases() {
         List<SuggestedQuestion> suggestions = matcherService.getSuggestedQuestions(12);
 
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::question)
-                .contains("PRS 租赁经营总览", "PRS 租赁报花执行看板");
+                .contains("库存现量", "低库存预警", "PRS 租赁经营总览", "PRS 租赁报花执行看板");
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::templateCode)
-                .allMatch(code -> code.startsWith("PRS-FLOWERBIZ-") || code.startsWith("TPL-"));
+                .allMatch(code -> code.startsWith("PRS-FLOWERBIZ-") || code.startsWith("WH-") || code.startsWith("TPL-"));
     }
 
     @Test

@@ -10,7 +10,9 @@ import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.ExtendedRout
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.SuggestedQuestion;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.TemplateMatchResult;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,9 +31,19 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             "生成", "创建", "新建", "新的", "做一张", "做一个", "出一张", "出一个", "定制", "自定义", "临时"
     );
 
+    private static final Set<String> ONTOLOGY_NAVIGATION_KEYWORDS = Set.of(
+            "从", "到", "再到", "贯穿", "全流程", "全链路", "链路", "追溯", "溯源", "流转", "关联",
+            "对应", "未结算", "还没结算", "结算"
+    );
+
+    private static final Set<String> SIGNAL_QUERY_KEYWORDS = Set.of(
+            "风险", "异常", "预警", "告警", "需关注", "需要关注", "关注", "坏账", "欠费", "催收"
+    );
+
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
     private final SemanticPackService semanticPackService;
+    private final OntologyService ontologyService;
     private final BusinessDirectResponseCatalogService directResponseCatalogService;
     private final AgentBiReportCatalogService reportCatalogService;
     private final BusinessObjectCatalogService businessObjectCatalogService;
@@ -39,12 +51,14 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
     public AssetBackedPlannerPolicy(IntentRouterService intentRouterService,
                                     TemplateMatcherService templateMatcherService,
                                     SemanticPackService semanticPackService,
+                                    OntologyService ontologyService,
                                     BusinessDirectResponseCatalogService directResponseCatalogService,
                                     AgentBiReportCatalogService reportCatalogService,
                                     BusinessObjectCatalogService businessObjectCatalogService) {
         this.intentRouterService = intentRouterService;
         this.templateMatcherService = templateMatcherService;
         this.semanticPackService = semanticPackService;
+        this.ontologyService = ontologyService;
         this.directResponseCatalogService = directResponseCatalogService;
         this.reportCatalogService = reportCatalogService;
         this.businessObjectCatalogService = businessObjectCatalogService;
@@ -122,7 +136,19 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                             null));
         }
 
-        if (businessObjectMatch.isPresent()) {
+        Optional<SignalQuery> signalQuery = resolveSignalQuery(userQuestion, domain);
+        if (signalQuery.isPresent()) {
+            return buildSignalQueryPlan(
+                    signalQuery.get(),
+                    domain,
+                    secondaryTargets,
+                    templateCode,
+                    extendedRouting);
+        }
+
+        Optional<OntologyNavigation> ontologyNavigation = resolveOntologyNavigation(userQuestion, domain);
+
+        if (businessObjectMatch.isPresent() && ontologyNavigation.isEmpty()) {
             return buildBusinessObjectPlan(
                     businessObjectMatch.get(),
                     domain,
@@ -131,7 +157,16 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                     extendedRouting);
         }
 
-        if (reportCatalogMatch.isPresent() && !isFixedReportCatalogEntry(reportCatalogMatch.get())) {
+        if (ontologyNavigation.isPresent()) {
+            return buildOntologyNavigationPlan(
+                    ontologyNavigation.get(),
+                    domain,
+                    secondaryTargets,
+                    templateCode,
+                    extendedRouting);
+        }
+
+        if (reportCatalogMatch.isPresent()) {
             return buildReportCatalogPlan(
                     reportCatalogMatch.get(),
                     domain,
@@ -428,6 +463,342 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         return "table";
     }
 
+    private Optional<OntologyNavigation> resolveOntologyNavigation(String userQuestion, String domain) {
+        if (!StringUtils.hasText(userQuestion) || !containsOntologyNavigationKeyword(userQuestion)) {
+            return Optional.empty();
+        }
+        String semanticDomain = normalizeSemanticDomain(domain);
+        if (!StringUtils.hasText(semanticDomain)) {
+            return Optional.empty();
+        }
+        return ontologyService.load(semanticDomain).flatMap(model -> {
+            List<String> objectNames = resolveMentionedOntologyObjects(userQuestion, model);
+            if (objectNames.size() < 2) {
+                return Optional.empty();
+            }
+            List<OntologyService.JoinPlan> candidates = model.buildJoinPlans(
+                    objectNames.getFirst(),
+                    objectNames.getLast());
+            if (candidates.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(new OntologyNavigation(
+                    semanticDomain,
+                    objectNames,
+                    selectJoinPlanCoveringMentions(model, objectNames, candidates),
+                    candidates.size()));
+        });
+    }
+
+    private boolean containsOntologyNavigationKeyword(String userQuestion) {
+        return ONTOLOGY_NAVIGATION_KEYWORDS.stream().anyMatch(userQuestion::contains);
+    }
+
+    private List<String> resolveMentionedOntologyObjects(
+            String userQuestion,
+            OntologyService.OntologyModel model) {
+        List<ObjectMention> mentions = new ArrayList<>();
+        for (SemanticPackService.SemanticObject object : model.objects()) {
+            int index = earliestObjectAliasIndex(userQuestion, object.name());
+            if (index >= 0) {
+                mentions.add(new ObjectMention(object.name(), index));
+            }
+        }
+        mentions.sort((left, right) -> Integer.compare(left.index(), right.index()));
+
+        Set<String> orderedUniqueNames = new LinkedHashSet<>();
+        for (ObjectMention mention : mentions) {
+            orderedUniqueNames.add(mention.objectName());
+        }
+        return List.copyOf(orderedUniqueNames);
+    }
+
+    private int earliestObjectAliasIndex(String userQuestion, String objectName) {
+        int earliest = -1;
+        for (String alias : ontologyObjectAliases(objectName)) {
+            int index = userQuestion.indexOf(alias);
+            if (index >= 0 && (earliest < 0 || index < earliest)) {
+                earliest = index;
+            }
+        }
+        return earliest;
+    }
+
+    private Set<String> ontologyObjectAliases(String objectName) {
+        Set<String> aliases = new LinkedHashSet<>();
+        aliases.add(objectName);
+        addWithoutSuffix(aliases, objectName, "明细");
+        addWithoutSuffix(aliases, objectName, "单");
+        if (objectName.contains("报花")) {
+            aliases.add("报花");
+            aliases.add("报花单");
+            aliases.add("租赁报花");
+        }
+        if (objectName.contains("客户")) {
+            aliases.add("客户");
+        }
+        if (objectName.contains("项目")) {
+            aliases.add("项目");
+            aliases.add("项目点");
+        }
+        if (objectName.contains("采购")) {
+            aliases.add("采购");
+            aliases.add("采购明细");
+        }
+        if (objectName.contains("结算")) {
+            aliases.add("结算");
+            aliases.add("结算单");
+        }
+        aliases.removeIf(alias -> !StringUtils.hasText(alias));
+        return aliases;
+    }
+
+    private void addWithoutSuffix(Set<String> aliases, String objectName, String suffix) {
+        if (objectName.endsWith(suffix) && objectName.length() > suffix.length()) {
+            aliases.add(objectName.substring(0, objectName.length() - suffix.length()));
+        }
+    }
+
+    private OntologyService.JoinPlan selectJoinPlanCoveringMentions(
+            OntologyService.OntologyModel model,
+            List<String> objectNames,
+            List<OntologyService.JoinPlan> candidates) {
+        Set<String> requiredViews = new LinkedHashSet<>();
+        for (String objectName : objectNames) {
+            model.getObject(objectName).map(SemanticPackService.SemanticObject::view).ifPresent(requiredViews::add);
+        }
+        for (OntologyService.JoinPlan candidate : candidates) {
+            if (candidate.sourceRefs().containsAll(requiredViews)) {
+                return candidate;
+            }
+        }
+        return candidates.getFirst();
+    }
+
+    private ConversationPlan buildOntologyNavigationPlan(
+            OntologyNavigation navigation,
+            String routedDomain,
+            List<String> secondaryTargets,
+            String templateCode,
+            ExtendedRoutingResult extendedRouting) {
+        String domain = StringUtils.hasText(routedDomain) ? routedDomain : navigation.domain();
+        return new ConversationPlan(
+                PlanMode.AGENT_WORKFLOW,
+                ResponseKind.OBJECT_GRAPH_NAVIGATION,
+                null,
+                domain,
+                "ontology:" + navigation.domain(),
+                secondaryTargets,
+                templateCode,
+                null,
+                extendedRouting.dataLayer().name(),
+                extendedRouting.martTable(),
+                buildOntologyNavigationPrompt(navigation, domain, secondaryTargets, extendedRouting, templateCode),
+                "L1_ONTOLOGY_GRAPH",
+                "MEDIUM",
+                buildOntologyNavigationQualityNotes(navigation),
+                "table",
+                "ontology." + navigation.domain() + ".object_graph.navigation",
+                navigation.joinPlan().sourceRefs());
+    }
+
+    private String buildOntologyNavigationPrompt(
+            OntologyNavigation navigation,
+            String domain,
+            List<String> secondaryTargets,
+            ExtendedRoutingResult extendedRouting,
+            String templateCode) {
+        StringBuilder prompt = new StringBuilder();
+        String routingPrompt = buildBusinessRoutingPrompt(
+                domain,
+                "ontology:" + navigation.domain(),
+                secondaryTargets,
+                extendedRouting,
+                templateCode,
+                null);
+        if (StringUtils.hasText(routingPrompt)) {
+            prompt.append(routingPrompt).append("\n\n");
+        }
+        prompt.append("【对象图导航】\n");
+        prompt.append("- mentioned objects: ").append(String.join(" -> ", navigation.objectNames())).append("\n");
+        prompt.append("- link path: ").append(String.join(" -> ", navigation.joinPlan().linkNames())).append("\n");
+        prompt.append("- data surface: L1_ONTOLOGY_GRAPH\n");
+        prompt.append("- source refs: ").append(String.join(", ", navigation.joinPlan().sourceRefs())).append("\n");
+        if (!navigation.joinPlan().joinHints().isEmpty()) {
+            prompt.append("- join hints: ").append(String.join("；", navigation.joinPlan().joinHints())).append("\n");
+        }
+        if (navigation.candidateCount() > 1) {
+            prompt.append("- candidate paths: ").append(navigation.candidateCount()).append("\n");
+        }
+        prompt.append("""
+
+                【导航 SQL】
+                ```sql
+                """);
+        prompt.append(navigation.joinPlan().sql()).append("\n");
+        prompt.append("""
+                ```
+
+                【执行约束】
+                - 该分支用于跨对象贯穿/追溯问题，不要退回单一业务对象画像或单视图 NL2SQL。
+                - 执行前先对 source refs 调用 schema_lookup 校验字段，SQL 只读并保留 LEFT JOIN 以避免丢失孤儿记录。
+                - 如果用户追问具体明细，再基于该对象链路补充过滤条件和展示列。
+                """.trim());
+        return prompt.toString().trim();
+    }
+
+    private List<String> buildOntologyNavigationQualityNotes(OntologyNavigation navigation) {
+        List<String> notes = new ArrayList<>();
+        notes.add("对象图导航基于 semantic pack links 生成 JOIN 链路，执行前需要 schema_lookup 校验字段。");
+        if (navigation.joinPlan().preservesOrphans()) {
+            notes.add("JOIN 使用 LEFT JOIN 保留可能缺少下游记录的业务对象。");
+        }
+        if (!navigation.joinPlan().joinHints().isEmpty()) {
+            notes.add(String.join("；", navigation.joinPlan().joinHints()));
+        }
+        if (navigation.candidateCount() > 1) {
+            notes.add("存在多条候选最短路径，当前选择覆盖用户提及对象最多的路径。");
+        }
+        return List.copyOf(notes);
+    }
+
+    private Optional<SignalQuery> resolveSignalQuery(String userQuestion, String domain) {
+        if (!StringUtils.hasText(userQuestion) || !containsSignalKeyword(userQuestion)) {
+            return Optional.empty();
+        }
+        String semanticDomain = normalizeSemanticDomain(domain);
+        if (!StringUtils.hasText(semanticDomain)) {
+            return Optional.empty();
+        }
+        return ontologyService.load(semanticDomain).flatMap(model -> {
+            List<OntologyService.SignalPlan> allPlans = model.buildSignalPlans();
+            if (allPlans.isEmpty()) {
+                return Optional.empty();
+            }
+            List<OntologyService.SignalPlan> matchedPlans = allPlans.stream()
+                    .filter(plan -> signalPlanMatchesQuestion(userQuestion, plan))
+                    .toList();
+            return Optional.of(new SignalQuery(
+                    semanticDomain,
+                    matchedPlans.isEmpty() ? allPlans : matchedPlans));
+        });
+    }
+
+    private boolean containsSignalKeyword(String userQuestion) {
+        return SIGNAL_QUERY_KEYWORDS.stream().anyMatch(userQuestion::contains);
+    }
+
+    private boolean signalPlanMatchesQuestion(String userQuestion, OntologyService.SignalPlan plan) {
+        if (userQuestion.contains(plan.signalName()) || userQuestion.contains(plan.objectName())) {
+            return true;
+        }
+        for (String metricName : plan.metricNames()) {
+            if (userQuestion.contains(metricName)) {
+                return true;
+            }
+        }
+        for (String alias : signalAliases(plan.signalName())) {
+            if (userQuestion.contains(alias)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Set<String> signalAliases(String signalName) {
+        Set<String> aliases = new LinkedHashSet<>();
+        aliases.add(signalName);
+        addWithoutSuffix(aliases, signalName, "风险");
+        addWithoutSuffix(aliases, signalName, "预警");
+        addWithoutSuffix(aliases, signalName, "异常");
+        addWithoutSuffix(aliases, signalName, "告警");
+        aliases.removeIf(alias -> !StringUtils.hasText(alias) || alias.length() < 2);
+        return aliases;
+    }
+
+    private ConversationPlan buildSignalQueryPlan(
+            SignalQuery signalQuery,
+            String routedDomain,
+            List<String> secondaryTargets,
+            String templateCode,
+            ExtendedRoutingResult extendedRouting) {
+        String domain = StringUtils.hasText(routedDomain) ? routedDomain : signalQuery.domain();
+        Set<String> sourceRefs = new LinkedHashSet<>();
+        for (OntologyService.SignalPlan plan : signalQuery.plans()) {
+            sourceRefs.addAll(plan.sourceRefs());
+        }
+        return new ConversationPlan(
+                PlanMode.AGENT_WORKFLOW,
+                ResponseKind.RISK_SIGNAL_QUERY,
+                null,
+                domain,
+                "ontology:" + signalQuery.domain() + ":signals",
+                secondaryTargets,
+                templateCode,
+                null,
+                extendedRouting.dataLayer().name(),
+                extendedRouting.martTable(),
+                buildSignalQueryPrompt(signalQuery, domain, secondaryTargets, extendedRouting, templateCode),
+                "L2_ONTOLOGY_SIGNAL",
+                "MEDIUM",
+                buildSignalQueryQualityNotes(signalQuery),
+                "table",
+                "ontology." + signalQuery.domain() + ".signals",
+                List.copyOf(sourceRefs));
+    }
+
+    private String buildSignalQueryPrompt(
+            SignalQuery signalQuery,
+            String domain,
+            List<String> secondaryTargets,
+            ExtendedRoutingResult extendedRouting,
+            String templateCode) {
+        StringBuilder prompt = new StringBuilder();
+        String routingPrompt = buildBusinessRoutingPrompt(
+                domain,
+                "ontology:" + signalQuery.domain() + ":signals",
+                secondaryTargets,
+                extendedRouting,
+                templateCode,
+                null);
+        if (StringUtils.hasText(routingPrompt)) {
+            prompt.append(routingPrompt).append("\n\n");
+        }
+        prompt.append("【预警查询】\n");
+        prompt.append("- data surface: L2_ONTOLOGY_SIGNAL\n");
+        for (OntologyService.SignalPlan plan : signalQuery.plans()) {
+            prompt.append("- signal: ").append(plan.signalName()).append("\n");
+            prompt.append("  severity: ").append(plan.severity()).append("\n");
+            prompt.append("  object: ").append(plan.objectName()).append("\n");
+            prompt.append("  metrics: ").append(String.join(", ", plan.metricNames())).append("\n");
+            prompt.append("  advice: ").append(plan.advice()).append("\n");
+            if (!plan.linkedActions().isEmpty()) {
+                prompt.append("  linked actions: ").append(String.join(", ", plan.linkedActions())).append("\n");
+            }
+            prompt.append("  source refs: ").append(String.join(", ", plan.sourceRefs())).append("\n");
+            prompt.append("  sql:\n```sql\n").append(plan.sql()).append("\n```\n");
+        }
+        prompt.append("""
+
+                【执行约束】
+                - 该分支用于风险/预警/异常类查询，优先使用 semantic pack signals，而不是退回固定报表目录或单对象画像。
+                - 执行前先对 source refs 调用 schema_lookup 校验字段，SQL 只读，并保留 HAVING 中的预警阈值条件。
+                - 输出应包含命中对象、指标值、风险等级、建议动作；linked actions 只作为待确认动作草稿，不直接写业务系统。
+                """.trim());
+        return prompt.toString().trim();
+    }
+
+    private List<String> buildSignalQueryQualityNotes(SignalQuery signalQuery) {
+        List<String> notes = new ArrayList<>();
+        notes.add("预警查询基于 semantic pack signals 生成，执行前需要 schema_lookup 校验字段和指标口径。");
+        notes.add("阈值来自 signals.when 条件，结果仅作为业务预警线索，需要业务核验。");
+        boolean hasLinkedActions = signalQuery.plans().stream().anyMatch(plan -> !plan.linkedActions().isEmpty());
+        if (hasLinkedActions) {
+            notes.add("linked actions 只生成待确认草稿，不直接改变业务状态。");
+        }
+        return List.copyOf(notes);
+    }
+
     private boolean containsAny(String text, String... patterns) {
         for (String pattern : patterns) {
             if (text.contains(pattern)) {
@@ -435,10 +806,6 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             }
         }
         return false;
-    }
-
-    private boolean isFixedReportCatalogEntry(ReportCatalogEntry entry) {
-        return ResponseKind.FIXED_REPORT.name().equals(entry.responseKind());
     }
 
     private ConversationPlan buildReportCatalogPlan(
@@ -564,7 +931,14 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         if (!entry.qualityNotes().isEmpty()) {
             prompt.append("- quality notes: ").append(String.join("；", entry.qualityNotes())).append("\n");
         }
-        if (ResponseKind.REPORT_DRAFT.name().equals(entry.responseKind())) {
+        if (ResponseKind.FIXED_REPORT.name().equals(entry.responseKind())) {
+            prompt.append("""
+
+                    【固定报表】
+                    - 该问题已命中 L2 固定报表资产，优先返回既有报表/大屏入口和口径说明。
+                    - 不要重新生成一份临时报表草稿；如用户继续要求调整，再进入报表草稿生成或编辑流程。
+                    """.trim());
+        } else if (ResponseKind.REPORT_DRAFT.name().equals(entry.responseKind())) {
             prompt.append("""
 
                     【报表草稿生成】
@@ -641,5 +1015,23 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         }
         sb.append("\n如果这些都不符合，再继续进入探索式分析。");
         return sb.toString().trim();
+    }
+
+    private record ObjectMention(String objectName, int index) {
+    }
+
+    private record OntologyNavigation(
+            String domain,
+            List<String> objectNames,
+            OntologyService.JoinPlan joinPlan,
+            int candidateCount) {
+    }
+
+    private record SignalQuery(
+            String domain,
+            List<OntologyService.SignalPlan> plans) {
+        private SignalQuery {
+            plans = plans == null ? List.of() : List.copyOf(plans);
+        }
     }
 }

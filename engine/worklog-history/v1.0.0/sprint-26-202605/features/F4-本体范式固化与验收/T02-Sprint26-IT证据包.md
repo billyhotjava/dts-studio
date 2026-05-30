@@ -1,7 +1,7 @@
 # T02: Sprint-26 IT 证据包
 
 **优先级**: P2
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: F1, F2, F3
 
 ## 目标
@@ -22,15 +22,15 @@
 
 ## 验证
 
-- [ ] 每个完成标准条目都能在 IT 证据中定位到对应文件。
-- [ ] 无空占位证据。
+- [x] 每个完成标准条目都能在 IT 证据中定位到对应文件。
+- [x] 无空占位证据。
 
 ## 完成标准
 
 - [ ] IT 证据包完整，可作为 sprint DONE 的依据。
 
-## 当前阻塞
+## 验收结论
 
 - F0/F1/F2 和 F3/T01-T03 均已有可重跑证据。
-- F3/T04 真实端到端仍缺正确 PRS adminapi gateway base URL 与业务 Authorization；当前探测到的 `38012` 是 v2.2.3 `dts-admin`，不是 PRS 旧 `rs-gateway`。
-- 阻塞证据：`it/evidence/20260530-local/baddebt-e2e-auth-blocker.md`。
+- F3/T04 已补运行态证据：`test_action_runtime_env_wiring.sh` 静态配置渲染通过，`RUN_LIVE=1` 通过，Copilot 审计日志 `id=326`，adminapi 草稿 `2060736510340108288`，adminweb 坏账 `listPage` 返回该草稿。
+- 证据：`it/evidence/20260530-local/action-runtime-live.md`、`it/evidence/20260530-local/baddebt-e2e-auth-blocker.md`。

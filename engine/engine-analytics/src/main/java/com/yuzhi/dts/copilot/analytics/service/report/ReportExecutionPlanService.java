@@ -119,6 +119,7 @@ public class ReportExecutionPlanService {
     private static boolean isDbtScreenTarget(String dataSourceType, String targetObject) {
         return "dbt_screen".equals(dataSourceType)
                 || "dbt".equals(dataSourceType)
+                || dataSourceType.startsWith("dbt_")
                 || targetObject.startsWith("screen.");
     }
 
