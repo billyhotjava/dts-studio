@@ -2,7 +2,7 @@
 
 **优先级**: P1
 **状态**: READY
-**依赖**: F4 活产物画布（动作行）、F5 乐观回答（常驻口径芯片）
+**依赖**: F4 活产物画布（动作行）、F5 乐观回答（常驻口径芯片）、F8 后台契约（trace / correction 桩）
 
 ## 目标
 
@@ -25,13 +25,13 @@
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
 | T01 | TracePanel 扶正为画布溯源面板 | P1 | READY | F4 CanvasActions |
-| T02 | 口径/表/字段/SQL 展示 | P1 | READY | T01 |
-| T03 | 纠正入口（占位 + 回流接口预留） | P1 | READY | T01、T02、F复用 FeedbackButtons |
+| T02 | 口径/表/字段/SQL 展示 | P1 | READY | T01, F8-T01, F8-T03 |
+| T03 | 纠正入口（占位 + 回流接口预留） | P1 | READY | T01,T02,F8-T03,复用 FeedbackButtons |
 
 ## 完成标准
 
 - [ ] 溯源面板由画布动作行「`</>` SQL·溯源」按钮触发打开/关闭（抽屉或侧栏形态），不再以消息内浮动折叠块为唯一入口。
 - [ ] 面板内分区展示：命中口径（本体口径名 + 口径版本）、数据来源（表/字段）、生成 SQL；完整 SQL/溯源默认收起、按需展开。
 - [ ] 「⚑口径不对？纠正」入口存在，点击复用 `FeedbackButtons` 采集纠正意见并提交成功；回流到评测集/本体草稿留有接口桩（不真正写回）。
-- [ ] 后台若未在 `aiAgentChatSend` 返回 `trace`（口径/表/SQL）结构，已在 T02 写明契约扩展需求 `trace{ metricCaliber, sources[], sql }`，前端有降级展示（用现有 `toolMessages` / `sourceRefs` / `generatedSql` 兜底）。
+- [ ] 后台若未在 `aiAgentChatSend` 返回 `trace`（口径/表/SQL）结构，按 F8-T04 记录 degraded runtime，前端有降级展示（用现有 `toolMessages` / `sourceRefs` / `generatedSql` 兜底），不误标 live contract 通过。
 - [ ] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿；新增/改动组件含单测。

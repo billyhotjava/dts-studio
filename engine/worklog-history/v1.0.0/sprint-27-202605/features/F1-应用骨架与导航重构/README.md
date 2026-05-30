@@ -14,7 +14,7 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 删除旧 NL2SQL/报表碎片路由与页面 | P0 | READY | - |
+| T01 | 删除旧 NL2SQL/报表碎片路由与页面 | P0 | READY | F3-T00 现状测试基线 |
 | T02 | 定义新工作台路由与首页壳 | P0 | READY | T01 |
 | T03 | AppLayout 改造为双栏工作台壳 | P0 | READY | T02 |
 | T04 | 4 个一级入口导航重构 | P0 | READY | T01, T03 |
@@ -23,6 +23,7 @@
 ## 完成标准
 
 - [ ] `AnalyzePage` / `ExploreSessionsPage` / `ReportFactoryPage` / `MetricLensPage` 及旧 `AgentReportsPage` 页面与其路由注册全部删除，对应 URL 不再可达（命中 `NotFoundPage`）。
+- [ ] 删除旧页面前，F3-T00 的现状测试基线已经建立并通过，确保重构有回归闸门。
 - [ ] `ScreensCenterRedirect` / `FixedReportsRedirect` 过渡跳转清理完成；`ModernAliasRedirect` 行为对齐新首页。
 - [ ] `/public/card/:uuid`、`/public/dashboard/:uuid`、`/public/screen/:uuid` 三类分享链接仍可正常访问，且不依赖任何被删除的页面/组件（决策 D10）。
 - [ ] `dashboards` / `questions(cards)` / `collections` / `screens` 页面与路由保留可达，供 F7 资产库复用；`data` / `models` / `metrics` / `admin` 保留作治理后台。

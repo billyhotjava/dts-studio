@@ -332,13 +332,14 @@
 |---------|---------|------|
 | F1-应用骨架与导航重构 | 5 | READY |
 | F2-冷启动首屏 | 4 | READY |
-| F3-对话脊柱 | 5 | READY |
+| F3-对话脊柱 | 6 | READY |
 | F4-活产物画布 | 4 | READY |
 | F5-乐观NL2SQL回答 | 4 | READY |
 | F6-溯源信任 | 3 | READY |
 | F7-资产沉淀 | 4 | READY |
+| F8-后台契约与降级联调 | 4 | READY |
 
-**统计**: READY=29, IN_PROGRESS=0, DONE=0, BLOCKED=0
+**统计**: READY=34, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
 ## Backlog
 
@@ -348,6 +349,6 @@
 
 ## 总体统计
 
-**READY=129, IN_PROGRESS=3, DONE=50, BLOCKED=0, DEFERRED=1 (总计 183 任务)**
+**READY=134, IN_PROGRESS=3, DONE=50, BLOCKED=0, DEFERRED=1 (总计 188 任务)**
 
-> Sprint-27(前端 Agent-First 重构)新增 29 个 READY 任务。
+> Sprint-27(前端 Agent-First 重构)新增 34 个 READY 任务。

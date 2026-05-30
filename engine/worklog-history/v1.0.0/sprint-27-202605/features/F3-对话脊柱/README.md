@@ -5,7 +5,7 @@
 
 ## 目标
 
-把现有 1379 行的浮动聊天 `CopilotChat.tsx` 扶正为 agent 工作台的「对话脊柱」主界面：先建测试护栏锁住现有关键行为，再按单一职责拆分为 `ConversationThread`(脊柱容器) / `MessageList`(消息流) / `Composer`(输入器) + 会话状态 hooks,每个文件 < 800 行;流式输出(SSE reasoning + token + done)、语音输入、发送/停止、会话历史(新建/切换/恢复)行为全部保持不变。拆分完成后,F4 活产物画布可通过「产物引用」接口(消息持有产物 id)与脊柱解耦对接。
+把现有 1379 行的浮动聊天 `CopilotChat.tsx` 扶正为 agent 工作台的「对话脊柱」主界面：先在现状代码上建立 T00 基线测试,再按单一职责拆分为 `ConversationThread`(脊柱容器) / `MessageList`(消息流) / `Composer`(输入器) + 会话状态 hooks,每个文件 < 800 行;流式输出(SSE reasoning + token + done)、语音输入、发送/停止、会话历史(新建/切换/恢复)行为全部保持不变。拆分完成后,F4 活产物画布可通过「产物引用」接口(消息持有产物 id)与脊柱解耦对接。
 
 > 设计依据:`docs/superpowers/specs/2026-05-30-agent-first-ui-design.md`(§4「状态二 · 对话脊柱 + 活产物画布」、§6「对话完整回路 + 溯源信任」、§8「技术落点 — 复用 / 模块边界原则」、§10 风险「`CopilotChat` 1379 行重构风险高,需先建测试护栏再拆」)。
 >
@@ -29,15 +29,16 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 拆分前先建测试护栏 | P0 | READY | F1 |
-| T02 | CopilotChat 拆分 | P0 | READY | T01 |
+| T00 | 现状测试基线 | P0 | READY | - |
+| T01 | 拆分前先建测试护栏 | P0 | READY | T00 |
+| T02 | CopilotChat 拆分 | P0 | READY | T01,F1 |
 | T03 | SSE 流式接入脊柱 | P0 | READY | T02 |
 | T04 | 输入器 + 语音整合 | P0 | READY | T02 |
 | T05 | 会话状态与历史 | P0 | READY | T02 |
 
 ## 完成标准
 
-- [ ] 拆分前测试护栏已建立并全绿:消息渲染、`handleSendText` 发送、SSE 流式状态(reasoning/token/done)、停止四类关键行为有可执行的 vitest 断言,作为重构基线(T01)。
+- [ ] 删除旧入口和拆分前,T00 现状测试基线已建立并全绿;消息渲染、`handleSendText` 发送、SSE 流式状态(reasoning/token/done)、停止四类关键行为有可执行的 vitest 断言,作为重构基线(T00/T01)。
 - [ ] `CopilotChat.tsx` 拆为 `ConversationThread` / `MessageList` / `Composer` + 会话状态 hooks,每个文件 < 800 行,且对外仍可被 `CopilotSidebar` 与 F1 工作台脊柱插槽复用(T02)。
 - [ ] 流式 reasoning + token + done + 工具进度在新脊柱内正常渲染,超时看门狗、停止、同步回退路径行为不变(T03)。
 - [ ] 输入器整合文字输入(回车提交/Shift+回车换行/输入法 229 防误提交)、语音转写回填、发送/停止/打断重发,行为与拆分前一致(T04)。

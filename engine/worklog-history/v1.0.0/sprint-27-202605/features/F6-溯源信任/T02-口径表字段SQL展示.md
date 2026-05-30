@@ -2,7 +2,7 @@
 
 **优先级**: P1
 **状态**: READY
-**依赖**: T01（溯源面板形态就绪）
+**依赖**: T01（溯源面板形态就绪）、F8-T01/F8-T03（trace 响应与纠正契约）
 
 ## 目标
 
@@ -12,7 +12,7 @@
 2. **数据来源**：用到的表与字段；
 3. **生成 SQL**：只读展示，可复制，默认收起、按需展开。
 
-消费 `aiAgentChatSend`（及 `getAiAgentSession` / SSE `done` 事件）返回的 `trace` 结构。**当前后台契约尚不足**，本 Task 写明契约扩展需求并实现前端降级兜底。
+消费 `aiAgentChatSend`（及 `getAiAgentSession` / SSE `done` 事件）返回的 `trace` 结构。**当前后台契约尚不足**，契约落地归 F8;本 Task 实现前端消费与降级兜底。
 
 ## 技术设计
 
@@ -24,9 +24,9 @@
 - `CopilotStreamEvent`（`done`，L1394-1407）透传上述同名字段 + `sourceRefs`，同样无结构化口径/来源。
 - `ExplainabilityResponse.explainCard`（L341-355）已有 `metricDefinition` / `dataLineage` / `trace`，是口径/血缘的既有形态，可作为 `trace` 结构设计参照。
 
-**结论**：需后台在聊天链路补结构化 `trace`。在契约落地前，前端用现有字段降级。
+**结论**：需后台在聊天链路补结构化 `trace`，由 F8-T01/T03 负责。在契约落地前，前端用现有字段降级。
 
-### 契约扩展需求（写给后台 / NL2SQL 服务）
+### 契约扩展需求（F8-T01/T03）
 
 在 `aiAgentChatSend` 返回的 assistant 消息、`getAiAgentSession` 消息、SSE `done` 事件上新增可选 `trace`：
 
@@ -73,13 +73,14 @@ type CopilotTrace = {
 - `src/components/copilot/TracePanel.css`：口径芯片、来源层级、SQL 收起/展开样式。
 - `src/components/copilot/InlineSqlPreview.tsx` / `inlineSqlPreviewPresentation.ts`：若抽取共享只读 `SqlCodeBlock`，相应引用调整（不改变结果卡现有行为）。
 - `src/components/copilot/CopilotChat.tsx`：透传 `trace` 到消息状态与 `TracePanel`。
-- **跨团队**：NL2SQL / copilot 后台需补 `trace{ metricCaliber, sources[], sql }`（契约见上，前端有降级，不阻塞本期上线）。
+- **跨团队**：NL2SQL / copilot 后台需补 `trace{ metricCaliber, sources[], sql }`（由 F8 跟踪，前端有降级，不阻塞 P1a 基础上线）。
 
 ## 验证
 
 - [ ] 单测：给 `TracePanel` 传含 `trace.metricCaliber` 的消息，断言渲染「利润＝收入−成本 · 报花域 · 口径 v3」。
 - [ ] 单测：传 `trace.sources` 渲染表/字段层级；传 `trace.sql` 渲染只读 SQL + 复制。
 - [ ] 降级单测：`trace` 缺失、仅有 `sourceRefs` + `generatedSql` 时，来源与 SQL 仍可展示，且出现「口径结构化待后台补充」提示。
+- [ ] 真实后台未返回 `trace` 时，IT09 记录为 degraded runtime；只有 F8 live contract 返回 `trace` 后才标完整通过。
 - [ ] SQL 分区默认收起，点击展开（符合 D8 按需展开）。
 - [ ] `pnpm typecheck` / `pnpm test` / `pnpm build` 全绿。
 
