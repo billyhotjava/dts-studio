@@ -1,0 +1,215 @@
+version: 2
+
+models:
+  - name: xycyl_stg_project_customer
+    description: "项目域客户 STG，使用 project 域前缀避免覆盖 Sprint-22 的 xycyl_stg_customer。"
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_stg_project_project
+    description: "项目点 STG，保留合同、状态、项目负责人和结算周期原始字段。"
+    columns:
+      - name: project_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_stg_project_contract
+    description: "合同 STG，保留结算、开票和合同周期原始字段。"
+    columns:
+      - name: contract_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_stg_project_position
+    description: "摆位 STG，保留楼号、楼层、养护人和摆位状态。"
+    columns:
+      - name: position_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_stg_project_goods_price
+    description: "物品价格 STG，项目实摆通过 good_price_id 关联。"
+    columns:
+      - name: good_price_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_dim_project_status
+    description: "项目状态维度，code 收敛源系统原始值，standard_code 为稳定 ASCII 枚举。"
+    columns:
+      - name: code
+        data_tests:
+          - not_null
+          - unique
+      - name: standard_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PRJ-ACTIVE', 'PRJ-INACTIVE', 'PRJ-UNKNOWN']
+
+  - name: xycyl_dim_contract_status
+    description: "合同状态维度。"
+    columns:
+      - name: code
+        data_tests:
+          - not_null
+          - unique
+      - name: standard_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['CON-DRAFT', 'CON-ACTIVE', 'CON-FINISHED', 'CON-UNKNOWN']
+
+  - name: xycyl_dim_project_green_status
+    description: "项目实摆状态维度。"
+    columns:
+      - name: code
+        data_tests:
+          - not_null
+          - unique
+      - name: standard_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PGS-PLACED', 'PGS-CHANGING', 'PGS-ADDING', 'PGS-REDUCING', 'PGS-ADJUSTING', 'PGS-BADDEBT', 'PGS-FINISHED', 'PGS-UNKNOWN']
+
+  - name: xycyl_dim_position_adjustment_status
+    description: "摆位调整状态维度。"
+    columns:
+      - name: code
+        data_tests:
+          - not_null
+          - unique
+      - name: standard_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PAS-CANCELLED', 'PAS-PENDING', 'PAS-FINISHED', 'PAS-DRAFT', 'PAS-UNKNOWN']
+
+  - name: xycyl_dim_customer
+    description: "共享客户维度，可供项目、采购、财务域复用。"
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_dim_contract
+    description: "共享合同维度，打通客户并输出稳定合同状态码。"
+    columns:
+      - name: contract_id
+        data_tests:
+          - not_null
+          - unique
+      - name: status_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['CON-DRAFT', 'CON-ACTIVE', 'CON-FINISHED', 'CON-UNKNOWN']
+
+  - name: xycyl_dim_project
+    description: "共享项目维度，打通合同和客户。"
+    columns:
+      - name: project_id
+        data_tests:
+          - not_null
+          - unique
+      - name: status_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['PRJ-ACTIVE', 'PRJ-INACTIVE', 'PRJ-UNKNOWN']
+
+  - name: xycyl_dim_position
+    description: "共享摆位维度，包含楼号、楼层和养护人信息。"
+    columns:
+      - name: position_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_dim_goods
+    description: "共享物品价格维度，粒度为 good_price_id。"
+    columns:
+      - name: good_price_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_dwd_project_green_snapshot
+    description: "项目实摆事实快照。金额字段仅保留源表 raw 值，P0 未拍板前不固化 rent/cost 乘法口径。"
+    columns:
+      - name: project_green_id
+        data_tests:
+          - not_null
+          - unique
+      - name: project_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('xycyl_dim_project')
+                field: project_id
+              config:
+                severity: warn
+      - name: position_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('xycyl_dim_position')
+                field: position_id
+              config:
+                severity: warn
+      - name: status_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['PGS-PLACED', 'PGS-CHANGING', 'PGS-ADDING', 'PGS-REDUCING', 'PGS-ADJUSTING', 'PGS-BADDEBT', 'PGS-FINISHED', 'PGS-UNKNOWN']
+
+  - name: xycyl_dwd_position_adjustment
+    description: "摆位调整事实，主表 + 明细打宽。"
+    columns:
+      - name: position_adjustment_item_id
+        data_tests:
+          - not_null
+          - unique
+      - name: adjustment_status_code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['PAS-CANCELLED', 'PAS-PENDING', 'PAS-FINISHED', 'PAS-DRAFT', 'PAS-UNKNOWN']
+
+  - name: xycyl_dws_project_green_monthly
+    description: "项目 x 月实摆汇总，金额为源表 raw 金额合计，不做数量乘法。"
+
+  - name: xycyl_ads_project_overview
+    description: "项目点实摆总览，粒度为项目。"
+    columns:
+      - name: project_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: xycyl_ads_project_green_change_monthly
+    description: "项目实摆状态月度分布，粒度为项目 x 月 x 实摆状态。"
+
+  - name: xycyl_ads_project_status_dist
+    description: "项目状态和实摆状态分布。"
+
+  - name: xycyl_ads_contract_expiry_alert
+    description: "合同到期预警，粒度为合同。"
+    columns:
+      - name: contract_id
+        data_tests:
+          - not_null
+          - unique

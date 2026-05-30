@@ -15,8 +15,8 @@
 
 | ID | Feature | Task 数 | 优先级 | 状态 | 说明 |
 |----|---------|---------|--------|------|------|
-| F0 | 项目域 P0 数据画像与口径决策 | 4 | P0 | BLOCKED | T01 已完成；缺项目域核心 ODS，T02+ 阻塞 |
-| F1 | 共享维度与项目域 dbt 建模 | 4 | P0 | BLOCKED | 等 F0 入湖确认 + 口径决策 |
+| F0 | 项目域 P0 数据画像与口径决策 | 4 | P0 | BLOCKED | T01 已完成；核心 ODS 已建空表，T02 等待入数 |
+| F1 | 共享维度与项目域 dbt 建模 | 4 | P0 | BLOCKED | 等 F0 数据画像 + 口径决策 |
 | F2 | 项目域 NL2SQL 接入 | 3 | P1 | BLOCKED | 等 F1 ADS/DWS 产物 |
 | F3 | 项目域回归与验收 | 3 | P1 | BLOCKED | 等 F1/F2 |
 
@@ -51,6 +51,7 @@
 - `assets/project-source-catalog.md`：项目域和共享维度源表清单。
 - `assets/project-caliber-decisions.md`：P0 口径决策表。
 - `assets/project-dbt-model-catalog.md`：dbt 模型和验收清单。
+- `assets/xycyl-project-dbt-model.zip`：项目域 dbt 模型 DTS 导入包。
 - `features/F0-项目域P0数据画像与口径决策/`：P0 任务入口。
 - `features/F1-共享维度与项目域dbt建模/`：dbt 建模任务入口。
 - `features/F2-项目域NL2SQL接入/`：智能层接入任务入口。
@@ -59,6 +60,7 @@
 
 ## 2026-05-29 实施记录
 
-- F0-T01 已完成本地入湖范围核验：只发现 `ods_ptr_mysql_p_project` / `ods_ptr_mysql_p_customer`。
-- `ods_ptr_mysql_p_project_green`、`ods_ptr_mysql_p_position`、`ods_ptr_mysql_p_contract`、`ods_ptr_mysql_b_goods`、`ods_ptr_mysql_b_goods_price` 等核心表缺失，F0-T02/F1/F2/F3 暂停。
-- 已新增 `it/sql/project_source_profile.sql` 和 `it/evidence/20260529-local/project-source-profile.md`，后续补入湖后可直接重跑。
+- F0-T01 已完成本地入湖范围核验：原始状态只发现 `ods_ptr_mysql_p_project` / `ods_ptr_mysql_p_customer`。
+- 已通过 `it/sql/project_ods_create_tables.sql` 在本地 DTS `biadmin.public` 补齐 9 张缺失 ODS 空表：`p_contract`、`p_position`、`p_floor_layer`、`p_floor_number`、`b_goods`、`b_goods_price`、`p_project_green`、`p_position_adjustment`、`p_position_adjustment_item`。
+- 2026-05-29 live profile 确认 11 张 Sprint-25 必需 ODS 均为 FOUND 且有 `_dts_*`；其中新建 9 张表当前 0 行，F0-T02/F1/F2/F3 仍等待源业务数据入数和 P0 口径决策。
+- 已补齐 `assets/xycyl-project-dbt-model.zip`，包含 11 sources、27 models、50 data tests；本地 DTS PostgreSQL 已通过 dbt parse/run/test，导入后仍需等待源业务数据入数再复核事实口径。

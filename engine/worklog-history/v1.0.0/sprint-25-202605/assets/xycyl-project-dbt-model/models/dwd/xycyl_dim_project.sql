@@ -1,0 +1,40 @@
+{{ config(tags=['project']) }}
+
+SELECT
+  p.project_id,
+  p.project_code,
+  p.project_name,
+  p.project_abbreviation,
+  p.contract_id,
+  c.contract_code,
+  c.contract_title,
+  c.customer_id,
+  c.customer_code,
+  c.customer_name,
+  p.status_raw,
+  COALESCE(s.standard_code, 'PRJ-UNKNOWN') AS status_code,
+  COALESCE(s.label, '未知') AS status_label,
+  p.project_type_raw,
+  p.area_raw,
+  p.project_address,
+  p.longitude,
+  p.latitude,
+  p.budget_amount,
+  p.biz_user_id,
+  p.manager_id,
+  p.supervisor_id,
+  p.curing_director_id,
+  p.curing_director_name,
+  p.project_start_time,
+  p.project_end_time,
+  p.settle_start_time,
+  p.settle_end_time,
+  p.check_cycle,
+  p.tenant_id,
+  p.created_at,
+  p.updated_at,
+  p.source_system,
+  p.imported_at
+FROM {{ ref('xycyl_stg_project_project') }} p
+LEFT JOIN {{ ref('xycyl_dim_contract') }} c ON c.contract_id = p.contract_id
+LEFT JOIN {{ ref('xycyl_dim_project_status') }} s ON s.code = COALESCE(p.status_raw::text, 'UNKNOWN')

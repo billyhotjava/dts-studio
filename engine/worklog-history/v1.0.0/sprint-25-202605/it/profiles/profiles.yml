@@ -1,0 +1,12 @@
+dts:
+  target: local
+  outputs:
+    local:
+      type: postgres
+      host: 127.0.0.1
+      port: 5432
+      user: biadmin
+      password: "{{ env_var('DTS_PG_PASSWORD', '') }}"
+      dbname: biadmin
+      schema: public
+      threads: 4

@@ -9,7 +9,11 @@
 
 ## 阻塞
 
-F0 已确认本地默认数据湖缺少项目域核心 ODS：`p_project_green`、`p_position`、`p_contract`、`b_goods`、`b_goods_price`。在这些表入湖和 P0 口径 RESOLVED 前，不提交 dbt 生产模型。
+F0 已确认本地默认数据湖存在项目域核心 ODS，但 `p_project_green`、`p_position`、`p_contract`、`b_goods`、`b_goods_price` 等新建表当前仍为空。源业务数据入数和 P0 口径 RESOLVED 前，不提交 dbt 生产模型。
+
+## 当前交付
+
+已补齐 DTS 平台导入包 `assets/xycyl-project-dbt-model.zip`，包含 project 域 sources、STG、共享维度、DWD/DWS/ADS 首批模型。2026-05-29 本地 DTS PostgreSQL 已通过 `dbt run --select tag:xycyl-project` 和 `dbt test --select tag:xycyl-project`；由于核心事实 ODS 仍为空，模型作为 import-ready 基线，不代表事实口径已最终确认。
 
 ## Task 列表
 

@@ -311,6 +311,35 @@
 
 **统计**: READY=0, IN_PROGRESS=0, DONE=0, BLOCKED=4
 
+## Sprint-26: 报花域本体化垂直切片 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F0-本体运行时骨架与schema扩展 | 3 | DONE |
+| F1-Tier1对象图与导航 | 4 | DONE |
+| F2-Tier2指标与预警 | 4 | IN_PROGRESS |
+| F3-Tier3写回Action闭环 | 4 | BLOCKED |
+| F4-本体范式固化与验收 | 2 | BLOCKED |
+
+**统计**: READY=0, IN_PROGRESS=1, DONE=2, BLOCKED=2
+
+## Sprint-27: Agent-First 单入口前端重构 · P1 核心骨架 (202605)
+
+> 前端彻底重构新方向。设计依据 `docs/superpowers/specs/2026-05-30-agent-first-ui-design.md`。
+> P2/P3(智能增强 / 主动洞察)待后续 Sprint 展开。
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-应用骨架与导航重构 | 5 | READY |
+| F2-冷启动首屏 | 4 | READY |
+| F3-对话脊柱 | 5 | READY |
+| F4-活产物画布 | 4 | READY |
+| F5-乐观NL2SQL回答 | 4 | READY |
+| F6-溯源信任 | 3 | READY |
+| F7-资产沉淀 | 4 | READY |
+
+**统计**: READY=29, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
@@ -319,4 +348,6 @@
 
 ## 总体统计
 
-**READY=83, IN_PROGRESS=3, DONE=50, BLOCKED=0, DEFERRED=1 (总计 137 任务)**
+**READY=129, IN_PROGRESS=3, DONE=50, BLOCKED=0, DEFERRED=1 (总计 183 任务)**
+
+> Sprint-27(前端 Agent-First 重构)新增 29 个 READY 任务。

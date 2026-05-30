@@ -12,7 +12,7 @@
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
 | T01 | 项目域源表入湖范围确认 | P0 | DONE | - |
-| T02 | 项目实摆与摆位调整数据画像 | P0 | BLOCKED | T01；缺 `ods_ptr_mysql_p_project_green` 等 ODS |
+| T02 | 项目实摆与摆位调整数据画像 | P0 | BLOCKED | T01；核心事实 ODS 已建空表，等待入数 |
 | T03 | 5 个项目域口径决策访谈 | P0 | BLOCKED | T02 |
 | T04 | adminweb 项目固定报表对账面锁定 | P0 | BLOCKED | T02 |
 
@@ -25,4 +25,4 @@
 
 ## 当前阻塞
 
-2026-05-29 本地 `biadmin.public` 只发现 `ods_ptr_mysql_p_project` 和 `ods_ptr_mysql_p_customer`。项目域建模必需的 `ods_ptr_mysql_p_project_green`、`ods_ptr_mysql_p_position`、`ods_ptr_mysql_p_contract`、`ods_ptr_mysql_b_goods`、`ods_ptr_mysql_b_goods_price` 等尚未入湖，因此不能继续数据画像和 dbt 生产模型。
+2026-05-29 本地 `biadmin.public` 已补齐 Sprint-25 所需 11 张 ODS 物理表，其中 `ods_ptr_mysql_p_project` / `ods_ptr_mysql_p_customer` 有数据，其他 9 张为新建空表。`p_project_green`、`p_position_adjustment*` 等事实表没有业务行前，T02 不能输出状态分布、金额口径或孤儿率结论，dbt 生产模型仍暂停。

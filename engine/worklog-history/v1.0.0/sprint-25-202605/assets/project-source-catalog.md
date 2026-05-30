@@ -8,15 +8,15 @@
 |---|---|---|---|
 | `p_customer` | `public.ods_ptr_mysql_p_customer` | 客户主数据 | FOUND (2026-05-29 local biadmin), 178 rows, has `_dts_*` |
 | `p_project` | `public.ods_ptr_mysql_p_project` | 项目点主数据 | FOUND (2026-05-29 local biadmin), 240 rows, has `_dts_*` |
-| `p_contract` | `public.ods_ptr_mysql_p_contract` | 合同主数据 | MISSING (2026-05-29 local biadmin) |
-| `p_position` | `public.ods_ptr_mysql_p_position` | 摆位主数据 | MISSING (2026-05-29 local biadmin) |
-| `p_floor_layer` | `public.ods_ptr_mysql_p_floor_layer` | 楼层维度 | MISSING (2026-05-29 local biadmin) |
-| `p_floor_number` | `public.ods_ptr_mysql_p_floor_number` | 楼号维度 | MISSING (2026-05-29 local biadmin) |
-| `b_goods` | `public.ods_ptr_mysql_b_goods` | 物品主数据 | MISSING (2026-05-29 local biadmin) |
-| `b_goods_price` | `public.ods_ptr_mysql_b_goods_price` | 物品价格维度 | MISSING (2026-05-29 local biadmin) |
-| `p_project_green` | `public.ods_ptr_mysql_p_project_green` | 项目实摆事实 | MISSING (2026-05-29 local biadmin) |
-| `p_position_adjustment` | `public.ods_ptr_mysql_p_position_adjustment` | 摆位调整主表 | MISSING (2026-05-29 local biadmin) |
-| `p_position_adjustment_item` | `public.ods_ptr_mysql_p_position_adjustment_item` | 摆位调整明细 | MISSING (2026-05-29 local biadmin) |
+| `p_contract` | `public.ods_ptr_mysql_p_contract` | 合同主数据 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `p_position` | `public.ods_ptr_mysql_p_position` | 摆位主数据 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `p_floor_layer` | `public.ods_ptr_mysql_p_floor_layer` | 楼层维度 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `p_floor_number` | `public.ods_ptr_mysql_p_floor_number` | 楼号维度 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `b_goods` | `public.ods_ptr_mysql_b_goods` | 物品主数据 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `b_goods_price` | `public.ods_ptr_mysql_b_goods_price` | 物品价格维度 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `p_project_green` | `public.ods_ptr_mysql_p_project_green` | 项目实摆事实 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `p_position_adjustment` | `public.ods_ptr_mysql_p_position_adjustment` | 摆位调整主表 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
+| `p_position_adjustment_item` | `public.ods_ptr_mysql_p_position_adjustment_item` | 摆位调整明细 | CREATED EMPTY (2026-05-29 local biadmin), has `_dts_*` |
 
 ## 核心字段口径
 
@@ -97,7 +97,7 @@ WHERE a.id IS NULL;
 
 ## P0 必查问题
 
-- `public.ods_ptr_mysql_p_project_green` 尚未入湖（2026-05-29 local biadmin），F0-T02 和 F1 不能继续。
+- `public.ods_ptr_mysql_p_project_green` 等 9 张缺失 ODS 已在本地 DTS 补齐为空表（2026-05-29 local biadmin），但尚未导入源业务数据；F0-T02 仍不能给出事实画像结论。
 - `p_project_green.status` 7 态是否在生产实际出现，是否存在文档外值。
 - `import_status=2` 是否能作为“已确认实摆”的稳定过滤条件。
 - `parent_id=-1` 与子项行的占比，决定实摆组数是否要排除顶层占位。

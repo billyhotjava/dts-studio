@@ -1,4 +1,4 @@
-# Sprint-1: Agent-First 单入口前端重构 · P1 核心骨架(MVP)
+# Sprint-27: Agent-First 单入口前端重构 · P1 核心骨架(MVP)
 
 **时间**: 2026-05
 **状态**: READY

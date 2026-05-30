@@ -1,0 +1,26 @@
+name: "xycyl_project"
+version: "1.0.0"
+config-version: 2
+profile: "dts"
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  xycyl_project:
+    +persist_docs:
+      relation: true
+      columns: true
+    stg:
+      +materialized: view
+      +tags: ["xycyl", "xycyl-project", "stg", "xycyl-stg"]
+    dwd:
+      +materialized: table
+      +tags: ["xycyl", "xycyl-project", "dwd", "xycyl-dwd"]
+    dws:
+      +materialized: table
+      +tags: ["xycyl", "xycyl-project", "dws", "xycyl-dws"]
+    ads:
+      +materialized: table
+      +tags: ["xycyl", "xycyl-project", "ads", "xycyl-ads"]

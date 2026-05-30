@@ -51,11 +51,36 @@ GROUP BY e.ods_table
 ORDER BY e.ods_table;
 
 \echo '== Row counts for currently found Sprint-25 sources =='
-SELECT 'ods_ptr_mysql_p_project' AS ods_table, COUNT(*) AS row_count
-FROM public.ods_ptr_mysql_p_project
-UNION ALL
-SELECT 'ods_ptr_mysql_p_customer' AS ods_table, COUNT(*) AS row_count
-FROM public.ods_ptr_mysql_p_customer
+CREATE TEMP TABLE sprint25_source_row_counts (
+  ods_table text,
+  row_count bigint
+);
+
+WITH expected AS (
+  SELECT 'ods_ptr_mysql_p_customer' AS ods_table, to_regclass('public.ods_ptr_mysql_p_customer') AS relation
+  UNION ALL SELECT 'ods_ptr_mysql_p_project', to_regclass('public.ods_ptr_mysql_p_project')
+  UNION ALL SELECT 'ods_ptr_mysql_p_contract', to_regclass('public.ods_ptr_mysql_p_contract')
+  UNION ALL SELECT 'ods_ptr_mysql_p_position', to_regclass('public.ods_ptr_mysql_p_position')
+  UNION ALL SELECT 'ods_ptr_mysql_p_floor_layer', to_regclass('public.ods_ptr_mysql_p_floor_layer')
+  UNION ALL SELECT 'ods_ptr_mysql_p_floor_number', to_regclass('public.ods_ptr_mysql_p_floor_number')
+  UNION ALL SELECT 'ods_ptr_mysql_b_goods', to_regclass('public.ods_ptr_mysql_b_goods')
+  UNION ALL SELECT 'ods_ptr_mysql_b_goods_price', to_regclass('public.ods_ptr_mysql_b_goods_price')
+  UNION ALL SELECT 'ods_ptr_mysql_p_project_green', to_regclass('public.ods_ptr_mysql_p_project_green')
+  UNION ALL SELECT 'ods_ptr_mysql_p_position_adjustment', to_regclass('public.ods_ptr_mysql_p_position_adjustment')
+  UNION ALL SELECT 'ods_ptr_mysql_p_position_adjustment_item', to_regclass('public.ods_ptr_mysql_p_position_adjustment_item')
+)
+SELECT format(
+  'INSERT INTO sprint25_source_row_counts SELECT %L AS ods_table, COUNT(*) AS row_count FROM public.%I',
+  ods_table,
+  ods_table
+)
+FROM expected
+WHERE relation IS NOT NULL
+ORDER BY ods_table
+\gexec
+
+SELECT ods_table, row_count
+FROM sprint25_source_row_counts
 ORDER BY ods_table;
 
 \echo '== p_project status distribution =='

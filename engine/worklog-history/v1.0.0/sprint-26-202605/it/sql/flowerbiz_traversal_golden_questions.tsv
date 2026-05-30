@@ -1,0 +1,7 @@
+# 报花域贯穿类 Golden Questions（F1/T04）
+# 用途：验证对象图导航命中率 >=90%，且 JOIN 路径、sourceRefs、dataSurface、孤儿提示不退化。
+# 列：id	question	domain	expected_path	expected_source_refs	expect_orphan_hint	note
+G01	这个客户从项目到报花再到结算的全链路明细	flowerbiz	客户_项目>项目_报花>报花_结算	public.xycyl_dim_customer|public.xycyl_dim_project|public.xycyl_ads_flowerbiz_lease_detail|public.ods_ptr_mysql_f_settlement	true	客户到结算全链路，需保留客户_项目孤儿提示
+G02	某项目下所有报花对应的采购单状态	flowerbiz	项目_报花>报花_采购	public.xycyl_dim_project|public.xycyl_ads_flowerbiz_lease_detail|authority.procurement.purchase_item_detail	false	项目到采购贯穿，覆盖报花_采购软外键
+G03	本月某客户的报花有哪些还没结算	flowerbiz	客户_项目>项目_报花>报花_结算	public.xycyl_dim_customer|public.xycyl_dim_project|public.xycyl_ads_flowerbiz_lease_detail|public.ods_ptr_mysql_f_settlement	true	客户报花结算缺口追溯
+G04	某报花单从下单到结算的追溯链	flowerbiz	报花_结算	public.xycyl_ads_flowerbiz_lease_detail|public.ods_ptr_mysql_f_settlement	false	单据到结算链路，覆盖 JSON 数组展开
