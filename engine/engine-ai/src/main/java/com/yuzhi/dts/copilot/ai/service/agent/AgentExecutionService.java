@@ -138,8 +138,7 @@ public class AgentExecutionService {
                                            Map<String, String> clarificationAnswers) {
         CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
                 martHealthSnapshot, assumptionOverrides, clarificationAnswers);
-        ConversationPlan conversationPlan = conversationPlannerService.plan(
-                userMessage, requestContext.martHealthSnapshot());
+        ConversationPlan conversationPlan = planConversation(userMessage, requestContext);
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
         }
@@ -223,8 +222,7 @@ public class AgentExecutionService {
                                                  OutputStream sseOutput) {
         CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
                 martHealthSnapshot, assumptionOverrides, clarificationAnswers);
-        ConversationPlan conversationPlan = conversationPlannerService.plan(
-                userMessage, requestContext.martHealthSnapshot());
+        ConversationPlan conversationPlan = planConversation(userMessage, requestContext);
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
             writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
@@ -280,6 +278,16 @@ public class AgentExecutionService {
 
     private String buildSystemPrompt(String userMessage, ConversationPlan conversationPlan) {
         return buildSystemPrompt(userMessage, conversationPlan, CopilotChatRequestContext.empty());
+    }
+
+    private ConversationPlan planConversation(String userMessage, CopilotChatRequestContext requestContext) {
+        if (requestContext != null
+                && requestContext.assumptionOverrides().containsKey("metric")) {
+            return conversationPlannerService.plan(userMessage, requestContext);
+        }
+        return conversationPlannerService.plan(
+                userMessage,
+                requestContext == null ? Collections.emptyMap() : requestContext.martHealthSnapshot());
     }
 
     private String buildSystemPrompt(

@@ -4,8 +4,12 @@ import com.yuzhi.dts.copilot.ai.service.copilot.BusinessDirectResponseCatalogSer
 import com.yuzhi.dts.copilot.ai.service.copilot.AgentBiReportCatalogService.ReportCatalogEntry;
 import com.yuzhi.dts.copilot.ai.service.copilot.BusinessObjectCatalogService.BusinessObjectEntry;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
+import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan.MetricCaliber;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ResponseKind;
+import com.yuzhi.dts.copilot.ai.service.copilot.IndicatorMatcherService.Confidence;
+import com.yuzhi.dts.copilot.ai.service.copilot.IndicatorMatcherService.IndicatorMatch;
+import com.yuzhi.dts.copilot.ai.service.copilot.IndicatorMatcherService.IndicatorMatchResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.ExtendedRoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.SuggestedQuestion;
@@ -17,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -40,6 +45,8 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             "风险", "异常", "预警", "告警", "需关注", "需要关注", "关注", "坏账", "欠费", "催收"
     );
 
+    private static final String METRIC_FALLBACK_GENERATED = "__fallback_generated__";
+
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
     private final SemanticPackService semanticPackService;
@@ -47,6 +54,26 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
     private final BusinessDirectResponseCatalogService directResponseCatalogService;
     private final AgentBiReportCatalogService reportCatalogService;
     private final BusinessObjectCatalogService businessObjectCatalogService;
+    private final IndicatorMatcherService indicatorMatcherService;
+
+    @Autowired
+    public AssetBackedPlannerPolicy(IntentRouterService intentRouterService,
+                                    TemplateMatcherService templateMatcherService,
+                                    SemanticPackService semanticPackService,
+                                    OntologyService ontologyService,
+                                    BusinessDirectResponseCatalogService directResponseCatalogService,
+                                    AgentBiReportCatalogService reportCatalogService,
+                                    BusinessObjectCatalogService businessObjectCatalogService,
+                                    IndicatorMatcherService indicatorMatcherService) {
+        this.intentRouterService = intentRouterService;
+        this.templateMatcherService = templateMatcherService;
+        this.semanticPackService = semanticPackService;
+        this.ontologyService = ontologyService;
+        this.directResponseCatalogService = directResponseCatalogService;
+        this.reportCatalogService = reportCatalogService;
+        this.businessObjectCatalogService = businessObjectCatalogService;
+        this.indicatorMatcherService = indicatorMatcherService;
+    }
 
     public AssetBackedPlannerPolicy(IntentRouterService intentRouterService,
                                     TemplateMatcherService templateMatcherService,
@@ -55,13 +82,15 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                                     BusinessDirectResponseCatalogService directResponseCatalogService,
                                     AgentBiReportCatalogService reportCatalogService,
                                     BusinessObjectCatalogService businessObjectCatalogService) {
-        this.intentRouterService = intentRouterService;
-        this.templateMatcherService = templateMatcherService;
-        this.semanticPackService = semanticPackService;
-        this.ontologyService = ontologyService;
-        this.directResponseCatalogService = directResponseCatalogService;
-        this.reportCatalogService = reportCatalogService;
-        this.businessObjectCatalogService = businessObjectCatalogService;
+        this(
+                intentRouterService,
+                templateMatcherService,
+                semanticPackService,
+                ontologyService,
+                directResponseCatalogService,
+                reportCatalogService,
+                businessObjectCatalogService,
+                null);
     }
 
     @Override
@@ -71,6 +100,28 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
 
     @Override
     public ConversationPlan plan(String userQuestion, Map<String, Boolean> martHealthSnapshot) {
+        return planInternal(userQuestion, martHealthSnapshot, null);
+    }
+
+    @Override
+    public ConversationPlan plan(String userQuestion, CopilotChatRequestContext requestContext) {
+        CopilotChatRequestContext context = requestContext == null
+                ? CopilotChatRequestContext.empty()
+                : requestContext;
+        return planInternal(userQuestion, context.martHealthSnapshot(), context.assumptionOverrides().get("metric"));
+    }
+
+    private ConversationPlan planInternal(
+            String userQuestion,
+            Map<String, Boolean> martHealthSnapshot,
+            String metricOverride) {
+        IndicatorMatchResult indicatorMatch = indicatorMatcherService == null
+                ? IndicatorMatchResult.none()
+                : indicatorMatcherService.match(userQuestion);
+        if (!shouldSkipIndicatorRoute(metricOverride) && shouldUsePublishedIndicator(indicatorMatch)) {
+            return buildPublishedIndicatorPlan(indicatorMatch, metricOverride);
+        }
+
         TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
         ExtendedRoutingResult extendedRouting = intentRouterService.routeWithDataLayer(
                 userQuestion, martHealthSnapshot == null ? Collections.emptyMap() : martHealthSnapshot);
@@ -244,6 +295,104 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                 extendedRouting.dataLayer().name(),
                 extendedRouting.martTable(),
                 buildBusinessRoutingPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode, null));
+    }
+
+    private boolean shouldSkipIndicatorRoute(String metricOverride) {
+        return METRIC_FALLBACK_GENERATED.equals(metricOverride);
+    }
+
+    private boolean shouldUsePublishedIndicator(IndicatorMatchResult result) {
+        if (result == null || result.candidates().isEmpty()) {
+            return false;
+        }
+        return result.tier() == Confidence.HIGH || result.tier() == Confidence.MEDIUM;
+    }
+
+    private ConversationPlan buildPublishedIndicatorPlan(IndicatorMatchResult result, String metricOverride) {
+        IndicatorMatch match = selectIndicatorMatch(result, metricOverride);
+        String qualityLevel = result.tier() == Confidence.HIGH ? "HIGH" : "MEDIUM";
+        List<String> candidateNames = result.candidates().stream()
+                .map(IndicatorMatch::name)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        return new ConversationPlan(
+                PlanMode.AGENT_WORKFLOW,
+                ResponseKind.PUBLISHED_INDICATOR,
+                null,
+                match.domain(),
+                "indicator:" + match.code(),
+                candidateNames,
+                null,
+                null,
+                "PUBLISHED_INDICATOR",
+                null,
+                buildPublishedIndicatorPrompt(match, result),
+                "L3_PUBLISHED_INDICATOR",
+                qualityLevel,
+                buildPublishedIndicatorQualityNotes(result),
+                "table",
+                match.code(),
+                List.of("platform-indicator:" + match.code()),
+                new MetricCaliber(
+                        match.name(),
+                        match.expressionSql(),
+                        match.domain(),
+                        match.version(),
+                        StringUtils.hasText(match.id()) ? match.id() : match.code()));
+    }
+
+    private IndicatorMatch selectIndicatorMatch(IndicatorMatchResult result, String metricOverride) {
+        if (StringUtils.hasText(metricOverride)) {
+            String requested = metricOverride.trim();
+            return result.candidates().stream()
+                    .filter(candidate -> requested.equals(candidate.name()) || requested.equals(candidate.code()))
+                    .findFirst()
+                    .orElse(result.candidates().getFirst());
+        }
+        return result.candidates().getFirst();
+    }
+
+    private String buildPublishedIndicatorPrompt(IndicatorMatch match, IndicatorMatchResult result) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("【平台指标目录】\n");
+        prompt.append("- indicator code: ").append(match.code()).append("\n");
+        prompt.append("- indicator name: ").append(match.name()).append("\n");
+        prompt.append("- category/domain: ").append(match.category()).append("/").append(match.domain()).append("\n");
+        prompt.append("- data surface: L3_PUBLISHED_INDICATOR\n");
+        prompt.append("- version: ").append(match.version()).append("\n");
+        prompt.append("- confidence: ").append(String.format(java.util.Locale.ROOT, "%.2f", match.confidence())).append("\n");
+        if (StringUtils.hasText(match.definition())) {
+            prompt.append("- definition: ").append(match.definition()).append("\n");
+        }
+        if (StringUtils.hasText(match.expressionSql())) {
+            prompt.append("- expression sql: ").append(match.expressionSql()).append("\n");
+        }
+        if (!match.matchedSignals().isEmpty()) {
+            prompt.append("- matched signals: ").append(String.join(", ", match.matchedSignals())).append("\n");
+        }
+        if (result.candidates().size() > 1) {
+            prompt.append("- candidates: ").append(result.candidates().stream()
+                    .map(candidate -> candidate.name() + "(" + candidate.code() + ")")
+                    .toList()).append("\n");
+        }
+        prompt.append("""
+
+                【执行约束】
+                - 该问题已命中 dts-platform 已发布指标,口径以平台 definition/expressionSql/version 为准。
+                - 优先返回平台指标口径与取值结果;若平台指标服务不可达,必须显式说明并退回现生成 SQL,不能静默伪造权威结果。
+                - 不要重新解释为固定报表或 ODS 明细扫描;用户要求改指标时按候选指标重新路由。
+                """.trim());
+        return prompt.toString().trim();
+    }
+
+    private List<String> buildPublishedIndicatorQualityNotes(IndicatorMatchResult result) {
+        List<String> notes = new ArrayList<>();
+        notes.add("命中 dts-platform 已发布指标,口径以平台指标目录为准。");
+        if (result.candidates().size() > 1) {
+            notes.add("存在多个指标候选,默认采用最高置信候选,用户可切换指标或退回现生成 SQL。");
+        }
+        return List.copyOf(notes);
     }
 
     private String resolveDomain(RoutingResult routing, TemplateMatchResult templateMatch) {

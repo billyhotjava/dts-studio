@@ -91,7 +91,14 @@ class InternalAgentChatResourceTest {
         AiChatMessage assistant = new AiChatMessage();
         assistant.setRole("assistant");
         assistant.setContent("ok");
+        assistant.setResponseKind("PUBLISHED_INDICATOR");
+        assistant.setReportCode("codex_sprint29_live_metric");
+        assistant.setTargetView("indicator:codex_sprint29_live_metric");
+        assistant.setDataSurface("L3_PUBLISHED_INDICATOR");
+        assistant.setQualityLevel("HIGH");
+        assistant.setSourceRefs("platform-indicator:codex_sprint29_live_metric");
         assistant.setConfidence(0.86d);
+        assistant.setTrace("{\"metricCaliber\":{\"name\":\"Sprint29 验证指标\",\"ontologyRef\":\"29000000-0000-4000-8000-000000000029\"}}");
         newSession.addMessage(assistant);
         when(agentChatService.getSessions("bob")).thenReturn(List.of(newSession));
         when(agentChatService.getSession("sess-2")).thenReturn(Optional.of(newSession));
@@ -112,7 +119,14 @@ class InternalAgentChatResourceTest {
         assertThat(body)
                 .containsEntry("sessionId", "sess-2")
                 .containsEntry("response", "ok")
-                .containsEntry("confidence", 0.86d);
+                .containsEntry("responseKind", "PUBLISHED_INDICATOR")
+                .containsEntry("reportCode", "codex_sprint29_live_metric")
+                .containsEntry("targetView", "indicator:codex_sprint29_live_metric")
+                .containsEntry("dataSurface", "L3_PUBLISHED_INDICATOR")
+                .containsEntry("qualityLevel", "HIGH")
+                .containsEntry("sourceRefs", "platform-indicator:codex_sprint29_live_metric")
+                .containsEntry("confidence", 0.86d)
+                .containsKey("trace");
         verify(agentChatService).sendMessage(
                 isNull(), eq("bob"), eq("hi"), eq(1L),
                 isNull(), isNull(), isNull());

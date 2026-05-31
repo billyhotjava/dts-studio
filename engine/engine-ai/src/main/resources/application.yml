@@ -26,7 +26,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       show-details: when-authorized
@@ -54,3 +54,19 @@ copilot:
     planner:
       mode: ${COPILOT_CHAT_PLANNER_MODE:asset}
   admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}
+  platform:
+    indicator:
+      base-url: ${DTS_PLATFORM_BASE_URL:}
+      token-url: ${DTS_PLATFORM_TOKEN_URL:}
+      client-id: ${DTS_PLATFORM_CLIENT_ID:}
+      client-secret: ${DTS_PLATFORM_CLIENT_SECRET:}
+      auth-token: ${DTS_PLATFORM_AUTH_TOKEN:}
+      service-name: ${DTS_PLATFORM_SERVICE_NAME:dts-copilot}
+      service-token: ${DTS_PLATFORM_SERVICE_TOKEN:${DTS_INBOUND_FROM_COPILOT:${DTS_INBOUND_FROM_ANALYTICS:${DTS_ADMIN_SERVICE_TOKEN:}}}}
+      timeout-seconds: ${DTS_PLATFORM_TIMEOUT_SECONDS:10}
+      sync:
+        enabled: ${PLATFORM_INDICATOR_SYNC_ENABLED:true}
+        interval-ms: ${PLATFORM_INDICATOR_SYNC_INTERVAL:3600000}
+        initial-delay-ms: ${PLATFORM_INDICATOR_SYNC_INITIAL_DELAY:15000}
+        page-size: ${PLATFORM_INDICATOR_SYNC_PAGE_SIZE:100}
+        max-pages: ${PLATFORM_INDICATOR_SYNC_MAX_PAGES:200}

@@ -1,6 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +40,9 @@ class AssetBackedPlannerPolicyTest {
     @Mock
     private BusinessDirectResponseCatalogService directResponseCatalogService;
 
+    @Mock
+    private IndicatorMatcherService indicatorMatcherService;
+
     private AgentBiReportCatalogService reportCatalogService;
 
     private BusinessObjectCatalogService businessObjectCatalogService;
@@ -49,6 +53,8 @@ class AssetBackedPlannerPolicyTest {
     void setUp() {
         reportCatalogService = new AgentBiReportCatalogService();
         businessObjectCatalogService = new BusinessObjectCatalogService();
+        lenient().when(indicatorMatcherService.match(anyString()))
+                .thenReturn(IndicatorMatcherService.IndicatorMatchResult.none());
         policy = new AssetBackedPlannerPolicy(
                 intentRouterService,
                 templateMatcherService,
@@ -56,7 +62,8 @@ class AssetBackedPlannerPolicyTest {
                 new OntologyService(semanticPackService),
                 directResponseCatalogService,
                 reportCatalogService,
-                businessObjectCatalogService
+                businessObjectCatalogService,
+                indicatorMatcherService
         );
     }
 
@@ -133,6 +140,86 @@ class AssetBackedPlannerPolicyTest {
 
         assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.TEMPLATE_SQL);
+    }
+
+    @Test
+    void publishedIndicatorMatchHasHigherPriorityThanTemplateAndViewRouting() {
+        String question = "本月现金流入是多少";
+        when(indicatorMatcherService.match(question))
+                .thenReturn(new IndicatorMatcherService.IndicatorMatchResult(
+                        List.of(indicatorMatch("cash-in", "现金流入", "finance", "v3", 0.91d)),
+                        IndicatorMatcherService.Confidence.HIGH));
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.PUBLISHED_INDICATOR);
+        assertThat(plan.primaryTarget()).isEqualTo("indicator:cash-in");
+        assertThat(plan.reportCode()).isEqualTo("cash-in");
+        assertThat(plan.dataSurface()).isEqualTo("L3_PUBLISHED_INDICATOR");
+        assertThat(plan.qualityLevel()).isEqualTo("HIGH");
+        assertThat(plan.sourceRefs()).contains("platform-indicator:cash-in");
+        assertThat(plan.metricCaliber()).isNotNull();
+        assertThat(plan.metricCaliber().name()).isEqualTo("现金流入");
+        assertThat(plan.metricCaliber().formula()).isEqualTo("sum(amount)");
+        assertThat(plan.metricCaliber().version()).isEqualTo("v3");
+        assertThat(plan.promptContext())
+                .contains("平台指标目录")
+                .contains("现金流入")
+                .contains("sum(amount)");
+    }
+
+    @Test
+    void metricFallbackOverrideSkipsPublishedIndicatorBranch() {
+        String question = "本月现金流入是多少";
+        when(indicatorMatcherService.match(question))
+                .thenReturn(new IndicatorMatcherService.IndicatorMatchResult(
+                        List.of(indicatorMatch("cash-in", "现金流入", "finance", "v3", 0.91d)),
+                        IndicatorMatcherService.Confidence.HIGH));
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("finance", "v_finance_cash", List.of(), 0.8, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+
+        ConversationPlan plan = policy.plan(
+                question,
+                CopilotChatRequestContext.of(
+                        Map.of(),
+                        Map.of("metric", "__fallback_generated__"),
+                        Map.of()));
+
+        assertThat(plan.responseKind()).isNotEqualTo(ResponseKind.PUBLISHED_INDICATOR);
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+    }
+
+    @Test
+    void metricOverrideSelectsRequestedCandidateFromIndicatorMatches() {
+        String question = "本月资金情况";
+        when(indicatorMatcherService.match(question))
+                .thenReturn(new IndicatorMatcherService.IndicatorMatchResult(
+                        List.of(
+                                indicatorMatch("cash-in", "现金流入", "finance", "v1", 0.72d),
+                                indicatorMatch("cash-return", "回款金额", "finance", "v2", 0.68d)),
+                        IndicatorMatcherService.Confidence.MEDIUM));
+
+        ConversationPlan plan = policy.plan(
+                question,
+                CopilotChatRequestContext.of(
+                        Map.of(),
+                        Map.of("metric", "回款金额"),
+                        Map.of()));
+
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.PUBLISHED_INDICATOR);
+        assertThat(plan.reportCode()).isEqualTo("cash-return");
+        assertThat(plan.primaryTarget()).isEqualTo("indicator:cash-return");
+        assertThat(plan.metricCaliber().name()).isEqualTo("回款金额");
+        assertThat(plan.metricCaliber().version()).isEqualTo("v2");
     }
 
     @Test
@@ -550,6 +637,25 @@ class AssetBackedPlannerPolicyTest {
         template.setQuestionSamples("[]");
         template.setSqlTemplate("SELECT 1");
         return template;
+    }
+
+    private static IndicatorMatcherService.IndicatorMatch indicatorMatch(
+            String code,
+            String name,
+            String domain,
+            String version,
+            double confidence) {
+        return new IndicatorMatcherService.IndicatorMatch(
+                "id-" + code,
+                code,
+                name,
+                domain,
+                domain,
+                name + "权威口径",
+                "sum(amount)",
+                version,
+                confidence,
+                List.of("name:" + name));
     }
 
     private static SemanticPackService.SemanticPack flowerbizGraphPack() {

@@ -31,6 +31,16 @@ dts:
   analytics:
     platform-auth:
       enabled: ${DTS_ANALYTICS_PLATFORM_AUTH_ENABLED:false}
+    platform-indicators:
+      base-url: ${DTS_PLATFORM_BASE_URL:}
+      token-url: ${DTS_PLATFORM_TOKEN_URL:}
+      client-id: ${DTS_PLATFORM_CLIENT_ID:}
+      client-secret: ${DTS_PLATFORM_CLIENT_SECRET:}
+      auth-token: ${DTS_PLATFORM_AUTH_TOKEN:}
+      service-name: ${DTS_PLATFORM_SERVICE_NAME:dts-copilot}
+      service-token: ${DTS_PLATFORM_SERVICE_TOKEN:${DTS_INBOUND_FROM_COPILOT:${DTS_INBOUND_FROM_ANALYTICS:${DTS_ADMIN_SERVICE_TOKEN:}}}}
+      timeout-seconds: ${DTS_PLATFORM_TIMEOUT_SECONDS:5}
+      value-cache-ttl-seconds: ${DTS_PLATFORM_VALUE_CACHE_TTL_SECONDS:60}
     default-databases:
       - name: "园林业务库"
         role: SYSTEM_RUNTIME
@@ -57,7 +67,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       show-details: when-authorized

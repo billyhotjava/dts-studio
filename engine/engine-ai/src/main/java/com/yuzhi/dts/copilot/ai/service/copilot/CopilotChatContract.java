@@ -43,12 +43,29 @@ public final class CopilotChatContract {
         if (message == null || target == null) {
             return;
         }
+        putStringField(target, "generatedSql", message.getGeneratedSql());
+        putStringField(target, "responseKind", message.getResponseKind());
+        putStringField(target, "routedDomain", message.getRoutedDomain());
+        putStringField(target, "targetView", message.getTargetView());
+        putStringField(target, "templateCode", message.getTemplateCode());
+        putStringField(target, "dataSurface", message.getDataSurface());
+        putStringField(target, "qualityLevel", message.getQualityLevel());
+        putStringField(target, "qualityNotes", message.getQualityNotes());
+        putStringField(target, "suggestedDisplay", message.getSuggestedDisplay());
+        putStringField(target, "reportCode", message.getReportCode());
+        putStringField(target, "sourceRefs", message.getSourceRefs());
         putJsonField(target, "assumptions", message.getAssumptions());
         if (message.getConfidence() != null) {
             target.put("confidence", message.getConfidence());
         }
         putJsonField(target, "clarifications", message.getClarifications());
         putJsonField(target, "trace", message.getTrace());
+    }
+
+    private static void putStringField(Map<String, Object> target, String key, String value) {
+        if (StringUtils.hasText(value)) {
+            target.put(key, value);
+        }
     }
 
     public static void putDoneFields(ObjectNode done, ConversationPlan plan, String generatedSql) {
@@ -89,6 +106,9 @@ public final class CopilotChatContract {
             ConversationPlan plan,
             CopilotChatRequestContext requestContext) {
         List<Map<String, Object>> assumptions = new ArrayList<>();
+        if (plan != null && plan.responseKind() == ResponseKind.PUBLISHED_INDICATOR && plan.metricCaliber() != null) {
+            assumptions.add(metricAssumption(plan));
+        }
         if (plan != null && StringUtils.hasText(plan.dataSurface())) {
             assumptions.add(assumption("dataSurface", "数据层", plan.dataSurface(), false, "planner"));
         }
@@ -111,6 +131,34 @@ public final class CopilotChatContract {
             });
         }
         return assumptions;
+    }
+
+    private static Map<String, Object> metricAssumption(ConversationPlan plan) {
+        Map<String, Object> assumption = assumption(
+                "metric",
+                "指标",
+                plan.metricCaliber().name(),
+                true,
+                "platform_indicator");
+        List<Map<String, Object>> options = new ArrayList<>();
+        plan.secondaryTargets().stream()
+                .filter(StringUtils::hasText)
+                .distinct()
+                .forEach(name -> {
+                    Map<String, Object> option = new LinkedHashMap<>();
+                    option.put("value", name);
+                    option.put("label", name);
+                    options.add(option);
+                });
+        Map<String, Object> fallback = new LinkedHashMap<>();
+        fallback.put("value", "__fallback_generated__");
+        fallback.put("label", "退回 AI 现生成");
+        options.add(fallback);
+        assumption.put("options", options);
+        if (StringUtils.hasText(plan.metricCaliber().formula())) {
+            assumption.put("sourceHint", "平台指标口径: " + plan.metricCaliber().formula());
+        }
+        return assumption;
     }
 
     private static Map<String, Object> assumption(
@@ -185,16 +233,32 @@ public final class CopilotChatContract {
             return trace;
         }
         Map<String, Object> caliber = new LinkedHashMap<>();
-        if (StringUtils.hasText(plan.reportCode())) {
+        if (plan.metricCaliber() != null) {
+            if (StringUtils.hasText(plan.metricCaliber().name())) {
+                caliber.put("name", plan.metricCaliber().name());
+            }
+            if (StringUtils.hasText(plan.metricCaliber().formula())) {
+                caliber.put("formula", plan.metricCaliber().formula());
+            }
+            if (StringUtils.hasText(plan.metricCaliber().domain())) {
+                caliber.put("domain", plan.metricCaliber().domain());
+            }
+            if (StringUtils.hasText(plan.metricCaliber().version())) {
+                caliber.put("version", plan.metricCaliber().version());
+            }
+            if (StringUtils.hasText(plan.metricCaliber().ontologyRef())) {
+                caliber.put("ontologyRef", plan.metricCaliber().ontologyRef());
+            }
+        } else if (StringUtils.hasText(plan.reportCode())) {
             caliber.put("name", plan.reportCode());
             caliber.put("ontologyRef", plan.reportCode());
         } else if (StringUtils.hasText(plan.primaryTarget())) {
             caliber.put("name", plan.primaryTarget());
         }
-        if (StringUtils.hasText(plan.routedDomain())) {
+        if (plan.metricCaliber() == null && StringUtils.hasText(plan.routedDomain())) {
             caliber.put("domain", plan.routedDomain());
         }
-        if (StringUtils.hasText(plan.dataSurface())) {
+        if (plan.metricCaliber() == null && StringUtils.hasText(plan.dataSurface())) {
             caliber.put("version", plan.dataSurface());
         }
         if (!caliber.isEmpty()) {

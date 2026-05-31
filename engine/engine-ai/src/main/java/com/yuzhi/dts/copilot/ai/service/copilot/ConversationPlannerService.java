@@ -40,6 +40,18 @@ public class ConversationPlannerService {
         return policy.plan(userQuestion, martHealthSnapshot == null ? Collections.emptyMap() : martHealthSnapshot);
     }
 
+    public ConversationPlan plan(String userQuestion, CopilotChatRequestContext requestContext) {
+        PlannerPolicy policy = policies.get(plannerMode);
+        if (policy == null) {
+            log.warn("Planner policy '{}' not found, fallback to asset", plannerMode);
+            policy = policies.get("asset");
+        }
+        if (policy == null) {
+            throw new IllegalStateException("No planner policy is available");
+        }
+        return policy.plan(userQuestion, requestContext == null ? CopilotChatRequestContext.empty() : requestContext);
+    }
+
     public enum PlanMode {
         DIRECT_RESPONSE,
         TEMPLATE_FAST_PATH,
@@ -60,7 +72,8 @@ public class ConversationPlannerService {
         RISK_SIGNAL_QUERY,
         BUSINESS_DETAIL,
         BUSINESS_INSIGHT,
-        ACTION_PROPOSAL
+        ACTION_PROPOSAL,
+        PUBLISHED_INDICATOR
     }
 
     public record ConversationPlan(
@@ -80,8 +93,17 @@ public class ConversationPlannerService {
             List<String> qualityNotes,
             String suggestedDisplay,
             String reportCode,
-            List<String> sourceRefs
+            List<String> sourceRefs,
+            MetricCaliber metricCaliber
     ) {
+        public record MetricCaliber(
+                String name,
+                String formula,
+                String domain,
+                String version,
+                String ontologyRef) {
+        }
+
         public ConversationPlan(
                 PlanMode mode,
                 ResponseKind responseKind,
@@ -117,7 +139,48 @@ public class ConversationPlannerService {
                     qualityNotes,
                     suggestedDisplay,
                     reportCode,
-                    List.of());
+                    List.of(),
+                    null);
+        }
+
+        public ConversationPlan(
+                PlanMode mode,
+                ResponseKind responseKind,
+                String directResponse,
+                String routedDomain,
+                String primaryTarget,
+                List<String> secondaryTargets,
+                String templateCode,
+                String resolvedSql,
+                String dataLayer,
+                String martTable,
+                String promptContext,
+                String dataSurface,
+                String qualityLevel,
+                List<String> qualityNotes,
+                String suggestedDisplay,
+                String reportCode,
+                List<String> sourceRefs
+        ) {
+            this(
+                    mode,
+                    responseKind,
+                    directResponse,
+                    routedDomain,
+                    primaryTarget,
+                    secondaryTargets,
+                    templateCode,
+                    resolvedSql,
+                    dataLayer,
+                    martTable,
+                    promptContext,
+                    dataSurface,
+                    qualityLevel,
+                    qualityNotes,
+                    suggestedDisplay,
+                    reportCode,
+                    sourceRefs,
+                    null);
         }
 
         public ConversationPlan(
@@ -150,7 +213,8 @@ public class ConversationPlannerService {
                     List.of(),
                     null,
                     null,
-                    List.of());
+                    List.of(),
+                    null);
         }
 
         public ConversationPlan {
