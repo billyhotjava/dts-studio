@@ -367,10 +367,11 @@
 | F3-指标优先路由(后端) | 3 | P0 | P2 | DONE |
 | F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | DONE |
 | F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | DONE |
+| F6-PRS固定报表资产库收口(前端) | 1 | P0 | P1b | DONE |
 
-**统计**: READY=0, IN_PROGRESS=0, DONE=19, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=20, BLOCKED=0
 
-> Code DONE / Live Auth DONE / Sample Data BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;当前平台已发布指标目录 `total=0`,detail/drilldown 样本对账等待平台侧发布指标样本。
+> Code DONE / Live Auth DONE / PRS Asset F6 DONE / Platform Business Metric Sample BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;PRS 固定报表资产库入口已收口;平台真实已发布指标样本仍等待平台侧补齐。
 
 ## Backlog
 
