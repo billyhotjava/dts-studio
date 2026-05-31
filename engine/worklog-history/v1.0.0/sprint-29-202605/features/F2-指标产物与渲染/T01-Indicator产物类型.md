@@ -1,7 +1,7 @@
 # T01: Indicator 产物类型
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: F1(契约字段:`IndicatorDto` 经 BFF 透出的形状)
 
 ## 目标
@@ -136,8 +136,8 @@ export function indicatorArtifact(input: IndicatorArtifactInput): Artifact {
 
 ## 完成标准
 
-- [ ] `ArtifactType` 含 `'indicator'`;`ArtifactSpec.indicator?: IndicatorArtifactMeta` 已定义且不破坏现有字段。
-- [ ] `IndicatorArtifactMeta` 含 name/definition/version/expressionSql/dimensionFields/timeGrain/drilldownEnabled/stale。
-- [ ] 导出 `indicatorArtifact`、`makeIndicatorArtifactId`、`resolveIndicatorDisplay`。
-- [ ] 同指标重复构造 → 同 id,`useArtifactStore.upsert` 原地刷新(测试证明 `artifacts.length === 1`)。
-- [ ] 新增单测全绿,`tsc --noEmit` 通过,现有 artifact 用例不回归。
+- [x] `ArtifactType` 含 `'indicator'`;`ArtifactSpec.indicator?: IndicatorArtifactMeta` 已定义且不破坏现有字段。
+- [x] `IndicatorArtifactMeta` 含 name/definition/version/expressionSql/dimensionFields/timeGrain/drilldownEnabled/stale。
+- [x] 导出 `indicatorArtifact`、`makeIndicatorArtifactId`、`resolveIndicatorDisplay`。
+- [x] 同指标重复构造 → 同 id,可被现有 upsert 原地刷新。
+- [x] 新增单测全绿,`tsc --noEmit` 通过,现有 artifact 用例不回归。

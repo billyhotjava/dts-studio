@@ -25,6 +25,7 @@
 | F3 | 信号与跨域能力接入 | 3 | P1 | DONE |
 | F4 | 状态簿记与证据校准 | 4 | P1 | DONE |
 | F5 | 清理与防回归 | 3 | P2 | DONE |
+| F6 | 单窗口结果面收口 | 1 | P0 | DONE |
 
 ## 依赖顺序
 
@@ -54,3 +55,4 @@ F5 在 F1/F2/F3 主要运行链路稳定后清理
 - [x] 冷启动信号卡不再使用会被误解为真实业务预警的占位数据。
 - [x] S25/S26/S27 queue 状态与证据口径完成一次校准,所有变更有证据链接。
 - [x] `pnpm typecheck`、`pnpm test`、`pnpm build` 和 Playwright 路由 smoke 全绿后才能关闭 Sprint。
+- [x] Agent BI active conversation 收敛为单窗口结果面,不再挂载右侧 `CanvasPanel`。

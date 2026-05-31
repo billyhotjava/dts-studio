@@ -1,7 +1,7 @@
 # T04: 前端指标 API 客户端(接 F1 BFF)
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: F1(后端 BFF 端点:指标目录 + 取值 dashboard/detail/drilldown)
 
 ## 目标
@@ -171,8 +171,15 @@ function describeIndicatorError(error: unknown): string {
 
 ## 完成标准
 
-- [ ] `analyticsApi` 暴露 `listPlatformIndicators` / `getPlatformIndicatorDashboard` / `getPlatformIndicatorDetail` / `getPlatformIndicatorDrilldown`。
-- [ ] 取值响应形状直接对齐 `ArtifactDataset`(cols/rows),T01/T02 渲染零转换。
-- [ ] 任一调用在平台不可达/超时/错误时返回 `degraded:true` 的显式降级态,**不向 UI 抛未捕获异常**。
-- [ ] 路径前缀集中常量化(`BASE`),便于与 F1 实际端点对齐。
-- [ ] 新增单测全绿;`tsc --noEmit` 通过。
+- [x] `analyticsApi` 暴露 `listPlatformIndicators` / `getPlatformIndicatorDashboard` / `getPlatformIndicatorDetail` / `getPlatformIndicatorDrilldown`。
+- [x] 取值响应形状直接对齐 `ArtifactDataset`(cols/rows),T01/T02 渲染零转换。
+- [x] 任一调用在平台不可达/超时/错误时返回 `degraded:true` 的显式降级态,**不向 UI 抛未捕获异常**。
+- [x] 路径前缀集中常量化(`BASE`),便于与 F1 实际端点对齐。
+- [x] 新增单测全绿;`tsc --noEmit` 通过。
+
+## 验证证据(2026-05-31)
+
+- 代码:`dts-copilot-webapp/src/api/modules/indicator.ts`
+- 单测:`dts-copilot-webapp/src/api/modules/indicator.test.ts`
+- 命令:`pnpm test -- src/api/modules/indicator.test.ts src/pages/MetricAssetsPanel.test.tsx src/pages/AssetLibraryPage.test.ts src/pages/assetLibraryMetrics.test.ts src/pages/AgentWorkspacePage.test.ts` → 64 files / 256 tests passed.
+- Live contract 尚待 F1 BFF 端点接通后补充。

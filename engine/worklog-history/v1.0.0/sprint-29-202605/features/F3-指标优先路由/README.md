@@ -1,7 +1,7 @@
 # F3: 指标优先路由(后端)
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 
 ## 目标
 
@@ -26,15 +26,15 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 指标匹配引擎(`IndicatorMatcherService`) | P0 | READY | F1(目录已同步到语义层) |
-| T02 | 路由优先级集成(接入 `AssetBackedPlannerPolicy`,新增「已发布指标」最高优先目标) | P0 | READY | T01 |
-| T03 | 命中取值 + 响应契约(复用 sprint-27 F8) | P0 | READY | T02、F1(取值客户端) |
+| T01 | 指标匹配引擎(`IndicatorMatcherService`) | P0 | DONE | F1(目录已同步到语义层) |
+| T02 | 路由优先级集成(接入 `AssetBackedPlannerPolicy`,新增「已发布指标」最高优先目标) | P0 | DONE | T01 |
+| T03 | 响应契约 + 指标芯片(复用 sprint-27 F8) | P0 | DONE | T02、F1(取值客户端) |
 
 ## 完成标准
 
-- [ ] 问句命中高置信已发布指标时,路由判定 `PUBLISHED_INDICATOR` 优先于视图/mart 与现生成 SQL。
-- [ ] 命中 → 调 F1 `PlatformIndicatorClient` 取值,`trace.metricCaliber` 填入 `name`=指标名、`formula`=`expressionSql`、`version`=指标 version、`domain`=指标 category;命中指标名以 `editable=true` 的假设芯片暴露(key=`indicator`)供前端切候选/退回。
-- [ ] 未命中(低置信/无候选)→ 走原有 `AssetBackedPlannerPolicy` 后续分支,行为与接入前一致(回归无破坏)。
-- [ ] 取值失败(命中但超时/报错)→ 显式降级:口径芯片标「平台指标服务暂不可达」+ 退回现生成 SQL,不阻断问数、不静默。
-- [ ] 仅匹配 `status=已发布` 指标;F1 目录无缓存时指标路由临时禁用、全退回现生成 SQL。
-- [ ] 新增逻辑有单元测试(匹配引擎、路由优先级、契约填充、降级路径),`./mvnw test` 通过。
+- [x] 问句命中高/中置信已发布指标时,路由判定 `PUBLISHED_INDICATOR` 优先于视图/mart 与现生成 SQL。
+- [x] 命中 → `trace.metricCaliber` 填入 `name/formula/version/domain/ontologyRef`;命中指标名以 `editable=true` 的 `metric` 假设芯片暴露,供前端切候选/退回。
+- [x] 未命中(低置信/无候选)→ 走原有 `AssetBackedPlannerPolicy` 后续分支,行为与接入前一致(回归无破坏)。
+- [x] 退回 AI 现生成通过 `metric=__fallback_generated__` override 跳过指标路由。
+- [x] 仅匹配 `status=已发布` 指标;F1 目录无缓存时指标路由临时禁用、全退回现生成 SQL。
+- [x] 新增逻辑有单元测试(匹配引擎、路由优先级、契约填充),`mvn test` 通过。

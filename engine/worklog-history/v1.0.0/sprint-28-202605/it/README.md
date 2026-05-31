@@ -20,6 +20,7 @@
 | IT07 | S25/S26/S27 queue 与证据口径校准 | F4 | P1 | DONE | `evidence/20260531-local/f4-queue-consistency.md` |
 | IT08 | `Nl2SqlEvalPage` 和 appShellConfig 死常量完成去留处理 | F5 | P2 | DONE | `evidence/20260531-local/f5-cleanup.md` |
 | IT09 | 全量收口验证: typecheck/test/build + Playwright smoke | 全部 | P0 | DONE | `evidence/20260531-local/it09-final-verification.md` |
+| IT10 | Agent BI 单窗口结果面: 不再渲染右侧 CanvasPanel,inline SQL 自动预览 | F6 | P0 | DONE | `evidence/20260531-local/f6-single-window.md` |
 
 ## 预期验证命令
 

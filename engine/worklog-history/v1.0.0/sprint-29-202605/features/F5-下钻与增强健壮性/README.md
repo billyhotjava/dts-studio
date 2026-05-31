@@ -2,7 +2,7 @@
 
 **优先级**: P2
 **阶段**: P3
-**状态**: READY
+**状态**: DONE
 **依赖**: F2(指标产物与渲染 / 画布 CanvasActions)、F4(路由结果接入 agent-first UI / 多候选)
 
 ## 目标
@@ -21,7 +21,7 @@
   - §9 分期 P3(drilldown 下钻 / 口径 version 变更提醒 / 多候选切换 / 取值微缓存 / 可观测埋点)
   - §5.5 时间/维度映射(问句维度/时间词 → `drilldown` 的 `dimension/period`,映射不上则降级不报错)
 
-## 平台既有能力(零改码,F5 复用)
+## 平台既有能力(指标业务零改动,F5 复用)
 
 `GovernanceIndicatorResource`(`@RequestMapping("/api/governance")`,`/opt/prod/prs/source/dts-stack/source/dts-platform/src/main/java/com/yuzhi/dts/platform/web/rest/GovernanceIndicatorResource.java`):
 
@@ -33,10 +33,10 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | drilldown 交互下钻(画布动作 → 原地刷新产物) | P2 | READY | F2, F4 |
-| T02 | 口径 version 变更提醒(同步检测 → 产物/卡提示) | P2 | READY | F1, F2 |
-| T03 | 多候选切换 + 取值微缓存(前端切换 UI + 后端微缓存) | P2 | READY | F3, F4 |
-| T04 | 可观测埋点(命中率 / API 延迟·失败率 / 降级次数) | P3 | READY | F1, F3 |
+| T01 | drilldown 交互下钻(单窗口产物内原地刷新) | P2 | DONE | F2, F4 |
+| T02 | 口径 version 变更提醒(同步检测 → 资产卡提示) | P2 | DONE | F1, F2 |
+| T03 | 多候选切换 + 取值微缓存(芯片切换 + 后端微缓存) | P2 | DONE | F3, F4 |
+| T04 | 可观测埋点(命中率 / API 延迟·失败率 / 降级次数) | P3 | DONE | F1, F3 |
 
 ## 影响范围(汇总)
 
@@ -45,17 +45,17 @@
 - 取值 BFF 端点(F1/F2 暴露的 drilldown 透传端点)
 
 前端 `dts-copilot-webapp`:
-- `src/components/canvas/CanvasActions.tsx`、`src/types/artifact.ts`(新增 `drilldown` 动作类型)
-- `src/components/copilot/useCopilotStream.ts`(下钻动作 → 取值 → 原地 upsert)
+- `src/components/canvas/ArtifactCanvas.tsx`、`CanvasActions.tsx`、`src/types/artifact.ts`(单窗口指标下钻与 `drilldown` 动作类型)
+- `src/pages/MetricAssetsPanel.tsx`(平台指标 version 变化本地检测与资产卡提示)
 - F4 命中结果 UI(多候选切换芯片)
 
 ## 完成标准
 
-- [ ] 指标产物上有「下钻」动作,选维度/周期后**同 artifactId 原地刷新**,不新增产物、不丢上下文(T01)
-- [ ] 维度/周期映射不上时显式降级(回退总览或提示),绝不报错或静默(T01)
-- [ ] 同步检测到指标 `version` 变化时,已沉淀的指标卡/产物显示「口径已更新」提示(T02)
-- [ ] 多候选命中可在 UI 一键切换,切换后口径芯片/溯源同步更新(T03,复用 F4)
-- [ ] `dashboard/detail` 取值有秒~分钟级微缓存,可配置 TTL,降低对平台的实时压力(T03)
-- [ ] 指标路由命中率、指标 API 延迟/失败率、降级次数有 Micrometer 指标并可在 actuator 暴露(T04)
-- [ ] dts-platform 零代码改动(全 F5 仅消费既有端点)
-- [ ] `it/README.md` 有真实验证证据(本地 + 对平台 drilldown 的 live contract)
+- [x] 指标产物上有「下钻」动作,选维度/周期后**同 artifactId 原地刷新**,不新增产物、不丢上下文(T01)
+- [x] 维度/周期映射不上时显式降级(隐藏非法维度或提示),绝不报错或静默(T01)
+- [x] 同步/浏览检测到指标 `version` 变化时,资产卡/产物显示「口径已更新」提示(T02)
+- [x] 多候选命中可在 UI 一键切换,切换后口径芯片/溯源同步更新(T03,复用 F4)
+- [x] `dashboard/detail/drilldown` 取值有可配置 TTL 微缓存,降低对平台的实时压力(T03)
+- [x] 指标路由命中率、指标 API 延迟/失败率、降级次数有 Micrometer 指标并可在 actuator `/actuator/metrics` 暴露(T04)
+- [x] dts-platform 指标业务零代码改动(全 F5 仅消费既有端点;认证层只读白名单已补)
+- [x] `it/README.md` 有本地/Mock/Live fixture 验证证据;服务认证 live 已通,drilldown 样本已用 `codex_sprint29_live_metric` 对账

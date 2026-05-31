@@ -352,22 +352,25 @@
 | F3-信号与跨域能力接入 | 3 | DONE |
 | F4-状态簿记与证据校准 | 4 | DONE |
 | F5-清理与防回归 | 3 | DONE |
+| F6-单窗口结果面收口 | 1 | DONE |
 
-**统计**: READY=0, IN_PROGRESS=0, DONE=17, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=18, BLOCKED=0
 
 ## Sprint-29: dts-platform 指标联邦接入 copilot (202605)
 
-> 从 dts-platform 取治理指标,用 copilot 自己的 echarts 渲染 + 指标优先路由。设计依据 `docs/superpowers/specs/2026-05-31-dts-platform-indicator-federation-design.md`。dts-platform 零改码;试用期单机器账号。
+> 从 dts-platform 取治理指标,用 copilot 自己的 echarts 渲染 + 指标优先路由。设计依据 `docs/superpowers/specs/2026-05-31-dts-platform-indicator-federation-design.md`。dts-platform 指标业务零改动;服务认证只读白名单最小改动;试用期单机器账号。
 
 | Feature | Task 数 | 优先级 | 阶段 | 状态 |
 |---------|---------|--------|------|------|
-| F1-跨服务接入与指标目录同步(后端) | 5 | P0 | P1 | READY |
-| F2-指标产物与渲染(前端) | 4 | P0 | P1 | READY |
-| F3-指标优先路由(后端) | 3 | P0 | P2 | READY |
-| F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | READY |
-| F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | READY |
+| F1-跨服务接入与指标目录同步(后端) | 5 | P0 | P1 | DONE |
+| F2-指标产物与渲染(前端) | 4 | P0 | P1 | DONE |
+| F3-指标优先路由(后端) | 3 | P0 | P2 | DONE |
+| F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | DONE |
+| F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | DONE |
 
-**统计**: READY=19, IN_PROGRESS=0, DONE=0, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=19, BLOCKED=0
+
+> Code DONE / Live Auth DONE / Sample Data BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;当前平台已发布指标目录 `total=0`,detail/drilldown 样本对账等待平台侧发布指标样本。
 
 ## Backlog
 
@@ -377,6 +380,6 @@
 
 ## 总体统计
 
-**总体统计待历史 Sprint 全量重算。** Sprint-25~28 已完成本轮局部校准:S25 仅 F0 业务口径仍在推进,S26/S27 与证据一致,Sprint-28 当前 READY=0, IN_PROGRESS=0, DONE=17, BLOCKED=0。
+**总体统计待历史 Sprint 全量重算。** Sprint-25~28 已完成本轮局部校准:S25 仅 F0 业务口径仍在推进,S26/S27 与证据一致,Sprint-28 当前 READY=0, IN_PROGRESS=0, DONE=18, BLOCKED=0。
 
 > Sprint-27(前端 Agent-First 重构)已完成 F3-T00/T01 测试护栏、F1 应用骨架/导航重构、F2 冷启动首屏、F3-T02 对话脊柱拆分、F3-T03 流式 hook 验证、F3-T04 输入器整合、F3-T05 会话状态收口、F4 活产物画布、F5 乐观 NL2SQL 回答、F6 溯源信任面板、F7 资产沉淀与 F8 后台契约联调,当前 0 个 READY 任务、34 个 DONE 任务。

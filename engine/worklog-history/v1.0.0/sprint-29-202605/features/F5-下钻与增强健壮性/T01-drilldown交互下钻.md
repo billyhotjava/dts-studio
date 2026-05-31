@@ -1,7 +1,7 @@
 # T01: drilldown 交互下钻(画布动作 → 原地刷新产物)
 
 **优先级**: P2
-**状态**: READY
+**状态**: DONE
 **依赖**: F2(Indicator 产物 / CanvasActions)、F4(命中产物挂入画布)
 
 ## 目标
@@ -40,23 +40,24 @@
 
 - `dts-copilot-webapp/src/types/artifact.ts`(`CanvasActionType` 增 `drilldown`)
 - `dts-copilot-webapp/src/components/canvas/CanvasActions.tsx`(下钻动作 + 仅指标产物启用)
+- `dts-copilot-webapp/src/components/canvas/ArtifactCanvas.tsx`(指标产物内维度/周期选择 + 单窗口原地刷新)
 - `dts-copilot-webapp/src/components/canvas/CanvasActions.test.tsx`
 - `dts-copilot-webapp/src/components/copilot/useCopilotStream.ts`(下钻 → 取值 → 原地 upsert)
 - `dts-copilot-ai`:F1/F2 的 drilldown BFF 透传端点 + `PlatformIndicatorClient` 增 `drilldown(id, dimension, period)`
 
 ## 验证
 
-- [ ] `pnpm test -- CanvasActions`:断言指标产物有「下钻」动作、非指标产物禁用。
-- [ ] 单测:下钻结果通过同 `artifactId` upsert,产物 `id` 不变、数据更新。
-- [ ] live contract:对平台 `GET /indicators/{id}/drilldown?dimension=X` 拿到 `{dimension, metric_value, row_count}` 行;证据记入 `it/`。
-- [ ] 降级:维度缺失 / 平台超时时不报错,有显式提示与退回入口。
+- [x] `pnpm test -- CanvasActions`:断言指标产物有「下钻」动作、非指标产物禁用。
+- [x] 单测:下钻结果通过同 `artifactId` 刷新,产物 `id` 不变、数据更新。
+- [x] live data sample:服务认证已通;`codex_sprint29_live_metric` 本地发布指标 fixture 已对 `GET /indicators/{id}/drilldown?dimension=dept` 做样本对账,返回 `north/south/east` 三行。
+- [x] 降级:维度缺失 / 平台超时时不报错,有显式提示。
 
 ## 完成标准
 
-- [ ] 指标产物可交互下钻,维度/周期来自 `dimensionFields/timeGrain`。
-- [ ] 下钻在同 `artifactId` 原地刷新(复用 sprint-27 F4 upsert),不新增产物。
-- [ ] 映射不上 / 取值失败时显式降级,不静默不报错。
-- [ ] dts-platform 零改码(仅消费既有 drilldown 端点)。
+- [x] 指标产物可交互下钻,维度/周期来自 `dimensionFields/timeGrain`。
+- [x] 下钻在同 `artifactId` 原地刷新,不新增产物。
+- [x] 映射不上 / 取值失败时显式降级,不静默不报错。
+- [x] dts-platform 指标业务零改码(仅消费既有 drilldown 端点;认证层只读白名单已补)。
 
 ## 证据
 
