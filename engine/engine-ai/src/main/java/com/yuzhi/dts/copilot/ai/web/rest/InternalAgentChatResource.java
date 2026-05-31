@@ -3,6 +3,7 @@ package com.yuzhi.dts.copilot.ai.web.rest;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -68,11 +69,15 @@ public class InternalAgentChatResource {
                 request.userId(),
                 request.message(),
                 request.datasourceId(),
-                request.martHealth());
+                request.martHealth(),
+                request.assumptionOverrides(),
+                request.clarificationAnswers());
 
+        String resolvedSessionId = resolveSessionIdForResponse(effectiveSessionId, request.userId());
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("sessionId", resolveSessionIdForResponse(request.sessionId(), request.userId()));
+        result.put("sessionId", resolvedSessionId);
         result.put("response", response);
+        putLatestAssistantContractFields(result, resolvedSessionId);
         result.put("timestamp", Instant.now().toString());
         return ResponseEntity.ok(result);
     }
@@ -100,7 +105,11 @@ public class InternalAgentChatResource {
 
         return outputStream -> agentChatService.sendMessageStream(
                 sessionId, request.userId(), request.message(),
-                request.datasourceId(), request.martHealth(), outputStream);
+                request.datasourceId(),
+                request.martHealth(),
+                request.assumptionOverrides(),
+                request.clarificationAnswers(),
+                outputStream);
     }
 
     @GetMapping("/sessions")
@@ -187,6 +196,17 @@ public class InternalAgentChatResource {
                 .orElse(null);
     }
 
+    private void putLatestAssistantContractFields(Map<String, Object> result, String sessionId) {
+        if (!StringUtils.hasText(sessionId)) {
+            return;
+        }
+        agentChatService.getSession(sessionId)
+                .flatMap(session -> session.getMessages().stream()
+                        .filter(message -> "assistant".equals(message.getRole()))
+                        .reduce((first, second) -> second))
+                .ifPresent(message -> CopilotChatContract.putMessageFields(message, result));
+    }
+
     private Map<String, Object> toSessionSummary(AiChatSession session) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("sessionId", session.getSessionId());
@@ -218,6 +238,7 @@ public class InternalAgentChatResource {
         map.put("suggestedDisplay", message.getSuggestedDisplay());
         map.put("reportCode", message.getReportCode());
         map.put("sourceRefs", message.getSourceRefs());
+        CopilotChatContract.putMessageFields(message, map);
         map.put("createdAt", message.getCreatedAt() != null ? message.getCreatedAt().toString() : null);
         return map;
     }
@@ -227,7 +248,9 @@ public class InternalAgentChatResource {
             String userId,
             String message,
             @JsonProperty("datasourceId") Long datasourceId,
-            Map<String, Boolean> martHealth
+            Map<String, Boolean> martHealth,
+            Map<String, String> assumptionOverrides,
+            Map<String, String> clarificationAnswers
     ) {
         boolean hasRequiredFields() {
             return StringUtils.hasText(userId) && StringUtils.hasText(message);

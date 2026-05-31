@@ -15,7 +15,13 @@ green_totals AS (
     SUM(confirmed_row_count) AS confirmed_row_count,
     SUM(effective_good_number_sum)::numeric(18,2) AS effective_good_number_sum,
     SUM(rent_amount_raw_sum)::numeric(18,2) AS rent_amount_raw_sum,
-    SUM(cost_amount_raw_sum)::numeric(18,2) AS cost_amount_raw_sum
+    SUM(cost_amount_raw_sum)::numeric(18,2) AS cost_amount_raw_sum,
+    SUM(rent_amount_adminweb_sum)::numeric(18,2) AS rent_amount_adminweb_sum,
+    SUM(cost_amount_adminweb_sum)::numeric(18,2) AS cost_amount_adminweb_sum,
+    SUM(real_good_number_adminweb_sum)::numeric(18,2) AS real_good_number_adminweb_sum,
+    SUM(green_number_adminweb_sum)::numeric(18,2) AS green_number_adminweb_sum,
+    SUM(flowerpot_number_adminweb_sum)::numeric(18,2) AS flowerpot_number_adminweb_sum,
+    SUM(flowerrack_number_adminweb_sum)::numeric(18,2) AS flowerrack_number_adminweb_sum
   FROM {{ ref('xycyl_dws_project_green_monthly') }}
   GROUP BY project_id
 )
@@ -41,6 +47,12 @@ SELECT
   COALESCE(gt.effective_good_number_sum, 0)::numeric(18,2) AS effective_good_number_sum,
   COALESCE(gt.rent_amount_raw_sum, 0)::numeric(18,2) AS rent_amount_raw_sum,
   COALESCE(gt.cost_amount_raw_sum, 0)::numeric(18,2) AS cost_amount_raw_sum,
+  COALESCE(gt.rent_amount_adminweb_sum, 0)::numeric(18,2) AS rent_amount_adminweb_sum,
+  COALESCE(gt.cost_amount_adminweb_sum, 0)::numeric(18,2) AS cost_amount_adminweb_sum,
+  COALESCE(gt.real_good_number_adminweb_sum, 0)::numeric(18,2) AS real_good_number_adminweb_sum,
+  COALESCE(gt.green_number_adminweb_sum, 0)::numeric(18,2) AS green_number_adminweb_sum,
+  COALESCE(gt.flowerpot_number_adminweb_sum, 0)::numeric(18,2) AS flowerpot_number_adminweb_sum,
+  COALESCE(gt.flowerrack_number_adminweb_sum, 0)::numeric(18,2) AS flowerrack_number_adminweb_sum,
   p.project_start_time,
   p.project_end_time,
   p.imported_at

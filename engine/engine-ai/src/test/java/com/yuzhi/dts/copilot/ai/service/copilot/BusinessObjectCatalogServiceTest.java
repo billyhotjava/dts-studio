@@ -37,6 +37,9 @@ class BusinessObjectCatalogServiceTest {
                         "prs.flowerbiz.position_placement",
                         "prs.procurement.plan_purchase",
                         "prs.project.project_site",
+                        "prs.project.position",
+                        "prs.project.green_snapshot",
+                        "prs.project.contract",
                         "prs.finance.settlement",
                         "prs.finance.bank_statement",
                         "prs.warehouse.stock_info",
@@ -98,6 +101,20 @@ class BusinessObjectCatalogServiceTest {
         assertThat(match.get().pagePath()).isEqualTo("项目点管理 > 项目点");
         assertThat(match.get().keyFields())
                 .contains("项目点编码", "项目点名称", "项目状态", "项目经理", "合同名称");
+    }
+
+    @Test
+    void matchesProjectGreenSnapshotQuestions() {
+        Optional<BusinessObjectEntry> match = catalog.findBestMatch("某项目当前实摆绿植有哪些", "project");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().objectCode()).isEqualTo("prs.project.green_snapshot");
+        assertThat(match.get().dataSurface()).isEqualTo("L0_BUSINESS_OBJECT_PROFILE");
+        assertThat(match.get().sourceRefs())
+                .contains(
+                        "business-object:prs.project.green_snapshot",
+                        "dbt-model:public.xycyl_dwd_project_green_snapshot",
+                        "adminapi:/rs-flowers-base/project/green/listPage");
     }
 
     @Test

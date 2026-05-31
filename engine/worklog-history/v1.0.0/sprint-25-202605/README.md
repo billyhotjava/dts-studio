@@ -15,10 +15,10 @@
 
 | ID | Feature | Task 数 | 优先级 | 状态 | 说明 |
 |----|---------|---------|--------|------|------|
-| F0 | 项目域 P0 数据画像与口径决策 | 4 | P0 | BLOCKED | T01 已完成；核心 ODS 已建空表，T02 等待入数 |
-| F1 | 共享维度与项目域 dbt 建模 | 4 | P0 | BLOCKED | 等 F0 数据画像 + 口径决策 |
-| F2 | 项目域 NL2SQL 接入 | 3 | P1 | BLOCKED | 等 F1 ADS/DWS 产物 |
-| F3 | 项目域回归与验收 | 3 | P1 | BLOCKED | 等 F1/F2 |
+| F0 | 项目域 P0 数据画像与口径决策 | 4 | P0 | IN_PROGRESS | T01/T02/T04 已完成；T03 等业务口径仍待拍板 |
+| F1 | 共享维度与项目域 dbt 建模 | 4 | P0 | DONE | 11 张 ODS 已入数，dbt build PASS=76 WARN=1 |
+| F2 | 项目域 NL2SQL 接入 | 3 | P1 | DONE | semantic pack / routing / 8 个 query templates 已接 dbt mart |
+| F3 | 项目域回归与验收 | 3 | P1 | DONE | Golden Questions 与 adminweb ProjectSummary 对账均有 live 证据 |
 
 ## 本 sprint 不做
 
@@ -31,11 +31,12 @@
 
 - [x] P0 表清单确认：项目域源表全部能映射到 `public.ods_ptr_mysql_*` 或明确标为入湖缺口。
 - [ ] `p_project_green` 快照粒度、金额口径、停用项目过滤、实摆组数定义有业务方书面结论。
-- [ ] 共享维度清单落地：`xycyl_dim_customer`、`xycyl_dim_project`、`xycyl_dim_position`、`xycyl_dim_goods`、`xycyl_dim_contract`。
-- [ ] 项目域事实和汇总清单落地：`xycyl_dwd_project_green_snapshot`、`xycyl_dwd_position_adjustment`、`xycyl_dws_project_green_monthly`。
-- [ ] 项目域 ADS 首批覆盖：项目点实摆总览、绿植加减调换月报、状态分布、合同到期预警。
-- [ ] 项目域 NL2SQL 运行时加载路径有测试覆盖，不只检查文件存在。
-- [ ] IT 证据包含本地结构校验、dbt build 或 parse 结果、项目类 Golden Questions 回归结果。
+- [x] 共享维度清单落地：`xycyl_dim_customer`、`xycyl_dim_project`、`xycyl_dim_position`、`xycyl_dim_goods`、`xycyl_dim_contract`。
+- [x] 项目域事实和汇总清单落地：`xycyl_dwd_project_green_snapshot`、`xycyl_dwd_position_adjustment`、`xycyl_dws_project_green_monthly`。
+- [x] 项目域 ADS 首批覆盖：项目点实摆总览、绿植加减调换月报、状态分布、合同到期预警。
+- [x] 项目域 ADS 与 adminweb ProjectSummary 固定报表对账误差满足 0.5% 门槛。
+- [x] 项目域 NL2SQL 运行时加载路径有测试覆盖，不只检查文件存在。
+- [x] IT 证据包含本地结构校验、dbt build 或 parse 结果、项目类 Golden Questions 回归结果。
 
 ## 与相邻 sprint 的关系
 
@@ -71,3 +72,14 @@
 - 本地临时 old PRS MySQL `rs_cloud_flower` 的同名 11 张源表也均为 0 行，不能作为 Sprint-25 入数来源。
 - 使用仓库敏感账号说明做只读远端探测：数据库端口 TCP 可达，但 MySQL 握手被服务端中断；SSH 22 端口可达但连接被服务端关闭，未取得远端 row-count。
 - 当前阻塞未解除：仍需可访问的真实源业务数据入湖，或业务方提供 `p_project_green` / 摆位 / 合同 / 物品等项目域表的有效数据快照；P0 口径决策仍不能由开发侧猜测。
+
+## 2026-05-30 权限重试后恢复记录
+
+- 新增并应用 `it/sql/project_ingestion_task_upsert.sql`，复用 `ptr_mysql_flow` 的安全数据源配置创建 `sprint25_project_datasurface`；task `46` 映射 11 张 Sprint-25 ODS。
+- 通过 ingestion 内部 `8083` 端口异步触发 task `46`，execution `83` 成功；11 张 ODS 均已入数，行数见 `it/evidence/20260530-local/project-ingestion-runtime.md`。
+- `dts-dbt:1.10.0` 容器执行 `dbt build --select tag:xycyl-project`：`PASS=76 WARN=1 ERROR=0`，唯一 warn 为 286 条 `project_green.project_id` 软外键孤儿。
+- 更新项目域 semantic pack、Agent BI report catalog、business object catalog，并新增 `v1_0_0_021__project_dbt_query_templates.xml`：本地运行库已有 `TPL-44` 至 `TPL-51` 8 个 project dbt templates，legacy `v_project_*` project templates 已停用。
+- 权限恢复后重跑 `RUN_LIVE=1 bash worklog/v1.0.0/sprint-25-202605/it/test_project_source_profile_sql.sh`：11 张 ODS 均为 FOUND 且已入数，`p_project_green=36295`、`p_position=17396`、`p_position_adjustment_item=21009`。
+- 新增 `it/sql/project_golden_questions.tsv` 与 `it/test_project_golden_questions.sh`：15 条项目域 Golden Questions，其中 12 条走 mart fast path，覆盖 `TPL-44` 至 `TPL-51` 8 个模板；live 验证 7 个 dbt target 均存在且非空。
+- 新增 `it/sql/project_adminweb_summary_reconcile.sql` 与 `it/test_project_adminweb_reconcile.sh`：锁定 adminweb `ProjectSummaryMapper.listPage` 为项目域固定报表对账面，`xycyl_ads_project_overview` 的 7 项 adminweb 对账字段全部 `PASS`，最大误差 `0.0000%`。
+- 仍未由开发侧擅自 RESOLVED 的事项：`rent/cost` 最终业务口径、`parent_id=-1` 是否计为业务组数、停用项目默认过滤。dbt 已额外保留 adminweb 当前运营口径字段，但不把它等同于业务方最终拍板。

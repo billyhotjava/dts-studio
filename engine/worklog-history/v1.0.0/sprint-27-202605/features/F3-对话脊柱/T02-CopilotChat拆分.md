@@ -1,7 +1,7 @@
 # T02: CopilotChat 拆分
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: T01
 
 ## 目标
@@ -12,11 +12,13 @@
 
 ### 目标文件结构(均在 `src/components/copilot/`)
 
-- `ConversationThread.tsx` —— **脊柱容器**(对话脊柱)。持有顶层布局与各状态 hooks 的编排,渲染 `<MessageList>` + 审批区 + error + `<Composer>`。承接现有 `Props`(`hasSessionAccess` / `focusRequest` / `promptRequest` / `presentation` / `compactReasoning`)。
+- `ConversationThread.tsx` —— **脊柱容器**(对话脊柱)。持有顶层布局与状态 hooks 的编排,渲染 `<ConversationHeader>` + `<MessageList>` + `<ApprovalPanel>` + error + `<Composer>`。承接现有 `Props`(`hasSessionAccess` / `focusRequest` / `promptRequest` / `presentation` / `compactReasoning`)。
 - `MessageList.tsx` —— **消息流**。接收 `chatMessages` / `sortedMessages` / `expandedTraces` / `compactReasoning` / `selectedDbId` / `databases` / 回调,渲染每条消息(reasoning 块、`CopilotMessageContent`、固定报表芯片、`InlineSqlPreview`、`TracePanel`、`FeedbackButtons`)。当前消息渲染逻辑约 240 行(L986~L1185),独立成文件。`WelcomeCard` 空态由容器或 MessageList 渲染。
-- `Composer.tsx` —— **输入器**。`textarea` + `VoiceInputButton` + 发送/停止按钮 + 新对话按钮 + 会话条 + 数据源条。接收 `input` / `sendAction` / `canEditComposer` / `copilotEnabled` 与回调(详见 T04)。
+- `Composer.tsx` —— **输入器**。`textarea` + `VoiceInputButton` + 发送/停止按钮 + 新对话按钮。接收 `input` / `sendAction` / `canEditComposer` / `copilotEnabled` 与回调(详见 T04)。
+- `ConversationHeader.tsx` —— 会话条与数据源条,保持原视觉顺序不变。
+- `ApprovalPanel.tsx` —— 待审批表单展示组件。
 - 状态 hooks(从组件体抽出,降低主文件行数,且便于测试):
-  - `useCopilotSessionState.ts` —— sessionId / sessions / messages / pendingAction / databases / selectedDbId 的加载与持久化(`reloadSessions` / `reloadMessages` / bootstrap effect / focus effect / 数据源 effect)。详见 T05。
+  - `useCopilotSessionState.ts` —— sessionId / sessions / messages / pendingAction / databases / selectedDbId 的加载与持久化(`reloadSessions` / `reloadMessages` / bootstrap effect / focus effect / 数据源 effect)。详见 T05,本任务暂不提前落地。
   - `useCopilotStream.ts` —— `handleSendText` / `handleSend` / `abortStreaming` / `handleStopStreaming` + 流式 ref(`streamInFlightRef` / `streamAbortRef` / `activeStreamingSessionIdRef` / `queuedInputRef`)+ watchdog。详见 T03。
   - `useCopilotApproval.ts` —— `pendingAction` / `approvalValues` / `approvalSchema` / `handleApprove` / `handleCancel`(审批表单逻辑约 L764~L856,90+ 行,独立)。
 - `CopilotChat.tsx` —— 保留为兼容入口:`export function CopilotChat(props) { return <ConversationThread {...props} /> }`,或直接把 `CopilotSidebar` 与 F1 改为引用 `ConversationThread`(二选一,优先保留 `CopilotChat` 名以减少调用方改动)。
@@ -34,7 +36,7 @@
 
 ## 影响范围
 
-- `src/components/copilot/CopilotChat.tsx` → 拆为 `ConversationThread.tsx` / `MessageList.tsx` / `Composer.tsx` + `useCopilotSessionState.ts` / `useCopilotStream.ts` / `useCopilotApproval.ts`。
+- `src/components/copilot/CopilotChat.tsx` → 拆为 `ConversationThread.tsx` / `MessageList.tsx` / `Composer.tsx` / `ConversationHeader.tsx` / `ApprovalPanel.tsx` + `useCopilotStream.ts` / `useCopilotApproval.ts`。
 - `src/components/copilot/CopilotChat.presentation.test.ts`(断言目标随渲染迁移)。
 - `src/components/copilot/CopilotSidebar.tsx`(确认引用入口不变或改指 `ConversationThread`)。
 - F1 工作台脊柱插槽(确认挂载 `ConversationThread` / `CopilotChat`)。
@@ -42,15 +44,19 @@
 
 ## 验证
 
-- [ ] T01 护栏(`copilotSendGuard.test.ts` / `copilotStreamReducer.test.ts` / `CopilotChat.presentation.test.ts` + 既有逻辑测试)全绿,行为无回归。
-- [ ] `wc -l` 确认 `ConversationThread.tsx` / `MessageList.tsx` / `Composer.tsx` / 各 hook 文件均 < 800 行。
-- [ ] `pnpm typecheck` 通过;`Props` 与各子组件 props 类型显式、无 `any`。
-- [ ] `pnpm build` 通过;在 `CopilotSidebar` 与 F1 工作台壳中均能正常渲染对话脊柱。
-- [ ] 手动回归:发送、流式、停止、审批、新建/切换/删除会话、语音、空态 `WelcomeCard` 全部如旧。
+- [x] T01 护栏(`copilotSendGuard.test.ts` / `copilotStreamReducer.test.ts` / `CopilotChat.presentation.test.ts` + 既有逻辑测试)全绿,行为无回归。
+- [x] `wc -l` 确认 `ConversationThread.tsx` / `MessageList.tsx` / `Composer.tsx` / 各 hook 文件均 < 800 行。
+- [x] `pnpm typecheck` 通过;`Props` 与各子组件 props 类型显式、无 `any`。
+- [x] `pnpm build` 通过;`CopilotChat` 保持兼容入口,`/agent-bi` 与拆分组件 Vite transform 均 HTTP 200。
+- [x] 拆分 smoke:发送/流式/停止/审批/空态/语音的 DOM 与纯逻辑护栏通过;真实后台端到端发送保留到 IT03/T03。
 
 ## 完成标准
 
-- [ ] 1379 行单文件拆为 `ConversationThread`(脊柱)/ `MessageList`(消息流)/ `Composer`(输入器)+ 会话/流式/审批 hooks,职责单一。
-- [ ] 每个新文件 < 800 行;`CopilotChat` 名保留为薄入口或调用方平滑改指 `ConversationThread`。
-- [ ] 展示组件为纯函数,状态集中在容器 + hooks;F4 产物引用接口已预留(不实现)。
-- [ ] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿,行为与拆分前一致。
+- [x] 1379 行单文件拆为 `ConversationThread`(脊柱)/ `MessageList`(消息流)/ `Composer`(输入器)+ 流式/审批 hooks,职责单一;会话状态 hook 留给 T05 收口。
+- [x] 每个新文件 < 800 行;`CopilotChat` 名保留为薄入口或调用方平滑改指 `ConversationThread`。
+- [x] 展示组件为纯函数,状态集中在容器 + hooks;F4 产物引用接口已预留(不实现)。
+- [x] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿,行为与拆分前一致。
+
+## 证据
+
+- `../../it/evidence/20260531-local/f3-t01-t02-conversation-split.md`

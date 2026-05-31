@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.service.copilot.AiCopilotService;
 import com.yuzhi.dts.copilot.ai.service.copilot.Nl2SqlService;
+import com.yuzhi.dts.copilot.ai.service.copilot.OntologyService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ScreenGenerationService;
 import com.yuzhi.dts.copilot.ai.service.llm.gateway.LlmGatewayService;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.ApiResponse;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
@@ -39,15 +41,18 @@ public class AiCopilotResource {
     private final Nl2SqlService nl2SqlService;
     private final LlmGatewayService llmGatewayService;
     private final ScreenGenerationService screenGenerationService;
+    private final OntologyService ontologyService;
 
     public AiCopilotResource(AiCopilotService copilotService,
                              Nl2SqlService nl2SqlService,
                              LlmGatewayService llmGatewayService,
-                             ScreenGenerationService screenGenerationService) {
+                             ScreenGenerationService screenGenerationService,
+                             OntologyService ontologyService) {
         this.copilotService = copilotService;
         this.nl2SqlService = nl2SqlService;
         this.llmGatewayService = llmGatewayService;
         this.screenGenerationService = screenGenerationService;
+        this.ontologyService = ontologyService;
     }
 
     @PostMapping("/complete")
@@ -177,5 +182,45 @@ public class AiCopilotResource {
         statusMap.put("available", !availableProviders.isEmpty());
         statusMap.put("providers", availableProviders);
         return ResponseEntity.ok(ApiResponse.ok(statusMap));
+    }
+
+    @GetMapping("/signals")
+    public ResponseEntity<ApiResponse<List<SignalSummary>>> signals(
+            @RequestParam(defaultValue = "flowerbiz") String domain) {
+        String resolvedDomain = normalizeSignalDomain(domain);
+        List<SignalSummary> signals = ontologyService.load(resolvedDomain)
+                .map(model -> model.buildSignalPlans().stream()
+                        .map(plan -> SignalSummary.from(resolvedDomain, plan))
+                        .toList())
+                .orElseGet(List::of);
+        return ResponseEntity.ok(ApiResponse.ok(signals));
+    }
+
+    private static String normalizeSignalDomain(String domain) {
+        if (domain == null || domain.isBlank()) {
+            return "flowerbiz";
+        }
+        return domain.trim();
+    }
+
+    public record SignalSummary(
+            String id,
+            String title,
+            String severity,
+            String description,
+            String source,
+            String objectName,
+            List<String> linkedActions) {
+
+        static SignalSummary from(String domain, OntologyService.SignalPlan plan) {
+            return new SignalSummary(
+                    domain + ":" + plan.signalName(),
+                    plan.signalName(),
+                    plan.severity(),
+                    plan.advice(),
+                    "ontology." + domain + ".signals",
+                    plan.objectName(),
+                    plan.linkedActions());
+        }
     }
 }

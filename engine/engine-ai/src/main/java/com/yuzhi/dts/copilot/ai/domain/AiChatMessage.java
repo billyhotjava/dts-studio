@@ -84,6 +84,21 @@ public class AiChatMessage {
     @Column(name = "source_refs", columnDefinition = "TEXT")
     private String sourceRefs;
 
+    @Column(name = "assumptions", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String assumptions;
+
+    @Column(name = "confidence")
+    private Double confidence;
+
+    @Column(name = "clarifications", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String clarifications;
+
+    @Column(name = "trace", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String trace;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -242,6 +257,38 @@ public class AiChatMessage {
 
     public void setSourceRefs(String sourceRefs) {
         this.sourceRefs = sourceRefs;
+    }
+
+    public String getAssumptions() {
+        return assumptions;
+    }
+
+    public void setAssumptions(String assumptions) {
+        this.assumptions = assumptions;
+    }
+
+    public Double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(Double confidence) {
+        this.confidence = confidence;
+    }
+
+    public String getClarifications() {
+        return clarifications;
+    }
+
+    public void setClarifications(String clarifications) {
+        this.clarifications = clarifications;
+    }
+
+    public String getTrace() {
+        return trace;
+    }
+
+    public void setTrace(String trace) {
+        this.trace = trace;
     }
 
     public Instant getCreatedAt() {

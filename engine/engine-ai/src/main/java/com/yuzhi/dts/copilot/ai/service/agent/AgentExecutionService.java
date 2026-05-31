@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.repository.AiDataSourceRepository;
 import com.yuzhi.dts.copilot.ai.repository.AiProviderConfigRepository;
+import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
+import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatRequestContext;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
@@ -118,14 +120,33 @@ public class AgentExecutionService {
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
                                            List<Map<String, Object>> history, Long dataSourceId,
                                            Map<String, Boolean> martHealthSnapshot) {
-        ConversationPlan conversationPlan = conversationPlannerService.plan(userMessage, martHealthSnapshot);
+        return executeChat(
+                sessionId,
+                userId,
+                userMessage,
+                history,
+                dataSourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                Collections.emptyMap());
+    }
+
+    public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
+                                           List<Map<String, Object>> history, Long dataSourceId,
+                                           Map<String, Boolean> martHealthSnapshot,
+                                           Map<String, String> assumptionOverrides,
+                                           Map<String, String> clarificationAnswers) {
+        CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
+                martHealthSnapshot, assumptionOverrides, clarificationAnswers);
+        ConversationPlan conversationPlan = conversationPlannerService.plan(
+                userMessage, requestContext.martHealthSnapshot());
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
-            return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
+            return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
         }
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            return new ChatExecutionResult(response, generatedSql, conversationPlan, null);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -134,7 +155,8 @@ public class AgentExecutionService {
                     "No AI provider is configured. Please configure a provider in the settings.",
                     null,
                     conversationPlan,
-                    null
+                    null,
+                    requestContext
             );
         }
 
@@ -143,7 +165,7 @@ public class AgentExecutionService {
 
         Map<String, Object> systemMsg = new LinkedHashMap<>();
         systemMsg.put("role", "system");
-        systemMsg.put("content", buildSystemPrompt(userMessage, conversationPlan));
+        systemMsg.put("content", buildSystemPrompt(userMessage, conversationPlan, requestContext));
         messages.add(systemMsg);
         if (history != null) {
             messages.addAll(history);
@@ -165,7 +187,8 @@ public class AgentExecutionService {
                 response,
                 resolveGeneratedSql(response, conversationPlan),
                 conversationPlan,
-                null
+                null,
+                requestContext
         );
     }
 
@@ -180,30 +203,51 @@ public class AgentExecutionService {
                                                  List<Map<String, Object>> history, Long dataSourceId,
                                                  Map<String, Boolean> martHealthSnapshot,
                                                  OutputStream sseOutput) {
-        ConversationPlan conversationPlan = conversationPlannerService.plan(userMessage, martHealthSnapshot);
+        return executeChatStream(
+                sessionId,
+                userId,
+                userMessage,
+                history,
+                dataSourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                sseOutput);
+    }
+
+    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                 List<Map<String, Object>> history, Long dataSourceId,
+                                                 Map<String, Boolean> martHealthSnapshot,
+                                                 Map<String, String> assumptionOverrides,
+                                                 Map<String, String> clarificationAnswers,
+                                                 OutputStream sseOutput) {
+        CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
+                martHealthSnapshot, assumptionOverrides, clarificationAnswers);
+        ConversationPlan conversationPlan = conversationPlannerService.plan(
+                userMessage, requestContext.martHealthSnapshot());
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
-            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan, null);
-            return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null);
+            writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
+            return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
         }
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null);
-            return new ChatExecutionResult(response, generatedSql, conversationPlan, null);
+            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null, requestContext);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext);
         }
 
         AiProviderConfig provider = resolveProvider();
         if (provider == null) {
             String message = "No AI provider is configured. Please configure a provider in the settings.";
-            writeTokenAndDone(sseOutput, message, null, conversationPlan, null);
-            return new ChatExecutionResult(message, null, conversationPlan, null);
+            writeTokenAndDone(sseOutput, message, null, conversationPlan, null, requestContext);
+            return new ChatExecutionResult(message, null, conversationPlan, null, requestContext);
         }
 
         LlmProviderClient client = getOrCreateClient(provider);
         List<Map<String, Object>> messages = new ArrayList<>();
         Map<String, Object> systemMsg = new LinkedHashMap<>();
         systemMsg.put("role", "system");
-        systemMsg.put("content", buildSystemPrompt(userMessage, conversationPlan));
+        systemMsg.put("content", buildSystemPrompt(userMessage, conversationPlan, requestContext));
         messages.add(systemMsg);
         if (history != null) {
             messages.addAll(history);
@@ -223,23 +267,32 @@ public class AgentExecutionService {
                 provider.getMaxTokens(),
                 sseOutput);
         String sql = resolveGeneratedSql(response, conversationPlan);
-        writeDoneEvent(sseOutput, sql, conversationPlan, inferSuggestedDisplay(userMessage, sql, conversationPlan));
+        writeDoneEvent(sseOutput, sql, conversationPlan, inferSuggestedDisplay(userMessage, sql, conversationPlan), requestContext);
 
         return new ChatExecutionResult(
                 response,
                 sql,
                 conversationPlan,
-                extractReasoningFromMessages(messages)
+                extractReasoningFromMessages(messages),
+                requestContext
         );
     }
 
     private String buildSystemPrompt(String userMessage, ConversationPlan conversationPlan) {
+        return buildSystemPrompt(userMessage, conversationPlan, CopilotChatRequestContext.empty());
+    }
+
+    private String buildSystemPrompt(
+            String userMessage,
+            ConversationPlan conversationPlan,
+            CopilotChatRequestContext requestContext) {
         StringBuilder sb = new StringBuilder(SYSTEM_PROMPT);
         if (conversationPlan != null && StringUtils.hasText(conversationPlan.promptContext())) {
             sb.append("\n\nBusiness grounding context:\n")
                     .append(conversationPlan.promptContext())
                     .append("\n");
         }
+        appendRequestContractContext(sb, requestContext);
         try {
             List<RagResult> ragResults = ragService.retrieve(userMessage, 3);
             if (!ragResults.isEmpty()) {
@@ -254,6 +307,24 @@ public class AgentExecutionService {
             log.debug("RAG retrieval skipped: {}", e.getMessage());
         }
         return sb.toString();
+    }
+
+    private void appendRequestContractContext(StringBuilder sb, CopilotChatRequestContext requestContext) {
+        if (requestContext == null) {
+            return;
+        }
+        if (requestContext.hasAssumptionOverrides()) {
+            sb.append("\n\n用户已确认的口径覆盖:\n");
+            requestContext.assumptionOverrides().forEach((key, value) ->
+                    sb.append("- ").append(key).append("=").append(value).append("\n"));
+            sb.append("生成 SQL 和分析结论时必须优先遵守这些口径覆盖。\n");
+        }
+        if (requestContext.hasClarificationAnswers()) {
+            sb.append("\n\n用户已回答的澄清项:\n");
+            requestContext.clarificationAnswers().forEach((key, value) ->
+                    sb.append("- ").append(key).append("=").append(value).append("\n"));
+            sb.append("不要再次询问同一澄清项,请按答案继续执行。\n");
+        }
     }
 
     private AiProviderConfig resolveProvider() {
@@ -437,10 +508,20 @@ public class AgentExecutionService {
             String sql,
             ConversationPlan conversationPlan,
             String suggestedDisplay) {
+        writeTokenAndDone(out, text, sql, conversationPlan, suggestedDisplay, CopilotChatRequestContext.empty());
+    }
+
+    private void writeTokenAndDone(
+            OutputStream out,
+            String text,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext) {
         try {
             String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
-            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay);
+            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext);
             out.flush();
         } catch (IOException e) {
             log.debug("SSE write failed: {}", e.getMessage());
@@ -452,6 +533,15 @@ public class AgentExecutionService {
             String sql,
             ConversationPlan conversationPlan,
             String suggestedDisplay) {
+        writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, CopilotChatRequestContext.empty());
+    }
+
+    private void writeDoneEvent(
+            OutputStream out,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext) {
         try {
             ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
@@ -494,6 +584,7 @@ public class AgentExecutionService {
                     var sourceRefs = done.putArray("sourceRefs");
                     conversationPlan.sourceRefs().forEach(sourceRefs::add);
                 }
+                CopilotChatContract.putDoneFields(done, conversationPlan, sql, requestContext);
             }
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -556,6 +647,15 @@ public class AgentExecutionService {
             String response,
             String generatedSql,
             ConversationPlan conversationPlan,
-            String reasoningContent
-    ) {}
+            String reasoningContent,
+            CopilotChatRequestContext requestContext
+    ) {
+        public ChatExecutionResult(
+                String response,
+                String generatedSql,
+                ConversationPlan conversationPlan,
+                String reasoningContent) {
+            this(response, generatedSql, conversationPlan, reasoningContent, CopilotChatRequestContext.empty());
+        }
+    }
 }

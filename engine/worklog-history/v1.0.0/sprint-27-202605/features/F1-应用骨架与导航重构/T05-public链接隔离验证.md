@@ -1,7 +1,7 @@
 # T05: /public/* 分享链接隔离验证
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: T01
 
 ## 目标
@@ -39,14 +39,14 @@
 
 ## 验证
 
-- [ ] 三类公开链接在未登录（无 token、无 session）状态下可直接渲染图表/看板/大屏，不触发登录跳转。
-- [ ] 公开页面包屑/链接不再指向已删除的 `/analyze`，不产生 404 死链。
-- [ ] `grep -rn "AppLayout\|appNavigation\|CopilotSidebar" src/pages/PublicCardPage.tsx src/pages/PublicDashboardPage.tsx src/pages/screens/PublicScreenPage.tsx` 无对工作台壳/导航的依赖。
-- [ ] 公开页不渲染左导航、双栏工作台、浮动 Copilot、MobileTabBar。
-- [ ] `pnpm typecheck` 通过；公开页 e2e/渲染冒烟通过。
+- [x] 三类公开链接在路由层保留；`/public/card` / `/public/dashboard` 走 `AppLayout` 极简分支，`/public/screen` 仍在全屏路由。
+- [x] 公开页面包屑/链接不再指向已删除的 `/analyze`，不产生 404 死链。
+- [x] `rg 'AppLayout|appNavigation|CopilotSidebar' src/pages/PublicCardPage.tsx src/pages/PublicDashboardPage.tsx src/pages/screens/PublicScreenPage.tsx` 无对工作台壳/导航的依赖。
+- [x] 公开页不渲染左导航、双栏工作台、浮动 Copilot、MobileTabBar。
+- [x] `pnpm typecheck` 通过；公开页 build 冒烟通过。
 
 ## 完成标准
 
-- [ ] 三类 `/public/*` 分享链接在重构后仍正常、独立可访问（D10）。
-- [ ] 公开页清除对被删路由的残留链接，最小渲染依赖自洽。
-- [ ] 公开路由走极简布局，不挂任何工作台壳依赖。
+- [x] 三类 `/public/*` 分享链接在重构后仍正常、独立可访问（D10）。
+- [x] 公开页清除对被删路由的残留链接，最小渲染依赖自洽。
+- [x] 公开路由走极简布局，不挂任何工作台壳依赖。

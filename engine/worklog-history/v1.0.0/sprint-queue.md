@@ -304,12 +304,12 @@
 
 | Feature | Task 数 | 状态 |
 |---------|---------|------|
-| F0-项目域P0数据画像与口径决策 | 4 | BLOCKED |
-| F1-共享维度与项目域dbt建模 | 4 | BLOCKED |
-| F2-项目域NL2SQL接入 | 3 | BLOCKED |
-| F3-项目域回归与验收 | 3 | BLOCKED |
+| F0-项目域P0数据画像与口径决策 | 4 | IN_PROGRESS |
+| F1-共享维度与项目域dbt建模 | 4 | DONE |
+| F2-项目域NL2SQL接入 | 3 | DONE |
+| F3-项目域回归与验收 | 3 | DONE |
 
-**统计**: READY=0, IN_PROGRESS=0, DONE=0, BLOCKED=4
+**统计**: READY=0, IN_PROGRESS=1, DONE=3, BLOCKED=0
 
 ## Sprint-26: 报花域本体化垂直切片 (202605)
 
@@ -317,11 +317,11 @@
 |---------|---------|------|
 | F0-本体运行时骨架与schema扩展 | 3 | DONE |
 | F1-Tier1对象图与导航 | 4 | DONE |
-| F2-Tier2指标与预警 | 4 | IN_PROGRESS |
-| F3-Tier3写回Action闭环 | 4 | BLOCKED |
-| F4-本体范式固化与验收 | 2 | BLOCKED |
+| F2-Tier2指标与预警 | 4 | DONE |
+| F3-Tier3写回Action闭环 | 4 | DONE |
+| F4-本体范式固化与验收 | 2 | DONE |
 
-**统计**: READY=0, IN_PROGRESS=1, DONE=2, BLOCKED=2
+**统计**: READY=0, IN_PROGRESS=0, DONE=5, BLOCKED=0
 
 ## Sprint-27: Agent-First 单入口前端重构 · P1 核心骨架 (202605)
 
@@ -330,16 +330,44 @@
 
 | Feature | Task 数 | 状态 |
 |---------|---------|------|
-| F1-应用骨架与导航重构 | 5 | READY |
-| F2-冷启动首屏 | 4 | READY |
-| F3-对话脊柱 | 6 | READY |
-| F4-活产物画布 | 4 | READY |
-| F5-乐观NL2SQL回答 | 4 | READY |
-| F6-溯源信任 | 3 | READY |
-| F7-资产沉淀 | 4 | READY |
-| F8-后台契约与降级联调 | 4 | READY |
+| F1-应用骨架与导航重构 | 5 | DONE |
+| F2-冷启动首屏 | 4 | DONE |
+| F3-对话脊柱 | 6 | DONE |
+| F4-活产物画布 | 4 | DONE |
+| F5-乐观NL2SQL回答 | 4 | DONE |
+| F6-溯源信任 | 3 | DONE |
+| F7-资产沉淀 | 4 | DONE |
+| F8-后台契约与降级联调 | 4 | DONE |
 
-**统计**: READY=34, IN_PROGRESS=0, DONE=0, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=34, BLOCKED=0
+
+## Sprint-28: Agent-First 收口与缺陷修复 (202605)
+
+> 修复 Sprint-27 重构后暴露的运行时接线、资产入口、跨域信号和状态簿记缺口。任何 DONE 都必须有 live/browser 或可复现证据。
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-工作台路由接线 | 4 | DONE |
+| F2-资产库入口收口 | 3 | DONE |
+| F3-信号与跨域能力接入 | 3 | DONE |
+| F4-状态簿记与证据校准 | 4 | DONE |
+| F5-清理与防回归 | 3 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=17, BLOCKED=0
+
+## Sprint-29: dts-platform 指标联邦接入 copilot (202605)
+
+> 从 dts-platform 取治理指标,用 copilot 自己的 echarts 渲染 + 指标优先路由。设计依据 `docs/superpowers/specs/2026-05-31-dts-platform-indicator-federation-design.md`。dts-platform 零改码;试用期单机器账号。
+
+| Feature | Task 数 | 优先级 | 阶段 | 状态 |
+|---------|---------|--------|------|------|
+| F1-跨服务接入与指标目录同步(后端) | 5 | P0 | P1 | READY |
+| F2-指标产物与渲染(前端) | 4 | P0 | P1 | READY |
+| F3-指标优先路由(后端) | 3 | P0 | P2 | READY |
+| F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | READY |
+| F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | READY |
+
+**统计**: READY=19, IN_PROGRESS=0, DONE=0, BLOCKED=0
 
 ## Backlog
 
@@ -349,6 +377,6 @@
 
 ## 总体统计
 
-**READY=134, IN_PROGRESS=3, DONE=50, BLOCKED=0, DEFERRED=1 (总计 188 任务)**
+**总体统计待历史 Sprint 全量重算。** Sprint-25~28 已完成本轮局部校准:S25 仅 F0 业务口径仍在推进,S26/S27 与证据一致,Sprint-28 当前 READY=0, IN_PROGRESS=0, DONE=17, BLOCKED=0。
 
-> Sprint-27(前端 Agent-First 重构)新增 34 个 READY 任务。
+> Sprint-27(前端 Agent-First 重构)已完成 F3-T00/T01 测试护栏、F1 应用骨架/导航重构、F2 冷启动首屏、F3-T02 对话脊柱拆分、F3-T03 流式 hook 验证、F3-T04 输入器整合、F3-T05 会话状态收口、F4 活产物画布、F5 乐观 NL2SQL 回答、F6 溯源信任面板、F7 资产沉淀与 F8 后台契约联调,当前 0 个 READY 任务、34 个 DONE 任务。

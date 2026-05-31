@@ -52,7 +52,11 @@ require_text "$PKG_DIR/models/xycyl_project_sources.yml" 'name: "xycyl_project_o
 require_text "$PKG_DIR/models/dwd/xycyl_dim_project_status.sql" 'PRJ-ACTIVE'
 require_text "$PKG_DIR/models/dwd/xycyl_dim_project_green_status.sql" 'PGS-PLACED'
 require_text "$PKG_DIR/models/dwd/xycyl_dwd_project_green_snapshot.sql" 'is_orphan_project'
+require_text "$PKG_DIR/models/dwd/xycyl_dwd_project_green_snapshot.sql" 'rent_amount_adminweb'
 require_text "$PKG_DIR/models/dws/xycyl_dws_project_green_monthly.sql" 'rent_amount_raw_sum'
+require_text "$PKG_DIR/models/dws/xycyl_dws_project_green_monthly.sql" 'rent_amount_adminweb_sum'
+require_text "$PKG_DIR/models/ads/xycyl_ads_project_overview.sql" 'real_good_number_adminweb_sum'
+require_text "$PKG_DIR/models/xycyl_project_schema.yml" 'adminweb ProjectSummary listPage'
 require_text "$PKG_DIR/README.md" '不使用独立 `xycyl_ods` schema'
 
 reject_path "$PKG_DIR/models/stg/xycyl_stg_project.sql"
@@ -73,5 +77,6 @@ fi
 if [[ "${RUN_DBT_PARSE:-0}" == "1" ]]; then
   : "${DBT_PROFILES_DIR:=$ROOT_DIR/worklog/v1.0.0/sprint-25-202605/it/profiles}"
   : "${DBT_TARGET_PATH:=/tmp/dts-copilot-sprint25-project-dbt-target}"
-  dbt parse --project-dir "$PKG_DIR" --profiles-dir "$DBT_PROFILES_DIR" --target-path "$DBT_TARGET_PATH"
+  : "${DBT_LOG_PATH:=/tmp/dts-copilot-sprint25-project-dbt-logs}"
+  dbt parse --project-dir "$PKG_DIR" --profiles-dir "$DBT_PROFILES_DIR" --target-path "$DBT_TARGET_PATH" --log-path "$DBT_LOG_PATH"
 fi

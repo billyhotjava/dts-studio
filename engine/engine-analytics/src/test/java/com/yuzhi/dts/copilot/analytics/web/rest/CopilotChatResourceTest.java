@@ -43,11 +43,12 @@ class CopilotChatResourceTest {
                 "Streaming chat failed: java.lang.InterruptedException",
                 new InterruptedException("stream interrupted"));
         org.mockito.Mockito.doThrow(interrupted).when(chatClient)
-                .sendMessageStream(anyString(), isNull(), anyString(), isNull(), any(Map.class), any());
+                .sendMessageStream(anyString(), isNull(), anyString(), isNull(), any(Map.class), isNull(), isNull(), any());
 
         CopilotChatResource resource = new CopilotChatResource(
                 sessionService, chatClient, dataSourceResolver, watermarkServiceProvider);
-        CopilotChatResource.ChatSendRequest request = new CopilotChatResource.ChatSendRequest(null, "hello", null);
+        CopilotChatResource.ChatSendRequest request =
+                new CopilotChatResource.ChatSendRequest(null, "hello", null, null, null);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         resource.sendMessageStream(request, new MockHttpServletRequest()).writeTo(output);

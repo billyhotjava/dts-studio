@@ -1,7 +1,7 @@
 # F4: 活产物画布与产物托盘
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 
 ## 目标
 
@@ -19,17 +19,17 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 产物引用数据模型与接口 | P0 | READY | F1 |
-| T02 | 画布渲染容器(ArtifactCanvas) | P0 | READY | T01 |
-| T03 | 当前产物 + 产物托盘(ArtifactTray) | P0 | READY | T01, T02 |
-| T04 | 画布动作行(CanvasActions) | P0 | READY | T02 |
+| T01 | 产物引用数据模型与接口 | P0 | DONE | F1 |
+| T02 | 画布渲染容器(ArtifactCanvas) | P0 | DONE | T01 |
+| T03 | 当前产物 + 产物托盘(ArtifactTray) | P0 | DONE | T01, T02 |
+| T04 | 画布动作行(CanvasActions) | P0 | DONE | T02 |
 
 ## 完成标准
 
-- [ ] `src/types/artifact.ts` 定义 `Artifact`(含 `id` / `type: 'chart' | 'table' | 'report'` / `spec` / `sourceMessageId` 等),并导出「消息持有产物 id,画布按 id 渲染当前产物」的契约类型与产物存储 hook(`useArtifactStore`)。
-- [ ] `ArtifactCanvas` 能按 `Artifact.type` 正确渲染:`chart` 走 `charts/ChartRenderer`(echarts 封装),`table` 走 `DataTable`,缺产物 / 加载中 / 错误均有占位态。
-- [ ] 画布默认只显示「当前产物」;同一会话先后产生的产物收进底部「产物托盘」,点击托盘项可把任一历史产物切回画布(决策 D6,非平铺)。
-- [ ] 追问产生新产物时,画布原地切换为新产物,旧产物入托盘且不丢失(可切回)。
-- [ ] 画布顶部动作行渲染 [存为卡片] [钉到看板] [</> SQL·溯源] [导出] 四个按钮,点击各自派发统一事件(`onArtifactAction`),不在本 Feature 内实现具体动作。
-- [ ] 画布渲染与对话消息流解耦:`ArtifactCanvas` 仅依赖 `Artifact` 数据,不直接读取 `AiAgentChatMessage`;消息侧只持有 `artifactId`。
-- [ ] 新增组件有渲染/切换的单元测试;`pnpm typecheck`、`pnpm test`、`pnpm build` 全绿。
+- [x] `src/types/artifact.ts` 定义 `Artifact`(含 `id` / `type: 'chart' | 'table' | 'report'` / `spec` / `sourceMessageId` 等),并导出「消息持有产物 id,画布按 id 渲染当前产物」的契约类型与产物存储 hook(`useArtifactStore`)(T01)。
+- [x] `ArtifactCanvas` 能按 `Artifact.type` 正确渲染:`chart` 走 `charts/ChartRenderer`(echarts 封装),`table` 走 `DataTable`,缺产物 / 加载中 / 错误均有占位态(T02)。
+- [x] 画布默认只显示「当前产物」;同一会话先后产生的产物收进底部「产物托盘」,点击托盘项可把任一历史产物切回画布(决策 D6,非平铺)(T03)。
+- [x] 追问产生新产物时,画布原地切换为新产物,旧产物入托盘且不丢失(可切回)(T03 store + panel 验证)。
+- [x] 画布顶部动作行渲染 [存为卡片] [钉到看板] [SQL·溯源] [导出] 四个按钮,点击各自派发统一事件(`onArtifactAction`),不在本 Feature 内实现具体动作(T04)。
+- [x] 画布渲染与对话消息流解耦:`ArtifactCanvas` 仅依赖 `Artifact` 数据,不直接读取 `AiAgentChatMessage`;消息侧只持有 `artifactId`。
+- [x] 新增组件有渲染/切换的单元测试;`pnpm typecheck`、`pnpm test`、`pnpm build` 全绿。

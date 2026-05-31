@@ -1,7 +1,7 @@
 # T01: TracePanel 扶正为画布溯源面板
 
 **优先级**: P1
-**状态**: READY
+**状态**: DONE
 **依赖**: F4 活产物画布（`CanvasActions` 动作行 + 「`</>` SQL·溯源」按钮）
 
 ## 目标
@@ -49,17 +49,17 @@
 
 ## 验证
 
-- [ ] 单测（`TracePanel.test.tsx`）：`open=false` 不渲染面板内容；`open=true` 渲染、点击遮罩/关闭按钮触发 `onClose`；传入 `toolMessages` 时渲染各步骤标题与展开。
-- [ ] 交互验证：点击画布动作行「`</>` SQL·溯源」打开抽屉，再次点击/Esc/遮罩关闭。
-- [ ] `trace-sql` 事件携带的 `artifact.sourceMessageId` 能定位到当前产物对应消息。
-- [ ] 键盘可达：抽屉打开后焦点进入面板，`Esc` 关闭，焦点回到触发按钮（a11y）。
-- [ ] 旧 `.trace-toggle` 内嵌入口移除后，无残留死代码 / 未用 CSS 类。
-- [ ] `pnpm typecheck` 通过；`pnpm test` 通过；`pnpm build` 通过。
+- [x] 单测（`TracePanel.test.tsx`）：`open=false` 不渲染面板内容；`open=true` 渲染、点击遮罩/关闭按钮触发 `onClose`；传入 `toolMessages` 时渲染各步骤标题与展开。
+- [x] 交互验证：点击画布动作行「`</>` SQL·溯源」打开抽屉，再次点击/Esc/遮罩关闭。
+- [x] `trace-sql` 事件携带的 `artifact.sourceMessageId` 能定位到当前产物对应消息。
+- [x] 键盘可达：抽屉打开后焦点进入面板，`Esc` 关闭，焦点回到触发按钮（a11y）。
+- [x] 旧 `.trace-toggle` 内嵌入口移除后，无残留死代码 / 未用 CSS 类。
+- [x] `pnpm typecheck` 通过；`pnpm test` 通过；`pnpm build` 通过。
 
 ## 完成标准
 
-- [ ] 溯源面板由 F4 画布动作行「`</>` SQL·溯源」按钮触发，以抽屉/侧栏形态打开，绑定「当前在看产物」对应消息。
-- [ ] 形态从「消息内浮动/内嵌折叠块」迁移完成，旧 `.trace-toggle` 唯一入口下线（或降级为打开同一面板）。
-- [ ] `TracePanel` 受控接口（`open`/`onClose`）就绪，与 F4 `CanvasActions` 的统一事件契约（`action: "trace-sql"` + `artifact.sourceMessageId`）已写明；F4 未就绪时有临时触发并标注 TODO。
-- [ ] 不破坏 `InlineSqlPreview` 现有结果卡内 SQL 预览/编辑行为。
-- [ ] 三脚本（typecheck/test/build）全绿，含新增/更新单测。
+- [x] 溯源面板由 F4 画布动作行「`</>` SQL·溯源」按钮触发，以抽屉/侧栏形态打开，绑定「当前在看产物」对应消息。
+- [x] 形态从「消息内浮动/内嵌折叠块」迁移完成，旧 `.trace-toggle` 唯一入口下线（或降级为打开同一面板）。
+- [x] `TracePanel` 受控接口（`open`/`onClose`）就绪，与 F4 `CanvasActions` 的统一事件契约（`action: "trace-sql"` + `artifact.sourceMessageId`）已写明；F4 未就绪时有临时触发并标注 TODO。
+- [x] 不破坏 `InlineSqlPreview` 现有结果卡内 SQL 预览/编辑行为。
+- [x] 三脚本（typecheck/test/build）全绿，含新增/更新单测。

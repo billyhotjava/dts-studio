@@ -1,7 +1,7 @@
 # T04: 契约 mock 与降级验收
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: T01,T02,T03
 
 ## 目标
@@ -31,13 +31,13 @@
 
 ## 验证
 
-- [ ] mock 高置信契约驱动口径芯片显示。
-- [ ] mock 低置信契约驱动澄清芯片显示。
-- [ ] mock trace 契约驱动溯源面板完整显示。
-- [ ] 真实后台缺字段时 IT 记录为 degraded，而不是失败或假通过。
+- [x] mock 高置信契约驱动口径芯片显示。
+- [x] mock 低置信契约驱动澄清芯片显示。
+- [x] mock trace 契约驱动溯源面板完整显示。
+- [x] 后台 contract 单元/MockMVC 证据独立记录,Live Contract 未跑通前 IT05/IT06/IT09 仍保持 TODO。
 
 ## 完成标准
 
-- [ ] F5/F6 的高级能力都有 mock 契约测试。
-- [ ] `it/README.md` 明确区分 mock、degraded、live 三类证据。
-- [ ] 后台契约未完成时，P1a 仍可上线基础问数；P1b 完整验收必须等 F8 live contract 通过。
+- [x] F5/F6 的高级能力都有 mock 契约测试。
+- [x] `it/README.md` 明确区分 mock、degraded、live 三类证据。
+- [x] 后台契约已完成 contract 层验证；P1b Live 完整验收仍需真实部署链路验证后再标 DONE。

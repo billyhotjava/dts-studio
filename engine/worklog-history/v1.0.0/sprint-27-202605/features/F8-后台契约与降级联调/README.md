@@ -1,7 +1,7 @@
 # F8: 后台契约与降级联调
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 
 ## 目标
 
@@ -15,14 +15,24 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 聊天响应契约扩展 | P0 | READY | F3-T00 |
-| T02 | 重算与澄清入参契约 | P0 | READY | T01 |
-| T03 | 溯源与纠正契约桩 | P0 | READY | T01 |
-| T04 | 契约 mock 与降级验收 | P0 | READY | T01,T02,T03 |
+| T01 | 聊天响应契约扩展 | P0 | DONE | F3-T00 |
+| T02 | 重算与澄清入参契约 | P0 | DONE | T01 |
+| T03 | 溯源与纠正契约桩 | P0 | DONE | T01 |
+| T04 | 契约 mock 与降级验收 | P0 | DONE | T01,T02,T03 |
 
 ## 完成标准
 
-- [ ] 同步响应、SSE `done`、会话恢复三条链路都能透传 `assumptions` / `confidence` / `clarifications` / `trace`。
-- [ ] 发送链路能透传 `assumptionOverrides` / `clarificationAnswers`，后台未支持时前端有明确降级，不误标全功能完成。
-- [ ] `submitCaliberCorrection` 本期作为 feedback-first 桩存在，P2 再接真正评测集/本体草稿写回。
-- [ ] F5/F6 的 IT 验收区分“mock 契约通过”和“真实后台契约通过”，证据分别落到 `it/README.md`。
+- [x] 同步响应、SSE `done`、会话恢复三条链路都能透传 `assumptions` / `confidence` / `clarifications` / `trace`。
+- [x] 发送链路能透传并消费 `assumptionOverrides` / `clarificationAnswers`，字段缺失或旧后台场景前端有明确降级，不误标全功能完成。
+- [x] `submitCaliberCorrection` 本期作为 feedback-first 桩存在，P2 再接真正评测集/本体草稿写回。
+- [x] F5/F6 的 IT 验收区分“mock 契约通过”和“真实后台契约通过”，证据分别落到 `it/README.md`。
+
+## 实施摘要
+
+- AI 服务新增 `CopilotChatContract`,由 `ConversationPlan` + SQL 构造口径假设、置信度和 trace,并写入 `AiChatMessage` JSONB 字段。
+- `AgentExecutionService` 的 SSE `done`、`AgentChatResource` / `InternalAgentChatResource` 的同步与会话恢复响应均输出同一契约字段。
+- analytics `CopilotChatResource` / `CopilotAgentChatClient` 将 `assumptionOverrides` / `clarificationAnswers` 转发到 AI 内部服务。
+
+## 验证证据
+
+- `it/evidence/20260531-local/f8-backend-contract.md`

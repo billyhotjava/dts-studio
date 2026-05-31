@@ -237,6 +237,11 @@ class AgentExecutionServiceTest {
         assertThat(sse).contains("\"qualityLevel\":\"MEDIUM\"");
         assertThat(sse).contains("\"qualityNotes\":[\"2025年5月以后数据较完整，但回款和坏账字段需交叉校验\"]");
         assertThat(sse).contains("\"sourceRefs\":[\"dbt-model:public.xycyl_dws_flowerbiz_project_monthly\",\"semantic-pack:flowerbiz\"]");
+        assertThat(sse).contains("\"assumptions\"");
+        assertThat(sse).contains("\"confidence\":0.72");
+        assertThat(sse).contains("\"trace\"");
+        assertThat(sse).contains("\"metricCaliber\"");
+        assertThat(sse).contains("\"sql\"");
         ArgumentCaptor<List<Map<String, Object>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<ToolContext> toolContextCaptor = ArgumentCaptor.forClass(ToolContext.class);
         verify(reActEngine).executeStreaming(eq(llmProviderClient), eq("qwen-plus"), messagesCaptor.capture(),
@@ -250,6 +255,72 @@ class AgentExecutionServiceTest {
                 .contains("不要只输出指标说明表，必须包含 ```sql 代码块")
                 .contains("先对目标 dbt 模型调用 schema_lookup")
                 .contains("只能使用 schema_lookup 返回字段");
+    }
+
+    @Test
+    void executeChatStreamAddsUserContractInputsToPromptAndDoneContract() {
+        String question = "继续按确认口径分析利润趋势";
+        Map<String, String> assumptionOverrides = Map.of("period", "2026-05");
+        Map<String, String> clarificationAnswers = Map.of("target", "在租项目");
+        when(ragService.retrieve(anyString(), anyInt())).thenReturn(List.of());
+        when(conversationPlannerService.plan(question, Map.of()))
+                .thenReturn(new ConversationPlan(
+                        PlanMode.AGENT_WORKFLOW,
+                        ResponseKind.BUSINESS_CLARIFICATION,
+                        "请选择要分析的项目范围",
+                        "flowerbiz",
+                        "public.ads_profit",
+                        List.of("在租项目", "全部项目"),
+                        null,
+                        null,
+                        "MART",
+                        "public.ads_profit",
+                        "利润趋势分析",
+                        "L2_ADS",
+                        "LOW",
+                        List.of("利润=收入-成本"),
+                        "line",
+                        "prs.flowerbiz.profit_monthly",
+                        List.of("dbt-model:public.ads_profit")));
+        when(providerConfigRepository.findByIsDefaultTrue())
+                .thenReturn(Optional.of(buildProvider()));
+        when(clientFactory.create(any())).thenReturn(llmProviderClient);
+        when(reActEngine.executeStreaming(eq(llmProviderClient), eq("qwen-plus"), anyList(), any(ToolContext.class),
+                eq(0.2), eq(4096), any()))
+                .thenReturn("""
+                        已按确认口径重算。
+
+                        ```sql
+                        select month_id, profit from public.ads_profit
+                        ```
+                        """);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        service.executeChatStream(
+                "sess-1",
+                "alice",
+                question,
+                Collections.emptyList(),
+                7L,
+                Map.of(),
+                assumptionOverrides,
+                clarificationAnswers,
+                output);
+
+        String sse = output.toString();
+        assertThat(sse)
+                .contains("\"key\":\"period\"")
+                .contains("\"value\":\"2026-05\"")
+                .contains("\"sourceHint\":\"user_override\"")
+                .doesNotContain("\"clarifications\"");
+        ArgumentCaptor<List<Map<String, Object>>> messagesCaptor = ArgumentCaptor.forClass(List.class);
+        verify(reActEngine).executeStreaming(eq(llmProviderClient), eq("qwen-plus"), messagesCaptor.capture(),
+                any(ToolContext.class), eq(0.2), eq(4096), any());
+        assertThat(String.valueOf(messagesCaptor.getValue().getFirst().get("content")))
+                .contains("用户已确认的口径覆盖")
+                .contains("period=2026-05")
+                .contains("用户已回答的澄清项")
+                .contains("target=在租项目");
     }
 
     @Test

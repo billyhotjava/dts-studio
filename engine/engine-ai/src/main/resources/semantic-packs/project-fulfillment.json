@@ -1,75 +1,100 @@
 {
   "domain": "project",
-  "description": "项目履约主题域，覆盖项目、客户、合同、摆位、绿植、结算",
+  "description": "项目履约主题域，覆盖项目、客户、合同、摆位和实摆绿植。Sprint-25 默认使用 PostgreSQL dbt mart，不再使用 legacy v_project_* 视图。",
   "objects": [
     {
-      "name": "项目点",
-      "view": "v_project_overview",
-      "description": "客户现场布置绿植的物理地点，是所有业务操作的归属单位",
-      "keyDimensions": ["project_name", "customer_name", "manager_name", "project_status_name"],
-      "keyMeasures": ["green_count", "total_rent", "position_count"],
-      "commonFilters": ["project_status_name", "settlement_type_name", "contract_end_date"],
-      "defaultTimeField": "project_start_time"
+      "name": "项目总览",
+      "view": "public.xycyl_ads_project_overview",
+      "description": "项目点主数据、客户、合同、摆位和当前实摆汇总的项目级 ADS，适合回答项目经营 TOP、项目清单、项目状态和实摆规模；adminweb 对账字段对齐 ProjectSummary listPage 当前运营口径。",
+      "keyDimensions": ["project_name", "customer_name", "project_status_label", "contract_title", "project_address"],
+      "keyMeasures": ["position_count", "green_row_count", "placed_row_count", "effective_good_number_sum", "rent_amount_raw_sum", "cost_amount_raw_sum", "rent_amount_adminweb_sum", "cost_amount_adminweb_sum", "real_good_number_adminweb_sum"],
+      "commonFilters": ["project_status_code", "customer_name", "project_name"],
+      "defaultTimeField": "imported_at"
     },
     {
-      "name": "在摆绿植",
-      "view": "v_project_green_current",
-      "description": "当前实际在位的绿植清单，每棵植物有独立的摆位、租金和养护人",
-      "keyDimensions": ["project_name", "position_name", "good_name", "curing_user_name"],
-      "keyMeasures": ["good_number", "rent", "cost"],
-      "commonFilters": ["project_name", "curing_user_name", "good_name"],
+      "name": "项目实摆月度",
+      "view": "public.xycyl_dws_project_green_monthly",
+      "description": "项目 x 月粒度的实摆行数、数量、租金和成本汇总；同时保留 raw 合计和 adminweb ProjectSummary 对账口径。",
+      "keyDimensions": ["project_name", "customer_name", "stat_month"],
+      "keyMeasures": ["green_row_count", "placed_row_count", "effective_good_number_sum", "rent_amount_raw_sum", "cost_amount_raw_sum", "rent_amount_adminweb_sum", "cost_amount_adminweb_sum", "real_good_number_adminweb_sum"],
+      "commonFilters": ["project_name", "customer_name", "stat_month"],
+      "defaultTimeField": "stat_month"
+    },
+    {
+      "name": "项目实摆明细",
+      "view": "public.xycyl_dwd_project_green_snapshot",
+      "description": "实摆绿植明细事实，包含项目、摆位、物品、状态、数量、租金、成本、adminweb 对账字段和软外键质量标记。",
+      "keyDimensions": ["project_name", "position_full_name", "goods_name", "status_label", "import_status_code"],
+      "keyMeasures": ["good_number", "total_number", "effective_good_number", "rent_amount_raw", "cost_amount_raw", "rent_amount_adminweb", "cost_amount_adminweb", "real_good_number_adminweb"],
+      "commonFilters": ["project_name", "position_full_name", "goods_name", "status_code"],
       "defaultTimeField": "pose_time"
     },
     {
-      "name": "月度结算",
-      "view": "v_monthly_settlement",
-      "description": "每月每项目的应收/已收/未收金额，是财务查询的核心数据源。金额已由Java结算服务计算完成",
-      "keyDimensions": ["project_name", "customer_name", "settlement_month"],
-      "keyMeasures": ["total_rent", "receivable_amount", "received_amount", "outstanding_amount"],
-      "commonFilters": ["settlement_status_name", "settlement_month", "customer_name"],
-      "defaultTimeField": "settlement_month"
+      "name": "摆位调整",
+      "view": "public.xycyl_dwd_position_adjustment",
+      "description": "摆位调整主表和明细打宽后的 DWD，适合回答调整状态、调整数量、调整类型和异常摆位。",
+      "keyDimensions": ["project_name", "adjustment_status_label", "adjustment_type_raw", "old_position_full_name", "new_position_full_name"],
+      "keyMeasures": ["adjustment_number", "rent_amount_raw", "cost_amount_raw", "total_adjustment_number"],
+      "commonFilters": ["project_name", "adjustment_status_code", "apply_time"],
+      "defaultTimeField": "apply_time"
+    },
+    {
+      "name": "合同到期预警",
+      "view": "public.xycyl_ads_contract_expiry_alert",
+      "description": "合同状态、结束日期和到期预警 ADS，适合回答 30/60/90 天内到期合同。",
+      "keyDimensions": ["contract_code", "contract_title", "customer_name", "contract_status_label", "expiry_alert_label"],
+      "keyMeasures": ["days_to_end_date", "month_settlement_money", "amount_including_tax"],
+      "commonFilters": ["contract_status_code", "expiry_alert_code", "customer_name"],
+      "defaultTimeField": "end_date"
+    },
+    {
+      "name": "项目状态分布",
+      "view": "public.xycyl_ads_project_status_dist",
+      "description": "项目状态和实摆状态的统一分布 ADS。",
+      "keyDimensions": ["status_subject", "status_code", "status_label"],
+      "keyMeasures": ["row_count"],
+      "commonFilters": ["status_subject", "status_code"],
+      "defaultTimeField": "imported_at"
     }
   ],
   "synonyms": [
-    {"term": "项目经理", "field": "manager_name", "views": ["v_project_overview"]},
-    {"term": "业务经理", "field": "biz_user_name", "views": ["v_project_overview"]},
-    {"term": "租金", "field": "total_rent", "views": ["v_monthly_settlement"]},
-    {"term": "应收", "field": "receivable_amount", "views": ["v_monthly_settlement"]},
-    {"term": "欠款", "field": "outstanding_amount", "views": ["v_monthly_settlement"]},
-    {"term": "养护人", "field": "curing_user_name", "views": ["v_project_green_current", "v_curing_coverage"]},
-    {"term": "活跃项目", "field": "project_status_name='正常'", "views": ["v_project_overview"]},
-    {"term": "在服项目", "field": "project_status_name='正常'", "views": ["v_project_overview"]},
-    {"term": "固定月租", "field": "settlement_type_name='固定月租'", "views": ["v_project_overview"]},
-    {"term": "按实摆", "field": "settlement_type_name='按实摆结算'", "views": ["v_project_overview"]}
+    {"term": "项目点", "field": "project_name", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dwd_project_green_snapshot"]},
+    {"term": "客户", "field": "customer_name", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "实摆", "field": "real_good_number_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "在摆", "field": "placed_row_count", "views": ["public.xycyl_ads_project_overview"]},
+    {"term": "绿植数量", "field": "real_good_number_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "租金", "field": "rent_amount_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "成本", "field": "cost_amount_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "租金raw", "field": "rent_amount_raw_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "成本raw", "field": "cost_amount_raw_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "正常项目", "field": "project_status_code = 'PRJ-ACTIVE'", "views": ["public.xycyl_ads_project_overview"]},
+    {"term": "停用项目", "field": "project_status_code = 'PRJ-INACTIVE'", "views": ["public.xycyl_ads_project_overview"]},
+    {"term": "合同到期", "field": "days_to_end_date", "views": ["public.xycyl_ads_contract_expiry_alert"]}
   ],
   "fewShots": [
     {
-      "question": "当前有多少在服项目？",
-      "sql": "SELECT count(*) as 在服项目数 FROM v_project_overview WHERE project_status_name = '正常'"
+      "question": "项目经营 TOP 怎么样？",
+      "sql": "SELECT project_name AS 项目, customer_name AS 客户, green_row_count AS 实摆行数, real_good_number_adminweb_sum AS 实摆数量, ROUND(rent_amount_adminweb_sum::numeric, 2) AS 月租金 FROM public.xycyl_ads_project_overview ORDER BY green_row_count DESC LIMIT 10"
     },
     {
-      "question": "XX项目有多少绿植？",
-      "sql": "SELECT project_name, count(*) as 绿植数, sum(good_number) as 总量 FROM v_project_green_current WHERE project_name LIKE '%XX%' GROUP BY project_name"
+      "question": "XX 项目当前有多少实摆绿植？",
+      "sql": "SELECT project_name AS 项目, green_row_count AS 实摆行数, real_good_number_adminweb_sum AS 实摆数量, position_count AS 摆位数 FROM public.xycyl_ads_project_overview WHERE project_name ILIKE '%' || :project_name || '%'"
     },
     {
-      "question": "上个月各项目租金排行",
-      "sql": "SELECT project_name, total_rent FROM v_monthly_settlement WHERE settlement_month = '2026-02' ORDER BY total_rent DESC"
+      "question": "哪些合同 90 天内到期？",
+      "sql": "SELECT contract_code AS 合同编码, contract_title AS 合同名称, customer_name AS 客户, end_date AS 到期日, days_to_end_date AS 剩余天数 FROM public.xycyl_ads_contract_expiry_alert WHERE days_to_end_date BETWEEN 0 AND :days ORDER BY days_to_end_date ASC"
     },
     {
-      "question": "哪些合同快到期了？",
-      "sql": "SELECT project_name, customer_name, contract_title, contract_end_date, DATEDIFF(contract_end_date, CURDATE()) as 剩余天数 FROM v_project_overview WHERE contract_status_name = '执行中' AND contract_end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 90 DAY) ORDER BY contract_end_date"
+      "question": "项目状态和实摆状态分布",
+      "sql": "SELECT status_subject AS 对象, status_label AS 状态, row_count AS 数量 FROM public.xycyl_ads_project_status_dist ORDER BY status_subject, row_count DESC"
     },
     {
-      "question": "XX客户有几个项目？",
-      "sql": "SELECT customer_name, count(*) as 项目数 FROM v_project_overview WHERE customer_name LIKE '%XX%' GROUP BY customer_name"
+      "question": "XX 项目最近月度实摆趋势",
+      "sql": "SELECT stat_month AS 月份, green_row_count AS 实摆行数, real_good_number_adminweb_sum AS 实摆数量, ROUND(rent_amount_adminweb_sum::numeric, 2) AS 月租金 FROM public.xycyl_dws_project_green_monthly WHERE project_name ILIKE '%' || :project_name || '%' ORDER BY stat_month DESC LIMIT 12"
     },
     {
-      "question": "固定月租的项目有哪些？",
-      "sql": "SELECT project_name, customer_name, month_settlement_money FROM v_project_overview WHERE settlement_type_name = '固定月租' AND project_status_name = '正常'"
-    },
-    {
-      "question": "客户欠款排名",
-      "sql": "SELECT customer_name, sum(outstanding_amount) as 累计欠款 FROM v_monthly_settlement WHERE outstanding_amount > 0 GROUP BY customer_name ORDER BY 累计欠款 DESC"
+      "question": "摆位调整完成情况",
+      "sql": "SELECT adjustment_status_label AS 状态, COUNT(*) AS 明细数, SUM(adjustment_number) AS 调整数量 FROM public.xycyl_dwd_position_adjustment GROUP BY adjustment_status_label ORDER BY 明细数 DESC"
     }
   ]
 }

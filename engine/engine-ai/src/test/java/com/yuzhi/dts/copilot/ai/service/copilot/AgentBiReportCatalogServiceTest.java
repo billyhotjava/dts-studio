@@ -65,12 +65,41 @@ class AgentBiReportCatalogServiceTest {
                 catalog.findBestMatch("项目经营 TOP", "project");
 
         assertThat(match).isPresent();
-        assertThat(match.get().reportCode()).isEqualTo("prs.project.customer_value");
+        assertThat(match.get().reportCode()).isEqualTo("prs.project.overview");
         assertThat(match.get().responseKind()).isEqualTo("FIXED_REPORT");
         assertThat(match.get().dataSurface()).isEqualTo("L2_FIXED_REPORT");
-        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_project_customer");
+        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_project_overview");
         assertThat(match.get().sourceRefs())
-                .contains("fixed-report:PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP");
+                .contains(
+                        "fixed-report:PRS-PROJECT-OVERVIEW",
+                        "dbt-model:public.xycyl_ads_project_overview",
+                        "semantic-pack:project");
+    }
+
+    @Test
+    void matchesProjectContractExpiryQuestionToSprint25DtsMart() {
+        Optional<ReportCatalogEntry> match =
+                catalog.findBestMatch("哪些合同90天内到期", "project");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().reportCode()).isEqualTo("prs.project.contract_expiry_alert");
+        assertThat(match.get().dataSurface()).isEqualTo("L2_FIXED_REPORT");
+        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_contract_expiry_alert");
+        assertThat(match.get().sourceRefs())
+                .contains("dbt-model:public.xycyl_ads_contract_expiry_alert");
+    }
+
+    @Test
+    void matchesProjectStatusQuestionToSprint25DtsMart() {
+        Optional<ReportCatalogEntry> match =
+                catalog.findBestMatch("项目状态和实摆状态分布", "project");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().reportCode()).isEqualTo("prs.project.status_distribution");
+        assertThat(match.get().dataSurface()).isEqualTo("L2_FIXED_REPORT");
+        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_project_status_dist");
+        assertThat(match.get().sourceRefs())
+                .contains("dbt-model:public.xycyl_ads_project_status_dist");
     }
 
     @Test

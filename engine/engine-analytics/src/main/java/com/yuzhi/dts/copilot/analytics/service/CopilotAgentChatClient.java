@@ -49,7 +49,9 @@ public class CopilotAgentChatClient {
             String sessionId,
             String message,
             Long datasourceId,
-            Map<String, Boolean> martHealth) {
+            Map<String, Boolean> martHealth,
+            Map<String, String> assumptionOverrides,
+            Map<String, String> clarificationAnswers) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("userId", userId);
         payload.put("message", message);
@@ -61,6 +63,12 @@ public class CopilotAgentChatClient {
         }
         if (martHealth != null && !martHealth.isEmpty()) {
             payload.put("martHealth", martHealth);
+        }
+        if (assumptionOverrides != null && !assumptionOverrides.isEmpty()) {
+            payload.put("assumptionOverrides", assumptionOverrides);
+        }
+        if (clarificationAnswers != null && !clarificationAnswers.isEmpty()) {
+            payload.put("clarificationAnswers", clarificationAnswers);
         }
         return restClient.post()
                 .uri("/internal/agent/chat/send")
@@ -96,7 +104,10 @@ public class CopilotAgentChatClient {
     }
 
     public void sendMessageStream(String userId, String sessionId, String message,
-                                   Long datasourceId, Map<String, Boolean> martHealth, OutputStream output) {
+                                   Long datasourceId, Map<String, Boolean> martHealth,
+                                   Map<String, String> assumptionOverrides,
+                                   Map<String, String> clarificationAnswers,
+                                   OutputStream output) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("userId", userId);
         payload.put("message", message);
@@ -108,6 +119,12 @@ public class CopilotAgentChatClient {
         }
         if (martHealth != null && !martHealth.isEmpty()) {
             payload.put("martHealth", martHealth);
+        }
+        if (assumptionOverrides != null && !assumptionOverrides.isEmpty()) {
+            payload.put("assumptionOverrides", assumptionOverrides);
+        }
+        if (clarificationAnswers != null && !clarificationAnswers.isEmpty()) {
+            payload.put("clarificationAnswers", clarificationAnswers);
         }
 
         try {

@@ -1,7 +1,7 @@
 # F3: 对话脊柱(CopilotChat 拆分扶正)
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 
 ## 目标
 
@@ -13,8 +13,9 @@
 
 ## 现状与衔接点(已核对源码)
 
-- 主文件 `src/components/copilot/CopilotChat.tsx`(1379 行):`interface Props { hasSessionAccess, focusRequest, promptRequest, presentation, compactReasoning }`;核心方法 `handleSendText` / `handleSend`(发送)、`handleStopStreaming` / `abortStreaming`(停止)、`handleApprove` / `handleCancel`(待审批)、`handleNewChat` / `handleDeleteSession`(会话);流式走 `aiAgentChatSendStream`,同步回退走 `analyticsApi.aiAgentChatSend`(`type CopilotSendBody = Parameters<typeof analyticsApi.aiAgentChatSend>[0]`)。
-- 渲染分三段:会话条(`select` + 新建 + 删除)、数据源条、消息区(`WelcomeCard` / 消息列表 / `pendingAction` 审批 / error)、输入区(`textarea` + `VoiceInputButton` + 发送/停止按钮,约第 1356 行)。
+- 拆分前主文件 `src/components/copilot/CopilotChat.tsx` 为 1379 行;实施后该文件已成为 10 行薄入口,主体在 `ConversationThread` / `MessageList` / `Composer` / `ConversationHeader` / `ApprovalPanel` + `useCopilotStream` / `useCopilotApproval` / `useCopilotSessionState`。
+- 核心交互保持原链路:`handleSendText` / `handleSend`(发送)、`handleStopStreaming` / `abortStreaming`(停止)、`handleApprove` / `handleCancel`(待审批)、`handleNewChat` / `handleDeleteSession`(会话);流式走 `aiAgentChatSendStream`,同步回退走 `analyticsApi.aiAgentChatSend`。
+- 渲染仍分三段:会话条(`select` + 新建 + 删除)、数据源条、消息区(`WelcomeCard` / 消息列表 / `pendingAction` 审批 / error)、输入区(`textarea` + `VoiceInputButton` + 发送/停止按钮)。
 - 已抽出的纯逻辑模块:`CopilotChat.helpers.ts`(常量 + `sortMessages` / `normalizeMicroForm` / `buildInitialApprovalValues` / `getToolMessagesForAssistant` / `getUserQuestionForAssistant` 等)、`copilotStreamControl.ts`(`resolveCopilotSendAction` + `createCopilotStreamWatchdog`)、`copilotReasoningState.ts`(`appendReasoningDelta` / `appendToolProgressLine`)、`copilotComposerState.ts`(`canEditCopilotComposer`)、`copilotInputBehavior.ts`(`shouldSubmitCopilotInputOnEnter`)、`copilotSessionBootstrap.ts`(`shouldRestorePersistedCopilotSession`)、`copilotSessionFocus.ts`(`buildCopilotSessionFocusRequest` 等)。
 - 流式解析:`src/api/copilotSse.ts`(`createSseEventParser`)被 `src/api/modules/copilot.ts` 的 `aiAgentChatSendStream` 使用;`analyticsApi` 通过 `...copilotApi` 聚合并 `export { aiAgentChatSendStream }`。会话历史接口 `copilotApi.listAiAgentSessions(limit)` 返回 `AiAgentChatSession[]`(含 id/title/lastActiveAt),`getAiAgentSession(id)` / `deleteAiAgentSession(id)`。
 - 现有测试护栏:`CopilotChat.presentation.test.ts` 用 `readFileSync` 断言源码/CSS 含特定字符串(`compactReasoning`、`copilot-chat__reasoning-details`、`<CopilotMessageContent content={msg.content} />`),拆分时必须保留这些标记或同步迁移断言。
@@ -29,18 +30,18 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T00 | 现状测试基线 | P0 | READY | - |
-| T01 | 拆分前先建测试护栏 | P0 | READY | T00 |
-| T02 | CopilotChat 拆分 | P0 | READY | T01,F1 |
-| T03 | SSE 流式接入脊柱 | P0 | READY | T02 |
-| T04 | 输入器 + 语音整合 | P0 | READY | T02 |
-| T05 | 会话状态与历史 | P0 | READY | T02 |
+| T00 | 现状测试基线 | P0 | DONE | - |
+| T01 | 拆分前先建测试护栏 | P0 | DONE | T00 |
+| T02 | CopilotChat 拆分 | P0 | DONE | T01,F1 |
+| T03 | SSE 流式接入脊柱 | P0 | DONE | T02 |
+| T04 | 输入器 + 语音整合 | P0 | DONE | T02 |
+| T05 | 会话状态与历史 | P0 | DONE | T02 |
 
 ## 完成标准
 
-- [ ] 删除旧入口和拆分前,T00 现状测试基线已建立并全绿;消息渲染、`handleSendText` 发送、SSE 流式状态(reasoning/token/done)、停止四类关键行为有可执行的 vitest 断言,作为重构基线(T00/T01)。
-- [ ] `CopilotChat.tsx` 拆为 `ConversationThread` / `MessageList` / `Composer` + 会话状态 hooks,每个文件 < 800 行,且对外仍可被 `CopilotSidebar` 与 F1 工作台脊柱插槽复用(T02)。
-- [ ] 流式 reasoning + token + done + 工具进度在新脊柱内正常渲染,超时看门狗、停止、同步回退路径行为不变(T03)。
-- [ ] 输入器整合文字输入(回车提交/Shift+回车换行/输入法 229 防误提交)、语音转写回填、发送/停止/打断重发,行为与拆分前一致(T04)。
-- [ ] 会话 bootstrap(恢复持久化会话)+ focus(回跳来源对话)+「💬历史会话」列表(`listAiAgentSessions`)接入,支持新建 / 切换 / 删除 / 恢复(T05)。
-- [ ] `CopilotChat.presentation.test.ts` 等既有护栏迁移/保留并通过;`pnpm typecheck`、`pnpm test`、`pnpm build` 全绿。
+- [x] 删除旧入口和拆分前,T00 现状测试基线已建立并全绿;消息渲染、`handleSendText` 发送、SSE 流式状态(reasoning/token/done)、停止四类关键行为有可执行的 vitest 断言,作为重构基线(T00/T01)。
+- [x] `CopilotChat.tsx` 拆为薄入口,主体拆为 `ConversationThread` / `MessageList` / `Composer` / `ConversationHeader` / `ApprovalPanel` + `useCopilotStream` / `useCopilotApproval`,每个文件 < 800 行,且对外仍可被 `CopilotSidebar` 与 F1 工作台脊柱插槽复用(T02);会话状态 hook 按 T05 继续收口。
+- [x] 流式 reasoning + token + done + 工具进度在新脊柱内正常渲染,超时看门狗、停止、同步回退路径行为不变(T03 mock/hook 验证;真实 Live Contract 仍在 IT03)。
+- [x] 输入器整合文字输入(回车提交/Shift+回车换行/输入法 229 防误提交)、语音转写回填、发送/停止/打断重发,行为与拆分前一致(T04 component/mock 验证;真实 Live Contract 仍在 IT04)。
+- [x] 会话 bootstrap(恢复持久化会话)+ focus(回跳来源对话)+「💬历史会话」列表(`listAiAgentSessions`)接入,支持新建 / 切换 / 删除 / 恢复(T05 hook/static/node-test 验证;真实 Live Contract 仍在 IT03/IT04)。
+- [x] `CopilotChat.presentation.test.ts` 等既有护栏迁移/保留并通过;`pnpm typecheck`、`pnpm test`、`pnpm build` 全绿。

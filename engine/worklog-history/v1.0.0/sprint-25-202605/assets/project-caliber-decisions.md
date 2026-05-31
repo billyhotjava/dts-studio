@@ -14,6 +14,8 @@
 
 **推荐**：先 B，若业务方有“历史某天”问句再扩展 A。
 
+**2026-05-30 数据画像**：当前 ODS 只有当前/历史摆放记录的 `pose_time`，范围 `2021-04-01` 至 `2024-09-01`；dbt baseline 已按 `pose_time` 产出 `xycyl_dws_project_green_monthly`，但未生成日快照。
+
 **业务方填**：
 
 - 状态：PENDING
@@ -34,6 +36,10 @@
 
 **验证方式**：与 adminweb 项目实摆总览、`ProjectSummaryMapper` / `FlowerSumMapper` 中 `SUM(IFNULL(rent,0)*IFNULL(total_number,0))` 一致性对账。
 
+**2026-05-30 数据画像**：`p_project_green` 共 36295 行，`rent` 空值 4268 行、`cost` 无空值；raw 合计 `rent=623546.44`、`cost=1879939.26`，`total_number_sum=203845`，`good_number_sum=100138`。
+
+**2026-05-31 adminweb 对账结论**：dbt baseline 同时保留 raw 合计和 adminweb 当前运营字段。`xycyl_ads_project_overview.rent_amount_adminweb_sum=1067755.65`、`cost_amount_adminweb_sum=4038819.03` 与 `ProjectSummaryMapper.listPage` 完全一致，live 对账 7/7 PASS。该结果只证明当前运营报表可复现，不把乘法口径自动升级为业务方最终口径。
+
 **业务方填**：
 
 - 状态：PENDING
@@ -53,6 +59,8 @@
 
 **推荐**：C，沿用报花 `_finished` / `_all` 双口径思想。
 
+**2026-05-30 数据画像**：项目状态 ADS 显示正常项目 149、停用项目 73；`xycyl_ads_project_overview` 当前为 active-only 口径，DWD 仍保留孤儿/停用项目质量标记用于追溯。
+
 **业务方填**：
 
 - 状态：PENDING
@@ -69,6 +77,8 @@
 | A | `COUNT(id)` | 明细行数 |
 | B | `COUNT(*) WHERE parent_id <> -1` | 排除顶层组合占位 |
 | C | `SUM(total_number)` | 实际数量 |
+
+**2026-05-30 数据画像**：`p_project_green` 中 `parent_id=-1` 顶层行 16086 行，子项 20209 行；`total_number_sum=203845`、`good_number_sum=100138`，三种组数/数量口径差异很大，不能由开发侧默认拍板。
 
 **业务方填**：
 
@@ -87,6 +97,8 @@
 | 摆位调整月报 | `p_position_adjustment.apply_time` | 调整申请时间 |
 | 入湖健康检查 | `_dts_import_time` | 仅用于数据时效，不作业务时间 |
 
+**2026-05-30 数据画像**：当前实摆月报按 `pose_time` 落入 239 个项目月份；摆位调整按 `apply_time` 可用于月度调整统计；`_dts_import_time` 只用于 ingestion execution `83` 的技术入湖证明。
+
 **业务方填**：
 
 - 状态：PENDING
@@ -97,4 +109,4 @@
 ## 阻塞条件
 
 - 任一决策状态不是 `RESOLVED`：F1 dbt 生产模型不得进入实施。
-- adminweb 固定报表对账误差超过 0.5%：ADS 不得晋升为项目域默认数据面。
+- adminweb 固定报表对账误差超过 0.5%：ADS 不得晋升为项目域默认数据面。2026-05-31 已通过 ProjectSummary 对账，当前剩余阻塞仅为业务方未将 5 个决策置为 `RESOLVED`。

@@ -149,6 +149,10 @@ class AiAuditLogJsonbMappingTest {
                         suggested_display varchar(64),
                         report_code varchar(128),
                         source_refs text,
+                        assumptions jsonb,
+                        confidence double precision,
+                        clarifications jsonb,
+                        trace jsonb,
                         created_at timestamptz
                     )
                     """.formatted(SCHEMA, SCHEMA));
@@ -172,6 +176,10 @@ class AiAuditLogJsonbMappingTest {
             message.setRoutedDomain("project");
             message.setTargetView("v_project_overview");
             message.setTemplateCode("project_overview_topn");
+            message.setAssumptions("[]");
+            message.setConfidence(0.86d);
+            message.setClarifications("[]");
+            message.setTrace("{\"sql\":\"select 1\"}");
             chatSession.addMessage(message);
 
             session.persist(chatSession);

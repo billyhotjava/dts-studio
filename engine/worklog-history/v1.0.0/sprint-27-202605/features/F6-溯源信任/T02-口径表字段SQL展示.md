@@ -1,7 +1,7 @@
 # T02: 口径/表/字段/SQL 展示
 
 **优先级**: P1
-**状态**: READY
+**状态**: DONE
 **依赖**: T01（溯源面板形态就绪）、F8-T01/F8-T03（trace 响应与纠正契约）
 
 ## 目标
@@ -77,17 +77,17 @@ type CopilotTrace = {
 
 ## 验证
 
-- [ ] 单测：给 `TracePanel` 传含 `trace.metricCaliber` 的消息，断言渲染「利润＝收入−成本 · 报花域 · 口径 v3」。
-- [ ] 单测：传 `trace.sources` 渲染表/字段层级；传 `trace.sql` 渲染只读 SQL + 复制。
-- [ ] 降级单测：`trace` 缺失、仅有 `sourceRefs` + `generatedSql` 时，来源与 SQL 仍可展示，且出现「口径结构化待后台补充」提示。
-- [ ] 真实后台未返回 `trace` 时，IT09 记录为 degraded runtime；只有 F8 live contract 返回 `trace` 后才标完整通过。
-- [ ] SQL 分区默认收起，点击展开（符合 D8 按需展开）。
-- [ ] `pnpm typecheck` / `pnpm test` / `pnpm build` 全绿。
+- [x] 单测：给 `TracePanel` 传含 `trace.metricCaliber` 的消息，断言渲染「利润=收入-成本 · 报花域 · 口径 v3」。
+- [x] 单测：传 `trace.sources` 渲染表/字段层级；传 `trace.sql` 渲染只读 SQL。
+- [x] 降级单测：`trace` 缺失、仅有 `sourceRefs` + `generatedSql` 时，来源与 SQL 仍可展示，且出现「口径结构化待后台补充」提示。
+- [x] 真实后台未返回 `trace` 时，IT09 记录为 degraded runtime；只有 F8 live contract 返回 `trace` 后才标完整通过。
+- [x] SQL 分区默认收起，点击展开（符合 D8 按需展开）。
+- [x] `pnpm typecheck` / `pnpm test` / `pnpm build` 全绿。
 
 ## 完成标准
 
-- [ ] 溯源面板分区展示命中口径（本体口径名 + 版本）、来源表/字段、生成 SQL。
-- [ ] 消费 `aiAgentChatSend` / SSE `done` 的 `trace` 结构；契约扩展需求 `trace{ metricCaliber, sources[], sql }` 已写入本 Task 并落到 `types.ts` 类型。
-- [ ] 后台未返回 `trace` 时有完整降级（`sourceRefs` + `generatedSql` + 工具调用兜底）且不报错。
-- [ ] 完整 SQL/溯源默认收起、按需展开（D8）；口径取值与 F5 常驻芯片同源一致。
-- [ ] 三脚本全绿，含新增单测。
+- [x] 溯源面板分区展示命中口径（本体口径名 + 版本）、来源表/字段、生成 SQL。
+- [x] 消费 `aiAgentChatSend` / SSE `done` 的 `trace` 结构；契约扩展需求 `trace{ metricCaliber, sources[], sql }` 已写入本 Task 并落到 `types.ts` 类型。
+- [x] 后台未返回 `trace` 时有完整降级（`sourceRefs` + `generatedSql` + 工具调用兜底）且不报错。
+- [x] 完整 SQL/溯源默认收起、按需展开（D8）；口径取值与 F5 常驻芯片同源一致。
+- [x] 三脚本全绿，含新增单测。

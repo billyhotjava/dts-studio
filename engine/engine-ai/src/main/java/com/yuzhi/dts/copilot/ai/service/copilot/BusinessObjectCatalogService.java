@@ -134,6 +134,40 @@ public class BusinessObjectCatalogService {
                             "adminweb:项目点管理/项目点",
                             "adminapi:/rs-flowers-base/project/project/listPage")),
             entry(
+                    "prs.project.position",
+                    "prs.project.position.profile",
+                    "project",
+                    "项目点管理 > 摆位",
+                    "business-object:prs.project.position",
+                    List.of(
+                            "摆位是项目点实摆、养护和调整的空间维度，适合回答楼栋、楼层、区域和摆位状态画像。",
+                            "经营汇总优先使用 Sprint-25 dbt ADS/DWS；该对象用于明细定位和字段解释。"),
+                    List.of("项目点", "摆位", "楼栋", "楼层", "区域", "养护周期", "养护方式", "合同部门", "创建时间"),
+                    List.of("摆位清单", "楼层分布", "区域分布", "项目点摆位数", "异常摆位排查"),
+                    List.of("摆位", "摆放位置", "楼栋", "楼层", "区域", "项目摆位"),
+                    List.of(
+                            "business-object:prs.project.position",
+                            "dbt-model:public.xycyl_dim_position",
+                            "adminweb:项目点管理/摆位",
+                            "adminapi:/rs-flowers-base/project/position/listPage")),
+            entry(
+                    "prs.project.green_snapshot",
+                    "prs.project.green_snapshot.profile",
+                    "project",
+                    "项目点管理 > 实摆绿植",
+                    "business-object:prs.project.green_snapshot",
+                    List.of(
+                            "实摆绿植明细来自 Sprint-25 dbt DWD，包含项目、摆位、物品、数量、租金、成本和软外键质量标记。",
+                            "金额字段当前为 raw 合计，rent/cost 乘法口径未拍板前不能作为最终财务口径。"),
+                    List.of("项目点", "摆位", "绿植名称", "规格", "单位", "状态", "实摆数量", "总数量", "租金", "成本", "摆放时间"),
+                    List.of("项目当前实摆绿植", "实摆状态分布", "绿植规格分布", "摆位绿植清单", "孤儿外键排查"),
+                    List.of("当前实摆绿植", "实摆绿植", "项目绿植", "在摆绿植", "绿植明细", "绿植状态"),
+                    List.of(
+                            "business-object:prs.project.green_snapshot",
+                            "dbt-model:public.xycyl_dwd_project_green_snapshot",
+                            "adminweb:项目点管理/实摆绿植",
+                            "adminapi:/rs-flowers-base/project/green/listPage")),
+            entry(
                     "prs.project.contract",
                     "prs.project.contract.profile",
                     "project",

@@ -148,7 +148,7 @@ models:
           - unique
 
   - name: xycyl_dwd_project_green_snapshot
-    description: "项目实摆事实快照。金额字段仅保留源表 raw 值，P0 未拍板前不固化 rent/cost 乘法口径。"
+    description: "项目实摆事实快照。保留源表 raw 字段，同时补充 adminweb ProjectSummary 当前运营口径字段用于对账。"
     columns:
       - name: project_green_id
         data_tests:
@@ -175,6 +175,18 @@ models:
           - accepted_values:
               arguments:
                 values: ['PGS-PLACED', 'PGS-CHANGING', 'PGS-ADDING', 'PGS-REDUCING', 'PGS-ADJUSTING', 'PGS-BADDEBT', 'PGS-FINISHED', 'PGS-UNKNOWN']
+      - name: rent_amount_adminweb
+        description: "adminweb ProjectSummary 口径：status=1 且 import_status=2 时 total_number * rent。"
+      - name: cost_amount_adminweb
+        description: "adminweb ProjectSummary 口径：status=1 且 import_status=2 时 total_number * cost。"
+      - name: real_good_number_adminweb
+        description: "adminweb ProjectSummary 实摆总数量口径：status=1、import_status=2、parent_id=-1 时 good_number。"
+      - name: green_number_adminweb
+        description: "adminweb ProjectSummary 绿植数量口径：status=1、import_status=2、good_type=1 时 total_number。"
+      - name: flowerpot_number_adminweb
+        description: "adminweb ProjectSummary 花盆数量口径：status=1、import_status=2、good_type=2 时 total_number。"
+      - name: flowerrack_number_adminweb
+        description: "adminweb ProjectSummary 花架数量口径：status=1、import_status=2、good_type=3 时 total_number。"
 
   - name: xycyl_dwd_position_adjustment
     description: "摆位调整事实，主表 + 明细打宽。"
@@ -190,7 +202,20 @@ models:
                 values: ['PAS-CANCELLED', 'PAS-PENDING', 'PAS-FINISHED', 'PAS-DRAFT', 'PAS-UNKNOWN']
 
   - name: xycyl_dws_project_green_monthly
-    description: "项目 x 月实摆汇总，金额为源表 raw 金额合计，不做数量乘法。"
+    description: "项目 x 月实摆汇总，同时保留 raw 合计和 adminweb ProjectSummary 对账口径。"
+    columns:
+      - name: rent_amount_adminweb_sum
+        description: "按 adminweb ProjectSummary 口径聚合的月租金：SUM(total_number * rent)。"
+      - name: cost_amount_adminweb_sum
+        description: "按 adminweb ProjectSummary 口径聚合的成本：SUM(total_number * cost)。"
+      - name: real_good_number_adminweb_sum
+        description: "按 adminweb ProjectSummary 口径聚合的实摆总数量。"
+      - name: green_number_adminweb_sum
+        description: "按 adminweb ProjectSummary 口径聚合的绿植数量。"
+      - name: flowerpot_number_adminweb_sum
+        description: "按 adminweb ProjectSummary 口径聚合的花盆数量。"
+      - name: flowerrack_number_adminweb_sum
+        description: "按 adminweb ProjectSummary 口径聚合的花架数量。"
 
   - name: xycyl_ads_project_overview
     description: "项目点实摆总览，粒度为项目。"
@@ -199,6 +224,18 @@ models:
         data_tests:
           - not_null
           - unique
+      - name: rent_amount_adminweb_sum
+        description: "adminweb ProjectSummary listPage 可对账月租金。"
+      - name: cost_amount_adminweb_sum
+        description: "adminweb ProjectSummary listPage 可对账成本。"
+      - name: real_good_number_adminweb_sum
+        description: "adminweb ProjectSummary listPage 可对账实摆总数量。"
+      - name: green_number_adminweb_sum
+        description: "adminweb ProjectSummary listPage 可对账绿植数量。"
+      - name: flowerpot_number_adminweb_sum
+        description: "adminweb ProjectSummary listPage 可对账花盆数量。"
+      - name: flowerrack_number_adminweb_sum
+        description: "adminweb ProjectSummary listPage 可对账花架数量。"
 
   - name: xycyl_ads_project_green_change_monthly
     description: "项目实摆状态月度分布，粒度为项目 x 月 x 实摆状态。"

@@ -1,7 +1,7 @@
 # F7: 资产沉淀(存卡片/钉看板/资产库)
 
 **优先级**: P1
-**状态**: READY
+**状态**: DONE
 
 ## 目标
 
@@ -21,16 +21,26 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 存为卡片 | P1 | READY | F4 画布、F5 回答 |
-| T02 | 钉到看板 | P1 | READY | F4 画布、F5 回答、T01 |
-| T03 | 资产库二级入口 | P1 | READY | F1(保留页面组件) |
-| T04 | 导出 | P1 | READY | F4 画布、F5 回答 |
+| T01 | 存为卡片 | P1 | DONE | F4 画布、F5 回答 |
+| T02 | 钉到看板 | P1 | DONE | F4 画布、F5 回答、T01 |
+| T03 | 资产库二级入口 | P1 | DONE | F1(保留页面组件) |
+| T04 | 导出 | P1 | DONE | F4 画布、F5 回答 |
 
 ## 完成标准
 
-- [ ] 画布结果卡动作行的 `[存为卡片] [钉到看板] [导出]` 三个动作全部可用,均从画布当前产物取数据
-- [ ] 「存为卡片」可命名 + 选集合,写入产物 spec / SQL / 命中口径,成功后可在资产库看到该卡片
-- [ ] 「钉到看板」可选已有看板或新建,产物作为一个布局项追加进看板并持久化
-- [ ] 「📁资产库」作为二级入口存在(非一级菜单),以 Tab/分组聚合看板/卡片/集合三类资产的浏览能力
-- [ ] 「导出」支持结果集 CSV 与图表图片两种;复用统一导出工具,无重复样板
-- [ ] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿;新增逻辑(组装卡片/看板 payload、CSV 序列化、布局项追加)有单测覆盖
+- [x] 画布结果卡动作行的 `[存为卡片] [钉到看板] [导出]` 三个动作全部可用,均从画布当前产物取数据
+- [x] 「存为卡片」可命名 + 选集合,写入产物 spec / SQL / 命中口径,成功后可在资产库看到该卡片
+- [x] 「钉到看板」可选已有看板或新建,产物作为一个布局项追加进看板并持久化
+- [x] 「📁资产库」作为二级入口存在(非一级菜单),以 Tab/分组聚合看板/卡片/集合三类资产的浏览能力
+- [x] 「导出」支持结果集 CSV 与图表图片两种;复用统一导出工具,无重复样板
+- [x] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿;新增逻辑(组装卡片/看板 payload、CSV 序列化、布局项追加)有单测覆盖
+
+## 实施摘要
+
+- 新增 `AssetActionModals` 接管画布动作行的存卡片、钉看板、导出入口,并在 `AgentWorkspacePage` 回写成功后的 `cardId`,避免重复建卡。
+- 新增 `assetPayload.ts`、`assetOperations.ts`、`dashboardLayout.ts`、`artifactExport.ts`、`lib/csv.ts`、`lib/download.ts`,把卡片 payload、看板布局追加、CSV 序列化和下载行为拆为可测单元。
+- 新增 `/assets` 的 `AssetLibraryPage`,用 URL tab 聚合 `DashboardsPage` / `CardsPage` / `CollectionsPage`,导航资产入口指向 `/assets`。
+
+## 验证证据
+
+- `it/evidence/20260531-local/f7-asset-actions.md`

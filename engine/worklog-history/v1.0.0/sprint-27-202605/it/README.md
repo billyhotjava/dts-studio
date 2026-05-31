@@ -12,20 +12,21 @@
 
 | ID | 集成检查 | 关联 Feature | 阶段 | 状态 | 证据 |
 |----|----------|--------------|------|------|------|
-| IT00 | F3-T00 现状测试基线建立,删除旧路由前后均通过 | F3 | P1a | TODO | - |
-| IT01 | 进入应用首屏为 agent 工作台冷启动态 | F1,F2 | P1a | TODO | - |
-| IT02 | 旧路由已删 / `/public/*` 仍可访问(逐路由验证) | F1 | P1a | TODO | - |
-| IT03 | 文字提问 → SSE 流式 → 出结果全链路 | F3,F5 | P1a | TODO | - |
-| IT04 | 语音提问 → 出结果 | F2,F3,F5 | P1a | TODO | - |
-| IT05 | 口径芯片可改 → 带 `assumptionOverrides` 重算 → 同 id 画布刷新 | F5,F8 | P1b | TODO | Mock Contract / Live Contract 分别留证 |
-| IT06 | 低置信问题降级为反问 → 带 `clarificationAnswers` 继续执行 | F5,F8 | P1b | TODO | Mock Contract / Live Contract 分别留证 |
-| IT07 | 结果「存为卡片」→ 资产库可见 | F7 | P1c | TODO | - |
-| IT08 | 结果「钉到看板」→ 看板可见 | F7 | P1c | TODO | - |
-| IT09 | 溯源面板展示口径/表/SQL | F6,F8 | P1b | TODO | Mock Contract / Degraded Runtime / Live Contract 分别留证 |
-| IT10 | `pnpm typecheck` + `pnpm test` + `pnpm build` 全绿 | 全部 | 全部 | TODO | - |
+| IT00 | F3-T00/T01 测试护栏建立,T02 拆分结构 guard 通过,T05 会话状态 hook 通过 | F3 | P1a | DONE | `evidence/20260530-local/f3-t00-baseline.md`; `evidence/20260531-local/f3-t01-t02-conversation-split.md`; `evidence/20260531-local/f3-t05-session-state.md` |
+| IT01 | 进入应用首屏为 agent 工作台冷启动态 | F1,F2 | P1a | DONE | `evidence/20260531-local/f2-cold-start-home.md` |
+| IT02 | 旧路由已删 / `/public/*` 仍可访问(逐路由验证) | F1 | P1a | DONE | `evidence/20260531-local/f1-shell-navigation-public.md` |
+| IT03 | 文字提问 → SSE 流式 → 出结果全链路 | F3,F5 | P1a | DONE | Mock/Hook: `evidence/20260531-local/f3-t03-stream-hook.md`; F5 contract: `evidence/20260531-local/f5-t02-optimistic-contract.md`; Live Contract: `evidence/20260531-local/f8-live-contract.md` |
+| IT04 | 语音提问 → 出结果 | F2,F3,F5 | P1a | DONE | Component/Mock + Live: `evidence/20260531-local/f3-t04-composer.md` |
+| IT05 | 口径芯片可改 → 带 `assumptionOverrides` 重算 → 同 id 画布刷新 | F5,F8 | P1b | DONE | Mock Contract: `evidence/20260531-local/f5-t04-recompute-artifact.md`; Backend Contract: `evidence/20260531-local/f8-backend-contract.md`; Live Contract: `evidence/20260531-local/f8-live-contract.md` |
+| IT06 | 低置信问题降级为反问 → 带 `clarificationAnswers` 继续执行 | F5,F8 | P1b | DONE | Mock Contract: `evidence/20260531-local/f5-t03-clarification-chips.md`; Backend Contract: `evidence/20260531-local/f8-backend-contract.md`; Live Contract: `evidence/20260531-local/f8-live-contract.md` |
+| IT07 | 结果「存为卡片」→ 资产库可见 | F7 | P1c | DONE | Mock/Contract + Live: `evidence/20260531-local/f7-asset-actions.md` |
+| IT08 | 结果「钉到看板」→ 看板可见 | F7 | P1c | DONE | Mock/Contract + Live: `evidence/20260531-local/f7-asset-actions.md` |
+| IT09 | 溯源面板展示口径/表/SQL | F6,F8 | P1b | DONE | Mock/Degraded: `evidence/20260531-local/f6-trace-panel.md`; Backend Contract: `evidence/20260531-local/f8-backend-contract.md`; Live Contract: `evidence/20260531-local/f8-live-contract.md` |
+| IT10 | `pnpm typecheck` + `pnpm test` + `pnpm build` 全绿 | 全部 | 全部 | DONE | `evidence/20260531-local/f6-trace-panel.md`; `evidence/20260531-local/f7-asset-actions.md`; `evidence/20260531-local/f8-backend-contract.md` |
 
 ## 验证环境
 
-- 前端:`dts-copilot-webapp`,`pnpm dev`(端口 3003)
+- 前端:`dts-copilot-webapp`,`VITE_CACHE_DIR=.vite-cache pnpm exec vite --host 0.0.0.0 --port 3004 --strictPort --open=false`(本机 3003 已被占用)
 - 验证方式:Playwright E2E + 手工截图存 `../assets/`
-- F8 未完成时,IT05/IT06/IT09 不得以真实后台链路标记为 DONE;只能记录 mock 或 degraded 证据。
+- F8 contract 层已完成并记录 Backend Contract 证据;`evidence/20260531-local/f8-live-contract.md` 已通过 live 容器验证 webapp nginx → analytics → AI 的 SSE 契约字段。
+- Sprint-27 IT00-IT10 均已有对应验证证据;语音 live 边界为 headless Playwright 注入 `SpeechRecognition` 转写事件后走真实 SSE。

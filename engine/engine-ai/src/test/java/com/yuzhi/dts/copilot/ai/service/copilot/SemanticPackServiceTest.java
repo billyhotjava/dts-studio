@@ -41,4 +41,26 @@ class SemanticPackServiceTest {
                 .doesNotContain("CURDATE")
                 .doesNotContain("DATEDIFF");
     }
+
+    @Test
+    void shouldLoadProjectSemanticPackFromSprint25DbtPublicModels() {
+        SemanticPackService service = new SemanticPackService(new ObjectMapper());
+
+        service.init();
+
+        String context = service.getContextForDomain("project");
+        assertThat(service.getDomains()).contains("project");
+        assertThat(context)
+                .contains("public.xycyl_ads_project_overview")
+                .contains("public.xycyl_dws_project_green_monthly")
+                .contains("public.xycyl_ads_contract_expiry_alert")
+                .contains("rent_amount_adminweb_sum")
+                .contains("cost_amount_adminweb_sum")
+                .contains("real_good_number_adminweb_sum")
+                .contains("PostgreSQL")
+                .doesNotContain("v_project_overview")
+                .doesNotContain("v_project_green_current")
+                .doesNotContain("DATEDIFF")
+                .doesNotContain("CURDATE");
+    }
 }

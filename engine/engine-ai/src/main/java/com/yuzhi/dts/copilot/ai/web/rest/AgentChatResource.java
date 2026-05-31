@@ -6,6 +6,7 @@ import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.security.CopilotUserContext;
 import com.yuzhi.dts.copilot.ai.security.CopilotUserContextHolder;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
 import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionApprovalService;
 import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionExecutor;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.OutputStream;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,11 +59,19 @@ public class AgentChatResource {
         log.info("Chat send: sessionId={}, userId={}", request.sessionId(), request.userId());
 
         String response = agentChatService.sendMessage(
-                request.sessionId(), request.userId(), request.message(), request.datasourceId());
+                request.sessionId(),
+                request.userId(),
+                request.message(),
+                request.datasourceId(),
+                Collections.emptyMap(),
+                request.assumptionOverrides(),
+                request.clarificationAnswers());
 
+        String resolvedSessionId = resolveSessionIdForResponse(request.sessionId(), request.userId());
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("sessionId", resolveSessionIdForResponse(request.sessionId(), request.userId()));
+        result.put("sessionId", resolvedSessionId);
         result.put("response", response);
+        putLatestAssistantContractFields(result, resolvedSessionId);
         result.put("timestamp", Instant.now().toString());
 
         return ResponseEntity.ok(result);
@@ -83,7 +93,14 @@ public class AgentChatResource {
         try {
             OutputStream output = response.getOutputStream();
             agentChatService.sendMessageStream(
-                    request.sessionId(), request.userId(), request.message(), request.datasourceId(), output);
+                    request.sessionId(),
+                    request.userId(),
+                    request.message(),
+                    request.datasourceId(),
+                    Collections.emptyMap(),
+                    request.assumptionOverrides(),
+                    request.clarificationAnswers(),
+                    output);
         } catch (Exception e) {
             log.error("Stream chat failed: {}", e.getMessage(), e);
         }
@@ -160,6 +177,7 @@ public class AgentChatResource {
         map.put("suggestedDisplay", msg.getSuggestedDisplay());
         map.put("reportCode", msg.getReportCode());
         map.put("sourceRefs", msg.getSourceRefs());
+        CopilotChatContract.putMessageFields(msg, map);
         map.put("createdAt", msg.getCreatedAt() != null ? msg.getCreatedAt().toString() : null);
         return map;
     }
@@ -210,7 +228,9 @@ public class AgentChatResource {
             String sessionId,
             String userId,
             String message,
-            @JsonProperty("datasourceId") Long datasourceId
+            @JsonProperty("datasourceId") Long datasourceId,
+            Map<String, String> assumptionOverrides,
+            Map<String, String> clarificationAnswers
     ) {}
 
     public record ApproveActionRequest(
@@ -290,5 +310,16 @@ public class AgentChatResource {
                 .findFirst()
                 .map(AiChatSession::getSessionId)
                 .orElse(null);
+    }
+
+    private void putLatestAssistantContractFields(Map<String, Object> result, String sessionId) {
+        if (!StringUtils.hasText(sessionId)) {
+            return;
+        }
+        agentChatService.getSession(sessionId)
+                .flatMap(session -> session.getMessages().stream()
+                        .filter(message -> "assistant".equals(message.getRole()))
+                        .reduce((first, second) -> second))
+                .ifPresent(message -> CopilotChatContract.putMessageFields(message, result));
     }
 }

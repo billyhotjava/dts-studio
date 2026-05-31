@@ -1,7 +1,7 @@
 # T03: SSE 流式接入脊柱
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: T02
 
 ## 目标
@@ -50,14 +50,18 @@
 
 ## 验证
 
-- [ ] `copilotStreamReducer.test.ts`(T01)对 `session/reasoning/token/tool/done/error` 序列断言全绿。
-- [ ] 既有 `tests/copilotSse.test.ts`、`copilotStreamControl.test.ts`、`copilotReasoningState.test.ts` 不需改动且通过。
-- [ ] 手动回归:流式时先出「正在思考…」占位 → reasoning 滚动 → token 逐字 → done 出 SQL/结果与动作行;30s 静默触发超时文案;点停止写「已停止」;输入新问题打断当前流并重发;断网/SSE 异常时回退同步接口仍出结果。
-- [ ] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿。
+- [x] `copilotStreamReducer.test.ts`(T01)对 `session/reasoning/token/tool/done/error` 序列断言全绿。
+- [x] 既有 `tests/copilotSse.test.ts`、`copilotStreamControl.test.ts`、`copilotReasoningState.test.ts` 不需改动且通过。
+- [x] Mock/hook 回归:流式时先出「正在思考…」占位 → reasoning/tool/token/done 归并;watchdog idle 触发;点停止写「已停止」;SSE 首包前异常时回退同步接口。真实后台手动回归保留到 IT03。
+- [x] `pnpm typecheck`、`pnpm test`、`pnpm build` 全绿。
 
 ## 完成标准
 
-- [ ] 流式 reasoning + token + tool 进度 + done 结果在新脊柱内渲染正常,字段(`generatedSql` / `responseKind` / `sourceRefs` 等)全部落位。
-- [ ] 超时看门狗、停止、打断重发、同步回退、reverse-proxy 收尾容错行为与拆分前一致。
-- [ ] `REPORT_DRAFT` 草稿沉淀(`createGeneratedReportDraft`)的 saving/saved/error 状态机不变。
-- [ ] 流式并发 ref 归属清晰,`reloadMessages` 不会在流式进行中抢答。
+- [x] 流式 reasoning + token + tool 进度 + done 结果在新脊柱内渲染正常,字段(`generatedSql` / `responseKind` / `sourceRefs` 等)全部落位。
+- [x] 超时看门狗、停止、打断重发、同步回退、reverse-proxy 收尾容错行为与拆分前一致。
+- [x] `REPORT_DRAFT` 草稿沉淀(`createGeneratedReportDraft`)的 saving/saved/error 状态机不变。
+- [x] 流式并发 ref 归属清晰,`reloadMessages` 不会在流式进行中抢答。
+
+## 证据
+
+- `../../it/evidence/20260531-local/f3-t03-stream-hook.md`

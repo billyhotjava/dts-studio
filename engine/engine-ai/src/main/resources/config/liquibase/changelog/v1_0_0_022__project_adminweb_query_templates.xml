@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-022-project-adminweb-reconcile-query-templates" author="dts-copilot-prs">
+        <comment>Align project-domain query templates with adminweb ProjectSummary reconciliation fields.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT project_name AS "项目", customer_name AS "客户", green_row_count AS "实摆行数", real_good_number_adminweb_sum AS "实摆数量", ROUND(rent_amount_adminweb_sum::numeric, 2) AS "月租金", ROUND(cost_amount_adminweb_sum::numeric, 2) AS "成本" FROM public.xycyl_ads_project_overview ORDER BY green_row_count DESC LIMIT :top_n$tpl$,
+    description = '项目经营 TOP（dbt mart，adminweb ProjectSummary 对账口径）',
+    updated_at = now()
+WHERE template_code = 'TPL-44';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT project_name AS "项目", customer_name AS "客户", stat_month AS "月份", status_label AS "实摆状态", green_row_count AS "实摆行数", real_good_number_adminweb_sum AS "实摆数量", ROUND(rent_amount_adminweb_sum::numeric, 2) AS "月租金" FROM public.xycyl_ads_project_green_change_monthly WHERE (:project_name IS NULL OR project_name ILIKE '%' || :project_name || '%') ORDER BY stat_month DESC, green_row_count DESC LIMIT :top_n$tpl$,
+    description = '绿植加减调换月报（dbt mart，adminweb ProjectSummary 对账口径）',
+    updated_at = now()
+WHERE template_code = 'TPL-47';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT stat_month AS "月份", project_name AS "项目", green_row_count AS "实摆行数", real_good_number_adminweb_sum AS "实摆数量", ROUND(rent_amount_adminweb_sum::numeric, 2) AS "月租金", ROUND(cost_amount_adminweb_sum::numeric, 2) AS "成本" FROM public.xycyl_dws_project_green_monthly WHERE project_name ILIKE '%' || :project_name || '%' ORDER BY stat_month DESC LIMIT :months$tpl$,
+    description = '项目月度实摆趋势（dbt mart，adminweb ProjectSummary 对账口径）',
+    updated_at = now()
+WHERE template_code = 'TPL-48';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT customer_name AS "客户", project_name AS "项目", project_status_label AS "项目状态", green_row_count AS "实摆行数", real_good_number_adminweb_sum AS "实摆数量" FROM public.xycyl_ads_project_overview WHERE customer_name ILIKE '%' || :customer_name || '%' ORDER BY project_name$tpl$,
+    description = '客户项目清单（dbt mart，adminweb ProjectSummary 对账口径）',
+    updated_at = now()
+WHERE template_code = 'TPL-50';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

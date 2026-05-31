@@ -69,7 +69,9 @@ public class CopilotChatResource {
                 body == null ? null : body.sessionId(),
                 body == null ? null : body.userMessage(),
                 datasourceId,
-                buildMartHealthSnapshot()));
+                buildMartHealthSnapshot(),
+                body == null ? null : body.assumptionOverrides(),
+                body == null ? null : body.clarificationAnswers()));
     }
 
     @PostMapping(path = "/send-stream", consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -95,6 +97,8 @@ public class CopilotChatResource {
                         body == null ? null : body.userMessage(),
                         datasourceId,
                         buildMartHealthSnapshot(),
+                        body == null ? null : body.assumptionOverrides(),
+                        body == null ? null : body.clarificationAnswers(),
                         outputStream);
             } catch (Exception ex) {
                 if (AgentChatInterrupts.isInterrupted(ex)) {
@@ -194,7 +198,12 @@ public class CopilotChatResource {
         return snapshot;
     }
 
-    public record ChatSendRequest(String sessionId, String userMessage, String datasourceId) {}
+    public record ChatSendRequest(
+            String sessionId,
+            String userMessage,
+            String datasourceId,
+            Map<String, String> assumptionOverrides,
+            Map<String, String> clarificationAnswers) {}
 
     @FunctionalInterface
     private interface ResponseSupplier {

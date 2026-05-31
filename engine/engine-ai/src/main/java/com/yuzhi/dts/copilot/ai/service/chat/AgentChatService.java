@@ -6,6 +6,7 @@ import com.yuzhi.dts.copilot.ai.repository.AiChatSessionRepository;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService.ChatExecutionResult;
 import com.yuzhi.dts.copilot.ai.service.audit.AiAuditService;
+import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,21 @@ public class AgentChatService {
     @Transactional
     public String sendMessage(String sessionId, String userId, String message, Long datasourceId,
                               Map<String, Boolean> martHealthSnapshot) {
+        return sendMessage(
+                sessionId,
+                userId,
+                message,
+                datasourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                Collections.emptyMap());
+    }
+
+    @Transactional
+    public String sendMessage(String sessionId, String userId, String message, Long datasourceId,
+                              Map<String, Boolean> martHealthSnapshot,
+                              Map<String, String> assumptionOverrides,
+                              Map<String, String> clarificationAnswers) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
 
         // If the request carries a datasourceId, update the session so it persists
@@ -82,8 +98,13 @@ public class AgentChatService {
         Long effectiveDataSourceId = datasourceId != null ? datasourceId : session.getDataSourceId();
 
         // Execute agent
-        ChatExecutionResult executionResult = agentExecutionService.executeChat(
-                session.getSessionId(), userId, message, history, effectiveDataSourceId, martHealthSnapshot);
+        ChatExecutionResult executionResult = hasContractInputs(assumptionOverrides, clarificationAnswers)
+                ? agentExecutionService.executeChat(
+                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                        martHealthSnapshot, assumptionOverrides, clarificationAnswers)
+                : agentExecutionService.executeChat(
+                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                        martHealthSnapshot);
         String response = executionResult.response();
 
         // Persist assistant message
@@ -93,6 +114,11 @@ public class AgentChatService {
         assistantMsg.setGeneratedSql(executionResult.generatedSql());
         assistantMsg.setReasoningContent(executionResult.reasoningContent());
         applyGroundingMetadata(assistantMsg, executionResult.conversationPlan());
+        CopilotChatContract.applyToMessage(
+                assistantMsg,
+                executionResult.conversationPlan(),
+                executionResult.generatedSql(),
+                executionResult.requestContext());
         session.addMessage(assistantMsg);
 
         // Auto-generate title from first message
@@ -125,6 +151,22 @@ public class AgentChatService {
     public void sendMessageStream(String sessionId, String userId, String message,
                                   Long datasourceId, Map<String, Boolean> martHealthSnapshot,
                                   OutputStream output) {
+        sendMessageStream(
+                sessionId,
+                userId,
+                message,
+                datasourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                output);
+    }
+
+    public void sendMessageStream(String sessionId, String userId, String message,
+                                  Long datasourceId, Map<String, Boolean> martHealthSnapshot,
+                                  Map<String, String> assumptionOverrides,
+                                  Map<String, String> clarificationAnswers,
+                                  OutputStream output) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
         if (datasourceId != null) {
             session.setDataSourceId(datasourceId);
@@ -152,8 +194,13 @@ public class AgentChatService {
         // Execute with real streaming
         ChatExecutionResult executionResult;
         try {
-            executionResult = agentExecutionService.executeChatStream(
-                    session.getSessionId(), userId, message, history, effectiveDataSourceId, martHealthSnapshot, output);
+            executionResult = hasContractInputs(assumptionOverrides, clarificationAnswers)
+                    ? agentExecutionService.executeChatStream(
+                            session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                            martHealthSnapshot, assumptionOverrides, clarificationAnswers, output)
+                    : agentExecutionService.executeChatStream(
+                            session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                            martHealthSnapshot, output);
         } catch (Exception e) {
             if (isStreamInterrupted(e)) {
                 restoreInterruptFlag(e);
@@ -178,6 +225,11 @@ public class AgentChatService {
         assistantMsg.setGeneratedSql(executionResult.generatedSql());
         assistantMsg.setReasoningContent(executionResult.reasoningContent());
         applyGroundingMetadata(assistantMsg, executionResult.conversationPlan());
+        CopilotChatContract.applyToMessage(
+                assistantMsg,
+                executionResult.conversationPlan(),
+                executionResult.generatedSql(),
+                executionResult.requestContext());
         session.addMessage(assistantMsg);
 
         if (session.getTitle() == null || session.getTitle().isBlank()) {
@@ -238,6 +290,13 @@ public class AgentChatService {
                 "SESSION_CREATE", null, null);
 
         return sessionRepository.save(session);
+    }
+
+    private boolean hasContractInputs(
+            Map<String, String> assumptionOverrides,
+            Map<String, String> clarificationAnswers) {
+        return (assumptionOverrides != null && !assumptionOverrides.isEmpty())
+                || (clarificationAnswers != null && !clarificationAnswers.isEmpty());
     }
 
     private List<Map<String, Object>> buildHistory(AiChatSession session) {

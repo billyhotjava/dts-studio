@@ -43,6 +43,37 @@ SELECT
   g.good_number,
   g.total_number,
   COALESCE(g.total_number, g.good_number, 0) AS effective_good_number,
+  (g.status_raw = 1 AND g.import_status_raw = 2) AS is_adminweb_project_summary_row,
+  CASE
+    WHEN g.status_raw = 1 AND g.import_status_raw = 2
+      THEN (COALESCE(g.total_number, 0) * COALESCE(g.rent_amount_raw, 0))::numeric(18,2)
+    ELSE 0::numeric(18,2)
+  END AS rent_amount_adminweb,
+  CASE
+    WHEN g.status_raw = 1 AND g.import_status_raw = 2
+      THEN (COALESCE(g.total_number, 0) * COALESCE(g.cost_amount_raw, 0))::numeric(18,2)
+    ELSE 0::numeric(18,2)
+  END AS cost_amount_adminweb,
+  CASE
+    WHEN g.status_raw = 1 AND g.import_status_raw = 2 AND g.parent_project_green_id = -1
+      THEN COALESCE(g.good_number, 0)
+    ELSE 0
+  END AS real_good_number_adminweb,
+  CASE
+    WHEN g.status_raw = 1 AND g.import_status_raw = 2 AND g.good_type_raw = 1
+      THEN COALESCE(g.total_number, 0)
+    ELSE 0
+  END AS green_number_adminweb,
+  CASE
+    WHEN g.status_raw = 1 AND g.import_status_raw = 2 AND g.good_type_raw = 2
+      THEN COALESCE(g.total_number, 0)
+    ELSE 0
+  END AS flowerpot_number_adminweb,
+  CASE
+    WHEN g.status_raw = 1 AND g.import_status_raw = 2 AND g.good_type_raw = 3
+      THEN COALESCE(g.total_number, 0)
+    ELSE 0
+  END AS flowerrack_number_adminweb,
   g.lock_change_number,
   g.lock_cut_number,
   g.lock_transfer_number,

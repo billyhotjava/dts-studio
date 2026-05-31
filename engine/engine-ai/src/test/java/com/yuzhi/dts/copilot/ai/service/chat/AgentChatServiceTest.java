@@ -128,6 +128,122 @@ class AgentChatServiceTest {
     }
 
     @Test
+    void sendMessagePersistsSprint27ContractMetadataOnAssistantMessage() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-1");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        when(sessionRepository.findBySessionId("sess-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(agentExecutionService.executeChat(
+                eq("sess-1"), eq("alice"), eq("利润趋势"), anyList(), eq(7L), anyMap()))
+                .thenReturn(new ChatExecutionResult(
+                        "已生成利润趋势。",
+                        "select month_id, profit from public.ads_profit",
+                        new ConversationPlan(
+                                PlanMode.AGENT_WORKFLOW,
+                                ResponseKind.REPORT_DRAFT,
+                                null,
+                                "flowerbiz",
+                                "public.ads_profit",
+                                List.of(),
+                                null,
+                                null,
+                                "MART",
+                                "public.ads_profit",
+                                "利润趋势分析",
+                                "L2_ADS",
+                                "HIGH",
+                                List.of("利润=收入-成本"),
+                                "line",
+                                "prs.flowerbiz.profit_monthly",
+                                List.of("dbt-model:public.ads_profit")),
+                        null));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+
+        service.sendMessage("sess-1", "alice", "利润趋势", 7L, Map.of());
+
+        AiChatMessage assistantMessage = session.getMessages().get(1);
+        assertThat(assistantMessage.getAssumptions()).contains("\"key\":\"dataSurface\"");
+        assertThat(assistantMessage.getConfidence()).isEqualTo(0.86d);
+        assertThat(assistantMessage.getTrace())
+                .contains("\"domain\":\"flowerbiz\"")
+                .contains("\"table\":\"public.ads_profit\"")
+                .contains("\"sql\":\"select month_id, profit from public.ads_profit\"");
+    }
+
+    @Test
+    void sendMessagePassesAssumptionOverridesAndClarificationAnswersToExecution() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-1");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        Map<String, Boolean> martHealth = Map.of("ads_project_monthly", true);
+        Map<String, String> assumptionOverrides = Map.of("period", "2026-05");
+        Map<String, String> clarificationAnswers = Map.of("target", "在租项目");
+
+        when(sessionRepository.findBySessionId("sess-1")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(agentExecutionService.executeChat(
+                eq("sess-1"),
+                eq("alice"),
+                eq("利润趋势"),
+                anyList(),
+                eq(7L),
+                eq(martHealth),
+                eq(assumptionOverrides),
+                eq(clarificationAnswers)))
+                .thenReturn(new ChatExecutionResult(
+                        "已按确认口径重算。",
+                        "select month_id, profit from public.ads_profit",
+                        new ConversationPlan(
+                                PlanMode.AGENT_WORKFLOW,
+                                ResponseKind.REPORT_DRAFT,
+                                null,
+                                "flowerbiz",
+                                "public.ads_profit",
+                                List.of(),
+                                null,
+                                null,
+                                "MART",
+                                "public.ads_profit",
+                                "利润趋势分析",
+                                "L2_ADS",
+                                "HIGH",
+                                List.of("利润=收入-成本"),
+                                "line",
+                                "prs.flowerbiz.profit_monthly",
+                                List.of("dbt-model:public.ads_profit")),
+                        null));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+
+        service.sendMessage("sess-1", "alice", "利润趋势", 7L,
+                martHealth, assumptionOverrides, clarificationAnswers);
+
+        verify(agentExecutionService).executeChat(
+                eq("sess-1"),
+                eq("alice"),
+                eq("利润趋势"),
+                anyList(),
+                eq(7L),
+                eq(martHealth),
+                eq(assumptionOverrides),
+                eq(clarificationAnswers));
+    }
+
+    @Test
     void sendMessageStreamDoesNotPersistAssistantErrorWhenStreamingIsInterrupted() {
         AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
         AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
