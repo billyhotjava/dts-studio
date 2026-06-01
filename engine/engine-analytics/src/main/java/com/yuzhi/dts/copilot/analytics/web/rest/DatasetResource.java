@@ -1,6 +1,8 @@
 package com.yuzhi.dts.copilot.analytics.web.rest;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.yuzhi.dts.copilot.analytics.service.AnalyticsDatabaseAliasResolver;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.DatasetQueryService;
 import com.yuzhi.dts.copilot.analytics.service.QueryCacheService;
@@ -41,16 +43,19 @@ public class DatasetResource {
     private final QueryCacheService queryCacheService;
     private final QueryPermissionService queryPermissionService;
     private final QueryExecutionFacade queryExecutionFacade;
+    private final AnalyticsDatabaseAliasResolver databaseAliasResolver;
 
     public DatasetResource(
             AnalyticsSessionService sessionService,
             QueryCacheService queryCacheService,
             QueryPermissionService queryPermissionService,
-            QueryExecutionFacade queryExecutionFacade) {
+            QueryExecutionFacade queryExecutionFacade,
+            AnalyticsDatabaseAliasResolver databaseAliasResolver) {
         this.sessionService = sessionService;
         this.queryCacheService = queryCacheService;
         this.queryPermissionService = queryPermissionService;
         this.queryExecutionFacade = queryExecutionFacade;
+        this.databaseAliasResolver = databaseAliasResolver;
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -74,7 +79,19 @@ public class DatasetResource {
                     request);
         }
 
-        long databaseId = body.path("database").asLong(0);
+        long databaseId;
+        try {
+            databaseId = databaseAliasResolver.resolveDatabaseId(body.path("database"));
+        } catch (IllegalArgumentException e) {
+            return buildApiError(
+                    HttpStatus.BAD_REQUEST,
+                    "REQ_INVALID_ARGUMENT",
+                    e.getMessage(),
+                    false,
+                    request);
+        }
+        ObjectNode normalizedBody = body.deepCopy();
+        normalizedBody.put("database", databaseId);
         String type = body.path("type").asText(null);
         if (type == null || type.isBlank()) {
             if (body.has("native")) {
@@ -96,7 +113,7 @@ public class DatasetResource {
         // Check query permissions
         Long userId = MetabaseAuth.getUserId(sessionService, request).orElse(null);
         QueryPermissionService.QueryPermissionCheck permissionCheck = queryPermissionService
-                .checkQueryPermission(userId, databaseId, body);
+                .checkQueryPermission(userId, databaseId, normalizedBody);
         if (!permissionCheck.allowed()) {
             return buildApiError(
                     HttpStatus.FORBIDDEN,
@@ -106,7 +123,7 @@ public class DatasetResource {
                     request);
         }
 
-        DatasetQueryService.DatasetConstraints constraints = parseConstraints(body);
+        DatasetQueryService.DatasetConstraints constraints = parseConstraints(normalizedBody);
         OffsetDateTime startedAt = OffsetDateTime.now();
         long startedMillis = System.currentTimeMillis();
 
@@ -115,7 +132,7 @@ public class DatasetResource {
 
         try {
             QueryExecutionFacade.PreparedQuery prepared =
-                    queryExecutionFacade.prepare(body, body, null, constraints);
+                    queryExecutionFacade.prepare(normalizedBody, normalizedBody, null, constraints);
             databaseId = prepared.databaseId();
 
             Map<String, Object> jsonQuery = new LinkedHashMap<>();
@@ -136,14 +153,14 @@ public class DatasetResource {
             DatasetQueryService.DatasetResult result;
             boolean cached = false;
             if (!skipCache) {
-                Optional<DatasetQueryService.DatasetResult> cachedResult = queryCacheService.get(databaseId, body,
+                Optional<DatasetQueryService.DatasetResult> cachedResult = queryCacheService.get(databaseId, normalizedBody,
                         userId);
                 if (cachedResult.isPresent()) {
                     result = cachedResult.get();
                     cached = true;
                 } else {
                     result = queryExecutionFacade.executeRaw(prepared);
-                    queryCacheService.put(databaseId, body, userId, result);
+                    queryCacheService.put(databaseId, normalizedBody, userId, result);
                 }
             } else {
                 result = queryExecutionFacade.executeRaw(prepared);

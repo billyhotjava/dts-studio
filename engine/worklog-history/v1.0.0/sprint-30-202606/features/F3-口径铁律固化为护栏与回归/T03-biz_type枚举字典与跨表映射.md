@@ -1,7 +1,7 @@
 # T03: biz_type 枚举字典与跨表映射
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: 无
 
 ## 目标
@@ -20,9 +20,14 @@
 
 ## 验证
 
-- [ ] 字典覆盖全部勘探发现的多义枚举,标明出处行号
-- [ ] 与 T01 guardrail 交叉引用一致
+- [x] 字典覆盖全部勘探发现的多义枚举,标明出处行号
+- [x] 与 T01 guardrail 交叉引用一致
 
 ## 完成标准
 
-- [ ] biz_type 三套枚举对照字典成文,纳入语义层可被引用
+- [x] biz_type 三套枚举对照字典成文,纳入语义层可被引用
+
+## 证据
+
+- `assets/biz-type-enum-dictionary.md`
+- `it/test_f3_caliber_guardrails.sh`

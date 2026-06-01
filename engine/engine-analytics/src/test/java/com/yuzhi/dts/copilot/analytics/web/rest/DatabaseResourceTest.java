@@ -414,6 +414,86 @@ class DatabaseResourceTest {
         assertThat(captor.getValue().getDatabaseRole()).isEqualTo(AnalyticsDatabaseRole.SYSTEM_RUNTIME);
     }
 
+    @Test
+    void updatePreservesConfiguredLogicalDatasourceAliasesWhenRefreshingConnectionDetails() throws Exception {
+        DatabaseResource resource = new DatabaseResource(
+                sessionService,
+                databaseRepository,
+                tableRepository,
+                fieldRepository,
+                cardRepository,
+                dashboardCardRepository,
+                alertRepository,
+                alertSubscriptionRepository,
+                synonymRepository,
+                metadataSyncService,
+                jdbcDetailsResolver,
+                platformInfraClient,
+                MAPPER);
+
+        AnalyticsUser user = new AnalyticsUser();
+        user.setId(1L);
+        user.setUsername("admin");
+        user.setPasswordHash("secret");
+        user.setSuperuser(true);
+        user.setActive(true);
+        when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
+
+        AnalyticsDatabase database = new AnalyticsDatabase();
+        database.setId(8L);
+        database.setName("DTS dbt模型库");
+        database.setEngine("postgres");
+        database.setDatabaseRole(AnalyticsDatabaseRole.BUSINESS_SECONDARY);
+        database.setDetailsJson("""
+                {
+                  "dataSourceId": 17,
+                  "logicalSourceAliases": ["prs.flowerbiz.federated", "prs.flowerbiz.mart"]
+                }
+                """);
+        when(databaseRepository.findById(8L)).thenReturn(Optional.of(database));
+        when(platformInfraClient.fetchDataSourceDetail(18L)).thenReturn(new PlatformInfraClient.DataSourceDetail(
+                "18",
+                "联邦查询入口",
+                "postgres",
+                "jdbc:postgresql://federated-query:5432/biadmin",
+                "readonly",
+                null,
+                null,
+                Map.of(),
+                Map.of(),
+                "ACTIVE",
+                null));
+        when(databaseRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DatabaseResource.DatabaseRequest body = new DatabaseResource.DatabaseRequest(
+                null,
+                null,
+                MAPPER.readTree("""
+                        {
+                          "dataSourceId": 18
+                        }
+                        """),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+
+        ResponseEntity<?> response = resource.update(8L, body, new MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        org.mockito.ArgumentCaptor<AnalyticsDatabase> captor = org.mockito.ArgumentCaptor.forClass(AnalyticsDatabase.class);
+        verify(databaseRepository).save(captor.capture());
+        assertThat(captor.getValue().getDetailsJson())
+                .contains("\"dataSourceId\":18")
+                .contains("logicalSourceAliases")
+                .contains("prs.flowerbiz.federated")
+                .contains("prs.flowerbiz.mart");
+    }
+
     private static void setEntityId(Object entity, Long id) throws Exception {
         Field field = entity.getClass().getDeclaredField("id");
         field.setAccessible(true);

@@ -367,11 +367,27 @@
 | F3-指标优先路由(后端) | 3 | P0 | P2 | DONE |
 | F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | DONE |
 | F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | DONE |
-| F6-PRS固定报表资产库收口(前端) | 1 | P0 | P1b | DONE |
+| F6-PRS固定报表资产库收口(前端+数据面) | 3 | P0 | P1b/P1c | DONE |
 
-**统计**: READY=0, IN_PROGRESS=0, DONE=20, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=22, BLOCKED=0
 
-> Code DONE / Live Auth DONE / PRS Asset F6 DONE / Platform Business Metric Sample BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;PRS 固定报表资产库入口已收口;平台真实已发布指标样本仍等待平台侧补齐。
+> Code DONE / Live Auth DONE / PRS Asset F6 DONE / Platform Business Metric Sample BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;PRS 固定报表资产库入口、旧模板死链降级、12 个 v1 大屏原型落成 `analytics_screen` 均已收口;平台真实已发布指标样本仍等待平台侧补齐。
+
+## Sprint-30: 业务域数据面补全地基（风险清除·血缘补全·口径固化·财务回款开票垂直切片） (202606)
+
+> 把 2026-06-01 业务域全景勘探(`docs/business/xycyl-operational-domain-map.md`)落成工程:先清安全红线、补 ODS 血缘断点、把口径铁律固化为机器可检护栏,再以财务回款/开票链走完整垂直切片建模,沉淀空白域复用范式。前缀 DF。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-安全红线清除与配置治理 | 3 | P0 | DONE |
+| F2-ODS血缘断点补全 | 4 | P0 | DONE |
+| F3-口径铁律固化为护栏与回归 | 3 | P1 | DONE |
+| F4-财务回款开票链垂直切片建模 | 5 | P1 | READY |
+| F5-范式固化与IT证据 | 2 | P2 | BLOCKED(→F1-F4) |
+
+**统计**: READY=5(F4), IN_PROGRESS=0, DONE=10(F1/F2/F3), BLOCKED=2(F5) (5 Feature / 17 Task)
+
+> 依赖链:F1(安全)→F2(ODS血缘)/F3(口径护栏)→F4(财务垂直切片)→F5(范式+IT)。本 sprint 不一次性建模全部空白域,库存/督导/薪资顺延复用范式。F1 代码侧已清除 Airflow DAG 明文密码,生产侧轮换按资产台账跟进。
 
 ## Backlog
 

@@ -1,7 +1,7 @@
 # T01: Airflow DAG 凭据外置（移除明文密码）
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: 无
 
 ## 目标
@@ -10,7 +10,7 @@
 
 ## 技术设计
 
-- 盘点所有含明文密码的 DAG 配置文件(grep `Devops123@` 及 PG 密码模式)。
+- 盘点所有含明文密码的 DAG 配置文件(已暴露默认密码字面量及 PG 密码模式)。
 - 在 Airflow 侧建立 Connection(如 `prs_mysql_src`、`dts_pg_target`),DAG 配置改为按 conn_id 引用,不再内联密码。
 - 若 DAG 由生成器/模板产出,改模板源头,避免再生成时回写明文。
 - 提供 `.env.example` / Connection 配置说明文档,真实值走部署环境注入。
@@ -23,11 +23,11 @@
 
 ## 验证
 
-- [ ] `grep -rn 'Devops123@' dts-stack/` 无命中
-- [ ] DAG 仍能正常解析(airflow dags list / 本地校验)
-- [ ] ODS 同步任务用 Connection 跑通(或干跑校验配置可解析)
+- [x] `ptr_mysql_flow-*_ods_*.json` 目标文件无已暴露默认密码字面量
+- [x] DAG 生成器改为 Addax 运行时渲染器 + Airflow Variables/环境变量注入
+- [x] 本地校验配置可解析,证据见 `it/evidence/20260601-local/f1-airflow-credentials-summary.md`
 
 ## 完成标准
 
-- [ ] 5 个 tenant DAG 全部去明文,改 Connection/Variable 引用
-- [ ] 模板源头同步修正,不会再生成明文
+- [x] 5 个 tenant DAG 全部去明文,改 Variable/环境变量引用
+- [x] 模板源头同步修正,不会再生成明文

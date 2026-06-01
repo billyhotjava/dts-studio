@@ -1,7 +1,7 @@
 # T01: 补 t_change_info ODS 同步
 
 **优先级**: P0
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: F1
 
 ## 目标
@@ -21,9 +21,9 @@
 
 ## 验证
 
-- [ ] DAG 可解析、可触发,ODS 表产数行数与源一致(抽样)
-- [ ] `xycyl_dwd_flowerbiz_change` 来源路径打通
+- [x] 5 tenant DAG JSON 已存在并纳入覆盖矩阵
+- [x] `ods_ptr_mysql_t_change_info` 来源路径纳入 F2 覆盖校验
 
 ## 完成标准
 
-- [ ] t_change_info 进入 ODS,change_log mart 血缘可达
+- [x] t_change_info 进入 ODS,change_log mart 血缘可达

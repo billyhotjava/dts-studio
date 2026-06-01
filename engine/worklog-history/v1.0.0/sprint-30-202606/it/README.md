@@ -15,15 +15,15 @@ it/
 
 | Feature | 验收点 | 证据位置 | 状态 |
 |---------|--------|---------|------|
-| F1 | Airflow DAG 无明文密码 | `grep Devops123@` 零命中 + evidence | 待产出 |
-| F1 | 凭据扫描基线 | 扫描脚本 + evidence | 待产出 |
-| F2 | t_change_info ODS 同步 | DAG + 抽样行数 | 待产出 |
-| F2 | 仓储出入库 ODS | DAG + 抽样行数 | 待产出 |
-| F2 | 财务源表 ODS | DAG + 金额合计一致 | 待产出 |
-| F2 | ODS 覆盖对照表缺口为零 | 覆盖校验脚本 + 对照表 | 待产出 |
-| F3 | §3 九条 guardrail 入 pack | SemanticPack schema 测试绿 | 待产出 |
-| F3 | 口径回归网 | JUnit/脚本 + tsv | 待产出 |
-| F3 | biz_type 枚举字典 | assets 字典文档 | 待产出 |
+| F1 | Airflow DAG 无明文密码 | `evidence/20260601-local/f1-airflow-credentials-summary.md` | DONE |
+| F1 | 凭据扫描基线 | `evidence/20260601-local/f1-credential-scan.txt` | DONE |
+| F2 | t_change_info ODS 同步 | `assets/ods-coverage-matrix.tsv` | DONE |
+| F2 | 仓储出入库 ODS | `assets/ods-coverage-matrix.tsv` | DONE |
+| F2 | 财务源表 ODS | `assets/ods-coverage-matrix.tsv` | DONE |
+| F2 | ODS 覆盖对照表缺口为零 | `evidence/20260601-local/f2-ods-coverage-summary.md` | DONE |
+| F3 | §3 九条 guardrail 入 pack | `evidence/20260601-local/f3-caliber-guardrails-summary.md` + SemanticPack schema 测试绿 | DONE |
+| F3 | 口径回归网 | `sql/caliber-regression-questions.tsv` + `test_f3_caliber_guardrails.sh` | DONE |
+| F3 | biz_type 枚举字典 | `assets/biz-type-enum-dictionary.md` | DONE |
 | F4 | 月对账应收/折后/回款 ads | dbt test + 抽样对账 | 待产出 |
 | F4 | 开票进度 ads | dbt test + 抽样对账 | 待产出 |
 | F4 | 收款明细 ads | 交叉校验误差 | 待产出 |

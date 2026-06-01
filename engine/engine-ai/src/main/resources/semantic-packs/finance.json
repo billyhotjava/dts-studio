@@ -1,0 +1,75 @@
+{
+  "domain": "finance",
+  "description": "馨懿诚 PRS 财务回款、开票和月对账主题域。Sprint-30 默认使用 dbt 后的 PostgreSQL mart 表；源表 ODS 仅用于血缘、对账和明细排查。",
+  "objects": [
+    {
+      "name": "月对账",
+      "view": "public.xycyl_ads_finance_month_accounting",
+      "description": "项目、客户、业务月份维度的租摆月对账汇总，必须区分名义租金、应收折前、折后实收和已回款。",
+      "keyDimensions": ["业务月份", "项目", "客户", "业务类型", "金额层级"],
+      "keyMeasures": ["名义租金", "应收折前", "折后实收", "已回款", "未回款"],
+      "commonFilters": ["业务月份", "项目", "客户", "业务类型"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "销售账单",
+      "view": "public.xycyl_ads_finance_sale_account",
+      "description": "售花、赠花、坏账链路的销售账单汇总，金额含税；坏账 receivable 表示损失，不作为收入。",
+      "keyDimensions": ["业务月份", "项目", "客户", "销售类型", "账单状态"],
+      "keyMeasures": ["含税应收", "含税已回款", "坏账损失", "账单数"],
+      "commonFilters": ["业务月份", "项目", "客户", "销售类型", "账单状态"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "开票项目",
+      "view": "public.xycyl_ads_finance_invoice_item",
+      "description": "开票明细与业务来源的汇总视图，必须使用 a_invoice_item.biz_type 区分租摆月对账、销售账单、绿化和其他。",
+      "keyDimensions": ["开票月份", "项目", "客户", "开票业务类型", "开票状态"],
+      "keyMeasures": ["开票金额", "开票项目数"],
+      "commonFilters": ["开票月份", "项目", "客户", "开票业务类型", "开票状态"],
+      "defaultTimeField": "开票月份"
+    },
+    {
+      "name": "收款项目",
+      "view": "public.xycyl_ads_finance_collection_item",
+      "description": "收款明细与业务来源的汇总视图，必须使用 a_collection_item.biz_type 区分收款来源。",
+      "keyDimensions": ["收款月份", "项目", "客户", "收款业务类型", "收款状态"],
+      "keyMeasures": ["收款金额", "收款项目数"],
+      "commonFilters": ["收款月份", "项目", "客户", "收款业务类型", "收款状态"],
+      "defaultTimeField": "收款月份"
+    }
+  ],
+  "synonyms": [
+    {"term": "月对账", "field": "public.xycyl_ads_finance_month_accounting", "views": ["public.xycyl_ads_finance_month_accounting"]},
+    {"term": "应收", "field": "应收折前 / 折后实收 / 已回款，需按问句明确层级", "views": ["public.xycyl_ads_finance_month_accounting"]},
+    {"term": "实收", "field": "折后实收", "views": ["public.xycyl_ads_finance_month_accounting"]},
+    {"term": "已回款", "field": "已回款", "views": ["public.xycyl_ads_finance_month_accounting", "public.xycyl_ads_finance_collection_item"]},
+    {"term": "开票", "field": "public.xycyl_ads_finance_invoice_item", "views": ["public.xycyl_ads_finance_invoice_item"]},
+    {"term": "收款", "field": "public.xycyl_ads_finance_collection_item", "views": ["public.xycyl_ads_finance_collection_item"]},
+    {"term": "销售账单", "field": "public.xycyl_ads_finance_sale_account", "views": ["public.xycyl_ads_finance_sale_account"]},
+    {"term": "坏账金额", "field": "坏账损失", "views": ["public.xycyl_ads_finance_sale_account"]}
+  ],
+  "fewShots": [
+    {
+      "question": "本月租摆应收和实收分别是多少？",
+      "sql": "SELECT f.\"项目\", ROUND(SUM(f.\"应收折前\")::numeric, 2) AS \"应收折前\", ROUND(SUM(f.\"折后实收\")::numeric, 2) AS \"折后实收\", ROUND(SUM(f.\"已回款\")::numeric, 2) AS \"已回款\" FROM public.xycyl_ads_finance_month_accounting f WHERE f.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY f.\"项目\" ORDER BY \"折后实收\" DESC LIMIT 20"
+    },
+    {
+      "question": "本月销售账单含税金额前 10",
+      "sql": "SELECT s.\"项目\", ROUND(SUM(s.\"含税应收\")::numeric, 2) AS \"含税应收\", SUM(s.\"账单数\") AS \"账单数\" FROM public.xycyl_ads_finance_sale_account s WHERE s.\"业务月份\" = to_char(current_date, 'YYYY-MM') AND s.\"销售类型\" <> '坏账' GROUP BY s.\"项目\" ORDER BY \"含税应收\" DESC LIMIT 10"
+    }
+  ],
+  "guardrails": [
+    "默认只用 PostgreSQL 语法。时间月份用 to_char(date, 'YYYY-MM')，模糊匹配用 ILIKE 或 LIKE，不要使用 MySQL 日期函数。",
+    "财务 NL2SQL 默认查询 public.xycyl_ads_finance_* 或 public.xycyl_dws_finance_*；ODS 仅用于对账、血缘和明细排查。",
+    "[CAL-BIZTYPE-SCOPE] 标签: biz_type_scope; 适用: t_flower_biz_info.biz_type/t_flower_biz_item.biz_type/编号生成函数/a_invoice_item.biz_type/a_collection_item.biz_type/仓储出入库类型/a_green_accounting.source_type; 规则: 同名 biz_type 在不同表中是独立枚举,跨表 JOIN 或过滤前必须声明表字段和枚举来源,不能把主表、明细、编号、开票、收款、仓储枚举互相套用。",
+    "[CAL-SETTLEMENT-CHAIN] 标签: settlement_chain; 适用: a_month_accounting+a_green_accounting 与 a_sale_account+a_invoice_info; 规则: 租摆链不含增值税且含折扣,售赠坏链含增值税,两链不可直接混 SUM; 坏账 receivable 是损失,不能作为收入。",
+    "[CAL-MONTH-AMOUNT-TIER] 标签: month_amount_tier; 适用: a_month_accounting; 规则: 每个 period/add/cut/adjust/sale 分项都要区分 *_total_amount 名义租金、*_receivable_total_amount 应收折前、*_net_receipt_total_amount/folding_after_total_amount 折后实收和 total_amount 已回款,问句未说明金额层级时必须追问或拆分。",
+    "[CAL-SALE-IN-RENT] 标签: sale_in_rent_double_count; 适用: a_green_accounting.source_type=8 与 a_sale_account; 规则: 售花摊入租摆后同一金额同时存在销售账单和月对账 saleTotalAmount,跨链汇总必须剔除或标注 source_type=8,避免双重计数。",
+    "[CAL-RENT-HISTORY] 标签: rent_history; 适用: p_project_green/p_project_green_sett; 规则: saverentfeeandapply 会覆盖 p_project_green.rent,历史租金必须读取 p_project_green_sett 或 mart 历史快照,不能用当前 green.rent 回推历史。",
+    "[CAL-INVENTORY-COST] 标签: inventory_cost_sku; 适用: s_stock_info/b_goods_price/采购/出库; 规则: 库存成本是加权平均 out_cost,不是 FIFO,也不是 b_goods_price.cost_price 指导价; 库存、采购、出库必须按 good_price_id/SKU 关联,不能只按 good_name 聚合。",
+    "[CAL-JSON-EXPAND] 标签: json_expand_join; 适用: f_settlement.biz_ids_json/t_*.draft_item_json; 规则: JSON 文本多值列 JOIN 必须先展开再匹配,不能用报花单 id 与 JSON 字符串等值 JOIN。",
+    "[CAL-VARCHAR-AMOUNT-CAST] 标签: varchar_amount_cast; 适用: a_sale_account_rent_item.rent; 规则: rent 是 varchar 金额列,参与 SUM/AVG/比较前必须过滤空值并 CAST 为 numeric,不能直接字符串聚合或排序。",
+    "[CAL-EXTRA-COST-VS-EXPENSE] 标签: extra_cost_vs_expense_voucher; 适用: t_flower_extra_cost/f_expense_account_info/f_voucher/rs.spelrule; 规则: 额外费用是花单向客户收取或承担的附加费,费用报销是公司支出报销,两者不可合并; SpEL 开关关闭时结算可能无凭证,分析凭证缺失必须检查 rs.spelrule.enabled/autorun。"
+  ]
+}

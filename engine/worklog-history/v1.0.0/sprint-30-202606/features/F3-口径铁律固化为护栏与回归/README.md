@@ -1,7 +1,7 @@
 # F3: 口径铁律固化为护栏与回归
 
 **优先级**: P1
-**状态**: BLOCKED（依赖 F1）
+**状态**: DONE
 
 ## 目标
 
@@ -11,12 +11,12 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | semantic-pack 口径护栏扩展 | P1 | BLOCKED | F1 |
-| T02 | 口径回归测试网 | P1 | BLOCKED | T01 |
-| T03 | biz_type 枚举字典与跨表映射 | P1 | BLOCKED | - |
+| T01 | semantic-pack 口径护栏扩展 | P1 | DONE | F1 |
+| T02 | 口径回归测试网 | P1 | DONE | T01 |
+| T03 | biz_type 枚举字典与跨表映射 | P1 | DONE | - |
 
 ## 完成标准
 
-- [ ] §3 九条铁律全部写入 semantic-pack guardrails
-- [ ] 口径回归网可跑且绿(断言不混链/不选错金额列/不双重计数)
-- [ ] biz_type 三套枚举跨表对照字典成文并纳入语义层
+- [x] §3 九条铁律全部写入 semantic-pack guardrails
+- [x] 口径回归网可跑且绿(断言不混链/不选错金额列/不双重计数)
+- [x] biz_type 三套枚举跨表对照字典成文并纳入语义层

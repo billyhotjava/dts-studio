@@ -2,13 +2,13 @@
 
 **时间**: 2026-06
 **前缀**: DF (Data Foundation)
-**状态**: READY
+**状态**: IN_PROGRESS
 **目标**: 把 2026-06-01 的业务域全景勘探（`docs/business/xycyl-operational-domain-map.md`）落成可执行工程——先清安全红线、补 ODS 血缘断点、把口径铁律固化为机器可检护栏,再以「财务回款/开票链」走一个空白域的完整垂直切片建模,沉淀可复用范式。
 
 ## 背景
 
 六域源码级勘探(147 表 / 184 controller)产出全景地图,暴露三类必须先处理的问题:
-1. **安全红线**:dts-stack Airflow DAG JSON 明文硬编码生产 MySQL/PG 密码 `Devops123@`(5 个 tenant)。
+1. **安全红线**:dts-stack Airflow DAG JSON 曾明文硬编码生产 MySQL/PG 密码(5 个 tenant),代码侧已清除,生产侧仍需轮换。
 2. **血缘断点**:`t_change_info`、`t_warehousing_info` 等被 mart 设计引用,却无 Airflow ODS 同步,下游无法构建。
 3. **口径地雷**:`biz_type` 三套同名枚举、两条结算链不可混 SUM、月对账三级金额、销售摊入双重计数等(详见地图 §3),只能在治理层确定性编码一次。
 
@@ -23,10 +23,10 @@ dts-stack 覆盖矩阵显示:报花/客户已建,**库存·财务回款/开票·
 
 | ID | Feature | Task 数 | 优先级 | 状态 | 说明 |
 |----|---------|---------|--------|------|------|
-| F1 | 安全红线清除与配置治理 | 3 | P0 | READY | 必须最先做,清除明文密码 |
-| F2 | ODS 血缘断点补全 | 4 | P0 | BLOCKED→F1 | 补 change/warehousing + 财务源表 ODS |
-| F3 | 口径铁律固化为护栏与回归 | 3 | P1 | BLOCKED→F1 | §3 铁律→guardrails+回归网 |
-| F4 | 财务回款/开票链垂直切片建模 | 5 | P1 | BLOCKED→F2/F3 | 月对账应收/折后/回款+开票+收款 mart+语义包 |
+| F1 | 安全红线清除与配置治理 | 3 | P0 | DONE | 已清除 Airflow Addax JSON 明文密码 |
+| F2 | ODS 血缘断点补全 | 4 | P0 | DONE | 已补 change/warehousing + 财务源表 ODS |
+| F3 | 口径铁律固化为护栏与回归 | 3 | P1 | DONE | §3 铁律→guardrails+回归网 |
+| F4 | 财务回款/开票链垂直切片建模 | 5 | P1 | READY | 月对账应收/折后/回款+开票+收款 mart+语义包 |
 | F5 | 范式固化与 IT 证据 | 2 | P2 | BLOCKED→F1-F4 | 空白域 onboarding checklist + 证据包 |
 
 ## 依赖顺序
@@ -44,9 +44,9 @@ F1(安全) ──> F2(ODS血缘) ──┐
 
 ## 完成标准
 
-- [ ] Airflow DAG 无明文密码,凭据迁移到 Connections/Variables,全仓凭据扫描基线建立
-- [ ] mart/语义对象引用的源表均有 ODS 同步(血缘断点闭环,缺口清单清零)
-- [ ] §3 九条口径铁律全部写入 semantic-pack guardrails,并有机器可跑的口径回归网(绿)
+- [x] Airflow DAG 无明文密码,凭据迁移到 Variables/环境变量,全仓凭据扫描基线建立
+- [x] mart/语义对象引用的源表均有 ODS 同步(血缘断点闭环,缺口清单清零)
+- [x] §3 九条口径铁律全部写入 semantic-pack guardrails,并有机器可跑的口径回归网(绿)
 - [ ] 财务回款/开票链 ads mart 落地 + 语义包对象/fewShots/guardrails,与 adminweb 内建报表口径对账误差达标
 - [ ] `it/README.md` 有真实可重跑证据(密码清除验证、ODS 同步、口径回归、财务对账)
 - [ ] 产出空白域建模 onboarding checklist,供库存/督导/薪资域复用

@@ -14,7 +14,9 @@
 
 ## 待产出 assets
 
+- `credential-rotation-register.md`(F1/T03,DONE)
+- `ods-coverage-matrix.tsv`(F2/T04,DONE)
+- `biz-type-enum-dictionary.md`(F3/T03,DONE)
 - `blank-domain-onboarding-checklist.md`(F5/T01)
-- `biz-type-enum-dictionary.md`(F3/T03)
 - `finance-mart-catalog.md`(F4,仿 flowerbiz-mart-catalog)
 - ODS 覆盖对照表(F2/T04)

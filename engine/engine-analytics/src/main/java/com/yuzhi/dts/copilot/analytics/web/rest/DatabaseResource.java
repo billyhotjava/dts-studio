@@ -145,7 +145,7 @@ public class DatabaseResource {
                 : findByPlatformDataSource(platformId).orElseGet(AnalyticsDatabase::new);
         boolean isNew = db.getId() == null;
 
-        applyDataSourceDetail(db, dataSourceId, platformId, sourceDetail);
+        applyDataSourceDetail(db, dataSourceId, platformId, sourceDetail, details);
         if (isNew) {
             applyNewDefaults(db);
         } else {
@@ -412,7 +412,7 @@ public class DatabaseResource {
         if (!StringUtils.hasText(sourceDetail.jdbcUrl())) {
             return ResponseEntity.badRequest().body(Map.of("errors", Map.of("details", "数据源缺少 JDBC URL")));
         }
-        applyDataSourceDetail(db, dataSourceId, platformId, sourceDetail);
+        applyDataSourceDetail(db, dataSourceId, platformId, sourceDetail, request == null ? null : request.details());
         if (request.timezone() != null) {
             db.setTimezone(request.timezone());
         }
@@ -630,12 +630,16 @@ public class DatabaseResource {
             AnalyticsDatabase db,
             Long dataSourceId,
             UUID platformId,
-            PlatformInfraClient.DataSourceDetail detail) {
+            PlatformInfraClient.DataSourceDetail detail,
+            JsonNode requestedDetails) {
         String name = StringUtils.hasText(detail.name()) ? detail.name() : "platform-" + platformId;
         String engine = resolveEngineFromType(detail.type(), detail.jdbcUrl());
+        ObjectNode details = dataSourceId != null ? buildDataSourceDetailsNode(dataSourceId) : buildPlatformDetailsNode(platformId);
+        copyLogicalDatasourceConfig(details, parseDetailsNode(db.getDetailsJson()));
+        copyLogicalDatasourceConfig(details, requestedDetails);
         db.setName(name);
         db.setEngine(engine);
-        db.setDetailsJson(dataSourceId != null ? buildDataSourceDetailsJson(dataSourceId) : buildPlatformDetailsJson(platformId));
+        db.setDetailsJson(details.toString());
         if (StringUtils.hasText(detail.description())) {
             db.setDescription(detail.description());
         }
@@ -678,15 +682,60 @@ public class DatabaseResource {
     }
 
     private String buildPlatformDetailsJson(UUID platformId) {
+        return buildPlatformDetailsNode(platformId).toString();
+    }
+
+    private ObjectNode buildPlatformDetailsNode(UUID platformId) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("platformDataSourceId", platformId.toString());
-        return node.toString();
+        return node;
     }
 
     private String buildDataSourceDetailsJson(Long dataSourceId) {
+        return buildDataSourceDetailsNode(dataSourceId).toString();
+    }
+
+    private ObjectNode buildDataSourceDetailsNode(Long dataSourceId) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("dataSourceId", dataSourceId);
-        return node.toString();
+        return node;
+    }
+
+    private JsonNode parseDetailsNode(String detailsJson) {
+        if (!StringUtils.hasText(detailsJson)) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(detailsJson);
+            return node != null && node.isObject() ? node : null;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private void copyLogicalDatasourceConfig(ObjectNode target, JsonNode source) {
+        if (target == null || source == null || !source.isObject()) {
+            return;
+        }
+        copyIfPresent(target, source, "logicalSourceAliases");
+        copyIfPresent(target, source, "logicalDatasourceAliases");
+        copyIfPresent(target, source, "dataSourceAliases");
+        copyIfPresent(target, source, "datasourceAliases");
+        copyIfPresent(target, source, "sourceAliases");
+        copyIfPresent(target, source, "logicalSourceAlias");
+        copyIfPresent(target, source, "logicalDatasourceAlias");
+        copyIfPresent(target, source, "dataSourceAlias");
+        copyIfPresent(target, source, "datasourceAlias");
+        copyIfPresent(target, source, "databaseAlias");
+        copyIfPresent(target, source, "sourceAlias");
+        copyIfPresent(target, source, "logicalDataSource");
+    }
+
+    private void copyIfPresent(ObjectNode target, JsonNode source, String field) {
+        JsonNode value = source.get(field);
+        if (value != null && !value.isNull()) {
+            target.set(field, value.deepCopy());
+        }
     }
 
     private Long resolveDataSourceId(JsonNode details) {

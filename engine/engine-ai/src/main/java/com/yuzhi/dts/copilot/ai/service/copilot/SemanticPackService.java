@@ -31,6 +31,7 @@ public class SemanticPackService {
             "semantic-packs/project-fulfillment.json",
             "semantic-packs/field-operations.json",
             "semantic-packs/procurement.json",
+            "semantic-packs/finance.json",
             "semantic-packs/flowerbiz.json"
     };
 
@@ -182,6 +183,18 @@ public class SemanticPackService {
             sb.append("【同义词/术语映射】\n");
             for (Map.Entry<String, String> entry : synonyms.entrySet()) {
                 sb.append("- ").append(entry.getKey()).append(" -> ").append(entry.getValue()).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        JsonNode guardrails = pack.path("guardrails");
+        if (guardrails.isArray() && !guardrails.isEmpty()) {
+            sb.append("【口径护栏】\n");
+            for (JsonNode guardrail : guardrails) {
+                String text = guardrail.asText("");
+                if (!text.isBlank()) {
+                    sb.append("- ").append(text).append("\n");
+                }
             }
             sb.append("\n");
         }

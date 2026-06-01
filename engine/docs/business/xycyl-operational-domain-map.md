@@ -138,7 +138,7 @@
 
 | 级别 | 项 | 位置 |
 |------|----|------|
-| 🔴 **CRITICAL 安全** | **生产 MySQL/PG 明文密码硬编码**(`Devops123@`) | `dts-stack/services/dts-airflow/dags/ptr_mysql_flow-*_ods_*.json`(全部 5 个 tenant) |
+| 🔴 **CRITICAL 安全** | **生产 MySQL/PG 明文密码硬编码已代码侧清除;历史暴露凭据仍需生产轮换** | `dts-stack/services/dts-airflow/dags/ptr_mysql_flow-*_ods_*.json`(全部 5 个 tenant);`worklog/v1.0.0/sprint-30-202606/assets/credential-rotation-register.md` |
 | 🟠 HIGH | 大屏总览 `/visualized/getRealData` 返回**写死假数据**;真实同步 Job 全被注释 | `VisualizedController.java` L27-33 / `AutoSyncBiDataJob.java` |
 | 🟠 HIGH | 角色过滤 SQL 片段拼接进 mapper(潜在注入) | `FlowerBizInfoController.listFlowerBizNew` → `getProjectRealRoleSql()` |
 | 🟡 MEDIUM | 报花提交在单 `@Transactional` 内串调锁库存+消息+推送,任一失败全回滚 | `FlowerBizInfoServiceImpl` L332-396 |

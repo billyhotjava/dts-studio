@@ -33,7 +33,7 @@ dts-platform 已有完整治理指标子系统(`/api/governance/indicators*`),�
 | F3 | 指标优先路由(后端) | 3 | P0 | P2 | DONE |
 | F4 | 路由结果接入 agent-first UI(前端) | 3 | P1 | P2 | DONE |
 | F5 | 下钻与增强健壮性(全栈) | 4 | P2 | P3 | DONE |
-| F6 | PRS固定报表资产库收口(前端) | 1 | P0 | P1b | DONE |
+| F6 | PRS固定报表资产库收口(前端+数据面) | 3 | P0 | P1b/P1c | DONE |
 
 ## 依赖顺序
 
@@ -61,7 +61,9 @@ P3: F5(drilldown 下钻 / 口径version提醒 / 多候选切换 / 降级·微缓
 - Live Contract 已从 401 修到服务认证可达:`dts-copilot` 通过 `X-DTS-Service`/`X-DTS-Service-Token` 调 `v223-dts-platform-1` 的指标目录、dashboard、detail、drilldown 均为 HTTP 200。因平台原库无已发布业务指标,本轮创建 `codex_sprint29_live_metric` 本地验证 fixture 完成端到端对账:platform catalog `total=1`,analytics BFF `degraded=false`,dashboard 1 行、detail 2 行、drilldown 3 行。
 - 运行时方向已校正:Agent 响应契约现在在同步 `send` 响应中直接带回 `responseKind=PUBLISHED_INDICATOR`、`reportCode`、`targetView`、`dataSurface`、`trace.metricCaliber`;webapp 兼容层不再丢弃这些字段。
 - 生产容器路由补齐:`/assets?tab=metrics` 不再被 nginx 静态 `/assets/` 目录 301 带偏,资产库 tab 可直接进入。
-- 2026-06-01 收口修复:F6 已把 PRS 固定报表/大屏资产组接回资产库「看板」tab,按 `DBT_SCREEN_TABLE` 主报表折叠 `DBT_SPLIT` 子报表,并把入口修正为 `/agent-bi?fixedReport=...`,避免继续跳到 `/dashboards/new?fixedReportTemplate=...` 的空白创建流。
+- 2026-06-01 收口修复:F6 已把 PRS 固定报表/大屏资产组接回资产库「看板」tab,按 `DBT_SCREEN_TABLE` 主报表折叠 `DBT_SPLIT` 子报表;最终入口修正为 `/screens/{screenId}/preview`,避免继续跳到 `/dashboards/new?fixedReportTemplate=...` 的空白创建流,也不再把大屏展示压到 Agent fixedReport 文本/表格链路。
+- 2026-06-01 死链修复:F6/T02 确认 `WH-LOW-STOCK-ALERT` 等旧模板在运行库为 `archived=true`;前端现在不再为旧 WH/FIN/PROC 模板生成 fixedReport href,直接打开旧 URL 时降级为 Agent 业务对象/dbt 分析。
+- 2026-06-01 大屏实体化:F6/T03 通过 Liquibase 0064 将 `worklog/prs/v1/screens/*.json` 的 12 个 PRS 原型落成 `analytics_screen` 记录 `290001..290012`,替换 `{{DATABASE_ID}}`,并把固定报表模板补上 `screenId/screenPreviewPath`。
 
 ## 非目标
 
@@ -77,5 +79,7 @@ P3: F5(drilldown 下钻 / 口径version提醒 / 多候选切换 / 降级·微缓
 - [x] 命中指标做成可改芯片(切候选/退回),溯源显示「平台指标X·口径vN」vs「现生成」(P2,复用 sprint-27 F5/F6)
 - [x] 平台不可达/超时有显式降级 + 一键退回,不静默不阻断问数(全程 mock/local contract)
 - [x] dts-platform 指标业务零改动;服务认证白名单限制为只读指标端点。
-- [x] PRS 固定报表/大屏资产在资产库看板 tab 可见,`PRS-FLOWERBIZ-PROJECT-CUSTOMER` 等主报表入口打开 Agent BI 固定报表执行链路,不再被 DBT_SPLIT 子报表挤占。
+- [x] PRS 固定报表/大屏资产在资产库看板 tab 可见,`PRS-FLOWERBIZ-PROJECT-CUSTOMER` 等主报表入口打开 Copilot 大屏预览链路,不再被 DBT_SPLIT 子报表挤占。
+- [x] PRS v1 screen 原型在运行库存在对应 `analytics_screen` 记录,预览 API 可返回组件与变量。
+- [x] 旧 WH/FIN/PROC 固定报表归档模板不再生成死链,旧 URL 有 Agent 降级路径。
 - [x] `it/README.md` 有本地/Mock/Live fixture 集成验证证据;live contract 已记录服务认证 200、BFF 非降级、Agent 单窗口与浏览器实跑截图。

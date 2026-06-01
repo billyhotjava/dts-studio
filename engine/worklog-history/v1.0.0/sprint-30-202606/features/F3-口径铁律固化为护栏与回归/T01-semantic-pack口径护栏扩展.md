@@ -1,7 +1,7 @@
 # T01: semantic-pack 口径护栏扩展
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: F1
 
 ## 目标
@@ -30,9 +30,15 @@
 
 ## 验证
 
-- [ ] 九条 guardrail 全部入 pack,SemanticPack 加载/schema 测试绿
-- [ ] guardrail 文案可被 planner 在澄清/护栏分支引用
+- [x] 九条 guardrail 全部入 pack,SemanticPack 加载/schema 测试绿
+- [x] guardrail 文案可被 planner 在澄清/护栏分支引用
 
 ## 完成标准
 
-- [ ] §3 九条铁律在语义包中可机读、可被 planner 消费
+- [x] §3 九条铁律在语义包中可机读、可被 planner 消费
+
+## 证据
+
+- `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/copilot/SemanticPackCaliberGuardrailTest.java`
+- `dts-copilot-ai/src/main/resources/semantic-packs/flowerbiz.json`
+- `dts-copilot-ai/src/main/resources/semantic-packs/finance.json`
