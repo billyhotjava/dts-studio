@@ -71,4 +71,5 @@
     <include file="config/liquibase/changelog/0064_prs_flowerbiz_copilot_screen_records.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0065_prs_flowerbiz_screen_logical_datasource.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0066_trino_federated_query_database.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0067_trino_federated_agent_datasource.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>
