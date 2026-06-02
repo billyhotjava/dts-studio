@@ -12,11 +12,11 @@
 - **口径铁律记忆**:`reference_xycyl_caliber_traps`
 - **范式参照**:sprint-22(报花 mart catalog)、sprint-25(project dbt)、sprint-26 F0/T03(口径回归基线)
 
-## 待产出 assets
+## 已落地 assets
 
 - `credential-rotation-register.md`(F1/T03,DONE)
 - `ods-coverage-matrix.tsv`(F2/T04,DONE)
 - `biz-type-enum-dictionary.md`(F3/T03,DONE)
-- `blank-domain-onboarding-checklist.md`(F5/T01)
-- `finance-mart-catalog.md`(F4,仿 flowerbiz-mart-catalog)
-- ODS 覆盖对照表(F2/T04)
+- `finance-mart-catalog.md`(F4,DONE)
+- `blank-domain-onboarding-checklist.md`(F5/T01,DONE)
+- `federated-query-catalog.md`(F6,DONE)

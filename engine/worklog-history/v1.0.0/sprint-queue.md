@@ -382,10 +382,10 @@
 | F1-安全红线清除与配置治理 | 3 | P0 | DONE |
 | F2-ODS血缘断点补全 | 4 | P0 | DONE |
 | F3-口径铁律固化为护栏与回归 | 3 | P1 | DONE |
-| F4-财务回款开票链垂直切片建模 | 5 | P1 | READY |
-| F5-范式固化与IT证据 | 2 | P2 | BLOCKED(→F1-F4) |
+| F4-财务回款开票链垂直切片建模 | 5 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | DONE |
 
-**统计**: READY=5(F4), IN_PROGRESS=0, DONE=10(F1/F2/F3), BLOCKED=2(F5) (5 Feature / 17 Task)
+**统计**: READY=0, IN_PROGRESS=0, DONE=17(F1/F2/F3/F4/F5), BLOCKED=0 (5 Feature / 17 Task)
 
 > 依赖链:F1(安全)→F2(ODS血缘)/F3(口径护栏)→F4(财务垂直切片)→F5(范式+IT)。本 sprint 不一次性建模全部空白域,库存/督导/薪资顺延复用范式。F1 代码侧已清除 Airflow DAG 明文密码,生产侧轮换按资产台账跟进。
 

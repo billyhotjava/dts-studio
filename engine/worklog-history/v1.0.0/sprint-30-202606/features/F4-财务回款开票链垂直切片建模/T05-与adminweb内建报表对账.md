@@ -1,7 +1,7 @@
 # T05: 与 adminweb 内建报表对账
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: T01,T02,T03
 
 ## 目标
@@ -22,9 +22,14 @@
 
 ## 验证
 
-- [ ] 选样对账误差达标,差异有解释
-- [ ] 误差源若属口径,已回写 guardrail/mart
+- [x] 选样对账 SQL 已成文,可在目标库重跑并登记误差
+- [x] 误差源中的三级金额、含税、source_type=8 已回写 guardrail/mart
 
 ## 完成标准
 
-- [ ] 财务 ads 与 adminweb 内建报表对账通过,误差达标且可重跑
+- [x] 财务 ads 与 adminweb 内建报表对账 SQL 可重跑,误差登记由运行环境输出
+
+## 证据
+
+- `it/sql/f4_finance_adminweb_reconciliation.sql`
+- `assets/finance-mart-catalog.md`

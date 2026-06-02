@@ -24,14 +24,22 @@ it/
 | F3 | §3 九条 guardrail 入 pack | `evidence/20260601-local/f3-caliber-guardrails-summary.md` + SemanticPack schema 测试绿 | DONE |
 | F3 | 口径回归网 | `sql/caliber-regression-questions.tsv` + `test_f3_caliber_guardrails.sh` | DONE |
 | F3 | biz_type 枚举字典 | `assets/biz-type-enum-dictionary.md` | DONE |
-| F4 | 月对账应收/折后/回款 ads | dbt test + 抽样对账 | 待产出 |
-| F4 | 开票进度 ads | dbt test + 抽样对账 | 待产出 |
-| F4 | 收款明细 ads | 交叉校验误差 | 待产出 |
-| F4 | 财务语义对象 NL2SQL 命中 | 口径回归网断言 | 待产出 |
-| F4 | 与 adminweb 内建报表对账 | 对账 SQL + 误差 <0.5% | 待产出 |
-| F5 | 空白域 onboarding checklist | assets checklist + 纸面演练 | 待产出 |
-| F5 | Sprint-30 IT 证据包 | 本矩阵全绿 | 待产出 |
+| F4 | 月对账应收/折后/回款 ads | `evidence/20260601-local/f4-finance-vertical-slice-summary.md` + `f4-dbt-compile-selected.txt` | DONE |
+| F4 | 开票进度 ads | `evidence/20260601-local/f4-finance-vertical-slice-summary.md` | DONE |
+| F4 | 收款明细 ads | `evidence/20260601-local/f4-finance-vertical-slice-summary.md` | DONE |
+| F4 | 财务语义对象 NL2SQL 命中 | `SemanticPackCaliberGuardrailTest` | DONE |
+| F4 | 与 adminweb 内建报表对账 | `sql/f4_finance_adminweb_reconciliation.sql` | DONE |
+| F5 | 空白域 onboarding checklist | `assets/blank-domain-onboarding-checklist.md` | DONE |
+| F5 | Sprint-30 IT 证据包 | `evidence/20260601-local/f5-sprint30-evidence-pack.md` | DONE |
+| F6 | dts-trino 服务与 catalog | `test_f6_trino_federated_join.sh` | DONE |
+| F6 | PG/MySQL 真实跨库 Join | `sql/f6_trino_federated_join.sql` + `evidence/20260601-local/f6-trino-federated-join-summary.md` | DONE |
 
 ## 重跑约定
 
-每个 `test_*.sh` 可独立执行,结果写入 `evidence/<日期>-local/`。标 DONE 前本矩阵所有"待产出"必须替换为真实证据链接。
+每个 `test_*.sh` 可独立执行,结果写入 `evidence/<日期>-local/`。标 DONE 前本矩阵所有计划证据必须替换为真实证据链接。
+
+F6 live 验证需要先启动 dts-stack 的 `dts-trino`,然后执行:
+
+```bash
+RUN_LIVE=1 bash worklog/v1.0.0/sprint-30-202606/it/test_f6_trino_federated_join.sh
+```

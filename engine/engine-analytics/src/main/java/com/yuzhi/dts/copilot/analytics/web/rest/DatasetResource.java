@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsDatabaseAliasResolver;
 import com.yuzhi.dts.copilot.analytics.service.AnalyticsSessionService;
 import com.yuzhi.dts.copilot.analytics.service.DatasetQueryService;
+import com.yuzhi.dts.copilot.analytics.service.FederatedQueryGuardrail;
 import com.yuzhi.dts.copilot.analytics.service.QueryCacheService;
 import com.yuzhi.dts.copilot.analytics.service.QueryExecutionFacade;
 import com.yuzhi.dts.copilot.analytics.service.QueryPermissionService;
@@ -44,18 +45,21 @@ public class DatasetResource {
     private final QueryPermissionService queryPermissionService;
     private final QueryExecutionFacade queryExecutionFacade;
     private final AnalyticsDatabaseAliasResolver databaseAliasResolver;
+    private final FederatedQueryGuardrail federatedQueryGuardrail;
 
     public DatasetResource(
             AnalyticsSessionService sessionService,
             QueryCacheService queryCacheService,
             QueryPermissionService queryPermissionService,
             QueryExecutionFacade queryExecutionFacade,
-            AnalyticsDatabaseAliasResolver databaseAliasResolver) {
+            AnalyticsDatabaseAliasResolver databaseAliasResolver,
+            FederatedQueryGuardrail federatedQueryGuardrail) {
         this.sessionService = sessionService;
         this.queryCacheService = queryCacheService;
         this.queryPermissionService = queryPermissionService;
         this.queryExecutionFacade = queryExecutionFacade;
         this.databaseAliasResolver = databaseAliasResolver;
+        this.federatedQueryGuardrail = federatedQueryGuardrail;
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -134,6 +138,8 @@ public class DatasetResource {
             QueryExecutionFacade.PreparedQuery prepared =
                     queryExecutionFacade.prepare(normalizedBody, normalizedBody, null, constraints);
             databaseId = prepared.databaseId();
+            FederatedQueryGuardrail.ValidationResult federatedSource =
+                    federatedQueryGuardrail.validate(databaseId, prepared.type(), prepared.sql());
 
             Map<String, Object> jsonQuery = new LinkedHashMap<>();
             jsonQuery.put("database", databaseId);
@@ -177,6 +183,9 @@ public class DatasetResource {
             data.put("results_timezone", result.resultsTimezone());
             data.put("results_metadata", Map.of("columns", result.resultsMetadataColumns()));
             data.put("insights", null);
+            if (federatedSource.federated()) {
+                data.put("source_metadata", federatedSource.toResponseMetadata());
+            }
 
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("data", data);
@@ -189,6 +198,9 @@ public class DatasetResource {
             response.put("row_count", result.rows().size());
             response.put("running_time", runningTimeMs);
             response.put("cached", cached);
+            if (federatedSource.federated()) {
+                response.put("source", federatedSource.toResponseMetadata());
+            }
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {

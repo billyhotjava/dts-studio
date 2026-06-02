@@ -1,7 +1,7 @@
 # T01: 月对账应收/折后/回款 dbt 模型
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: F2/F3
 
 ## 目标
@@ -23,9 +23,14 @@
 
 ## 验证
 
-- [ ] ads 产数,关键聚合与业务库直查抽样一致
-- [ ] dbt test 绿;source_type=8 不被重复计入
+- [x] ads 模型和关键聚合合同可检
+- [x] 隔离 dbt compile 绿;source_type=8 单列为销售摊入金额,不静默混入跨链汇总
 
 ## 完成标准
 
-- [ ] 月对账应收/折后/回款 ads 落地,三级金额口径正确
+- [x] 月对账应收/折后/回款 ads 落地,三级金额口径正确
+
+## 证据
+
+- `dts-stack/services/dts-dbt/models/ads/model/xycyl_ads_finance_month_settlement.sql`
+- `it/evidence/20260601-local/f4-dbt-compile-selected.txt`

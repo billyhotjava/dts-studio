@@ -187,6 +187,15 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                             null));
         }
 
+        if (reportCatalogMatch.isPresent() && shouldPreferFixedReportCatalog(userQuestion, reportCatalogMatch.get())) {
+            return buildReportCatalogPlan(
+                    reportCatalogMatch.get(),
+                    domain,
+                    secondaryTargets,
+                    templateCode,
+                    extendedRouting);
+        }
+
         Optional<SignalQuery> signalQuery = resolveSignalQuery(userQuestion, domain);
         if (signalQuery.isPresent()) {
             return buildSignalQueryPlan(
@@ -811,6 +820,21 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         return List.copyOf(notes);
     }
 
+    private boolean shouldPreferFixedReportCatalog(String userQuestion, ReportCatalogEntry entry) {
+        if (entry == null || !ResponseKind.FIXED_REPORT.name().equals(entry.responseKind())) {
+            return false;
+        }
+        if (!StringUtils.hasText(userQuestion)) {
+            return false;
+        }
+        return userQuestion.contains("打开")
+                || userQuestion.contains("进入")
+                || userQuestion.contains("报表")
+                || userQuestion.contains("看板")
+                || userQuestion.contains("大屏")
+                || userQuestion.contains("月报");
+    }
+
     private Optional<SignalQuery> resolveSignalQuery(String userQuestion, String domain) {
         if (!StringUtils.hasText(userQuestion) || !containsSignalKeyword(userQuestion)) {
             return Optional.empty();
@@ -964,16 +988,22 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             String templateCode,
             ExtendedRoutingResult extendedRouting) {
         ResponseKind responseKind = ResponseKind.valueOf(entry.responseKind());
-        String domain = StringUtils.hasText(routedDomain) ? routedDomain : entry.domain();
-        String promptContext = buildReportCatalogPrompt(entry, domain, secondaryTargets, extendedRouting, templateCode);
+        String domain = ResponseKind.FIXED_REPORT == responseKind || !StringUtils.hasText(routedDomain)
+                ? entry.domain()
+                : routedDomain;
+        String resolvedTemplateCode = resolveReportCatalogTemplateCode(entry, templateCode);
+        String promptContext = buildReportCatalogPrompt(entry, domain, secondaryTargets, extendedRouting, resolvedTemplateCode);
+        PlanMode planMode = ResponseKind.FIXED_REPORT == responseKind
+                ? PlanMode.TEMPLATE_FAST_PATH
+                : PlanMode.AGENT_WORKFLOW;
         return new ConversationPlan(
-                PlanMode.AGENT_WORKFLOW,
+                planMode,
                 responseKind,
                 null,
                 domain,
                 entry.primaryTarget(),
                 secondaryTargets,
-                templateCode,
+                resolvedTemplateCode,
                 null,
                 extendedRouting.dataLayer().name(),
                 extendedRouting.martTable(),
@@ -984,6 +1014,24 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                 entry.defaultDisplay(),
                 entry.reportCode(),
                 entry.sourceRefs());
+    }
+
+    private String resolveReportCatalogTemplateCode(ReportCatalogEntry entry, String templateCode) {
+        if (StringUtils.hasText(templateCode)) {
+            return templateCode;
+        }
+        if (entry == null || entry.sourceRefs() == null) {
+            return null;
+        }
+        for (String sourceRef : entry.sourceRefs()) {
+            if (StringUtils.hasText(sourceRef) && sourceRef.startsWith("fixed-report:")) {
+                String value = sourceRef.substring("fixed-report:".length()).trim();
+                if (StringUtils.hasText(value)) {
+                    return value;
+                }
+            }
+        }
+        return null;
     }
 
     private ConversationPlan buildBusinessObjectPlan(

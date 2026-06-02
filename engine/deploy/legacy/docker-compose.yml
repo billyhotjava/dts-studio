@@ -72,6 +72,9 @@ services:
       DTS_DBT_DB_NAME: ${DTS_DBT_DB_NAME:-biadmin}
       DTS_DBT_DB_USER: ${DTS_DBT_DB_USER:-biadmin}
       DTS_DBT_DB_PASSWORD: ${DTS_DBT_DB_PASSWORD:-}
+      DTS_TRINO_HOST: ${DTS_TRINO_HOST:-dts-trino}
+      DTS_TRINO_PORT: ${DTS_TRINO_PORT:-8080}
+      DTS_TRINO_USER: ${DTS_TRINO_USER:-copilot}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

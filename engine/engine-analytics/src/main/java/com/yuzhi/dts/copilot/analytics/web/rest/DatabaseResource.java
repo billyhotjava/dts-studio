@@ -837,6 +837,7 @@ public class DatabaseResource {
             String lowerUrl = jdbcUrl.trim().toLowerCase(java.util.Locale.ROOT);
             if (lowerUrl.startsWith("jdbc:postgresql:")) return "postgres";
             if (lowerUrl.startsWith("jdbc:mysql:")) return "mysql";
+            if (lowerUrl.startsWith("jdbc:trino:")) return "trino";
             if (lowerUrl.startsWith("jdbc:oracle:")) return "oracle";
             if (lowerUrl.startsWith("jdbc:dm:")) return "dm";
         }
@@ -846,6 +847,7 @@ public class DatabaseResource {
         return switch (normalized) {
             case "postgresql", "postgres", "pg" -> "postgres";
             case "mysql", "mariadb" -> "mysql";
+            case "trino", "presto" -> "trino";
             case "oracle" -> "oracle";
             case "dm", "dameng" -> "dm";
             default -> normalized;

@@ -26,14 +26,16 @@ dts-stack 覆盖矩阵显示:报花/客户已建,**库存·财务回款/开票·
 | F1 | 安全红线清除与配置治理 | 3 | P0 | DONE | 已清除 Airflow Addax JSON 明文密码 |
 | F2 | ODS 血缘断点补全 | 4 | P0 | DONE | 已补 change/warehousing + 财务源表 ODS |
 | F3 | 口径铁律固化为护栏与回归 | 3 | P1 | DONE | §3 铁律→guardrails+回归网 |
-| F4 | 财务回款/开票链垂直切片建模 | 5 | P1 | READY | 月对账应收/折后/回款+开票+收款 mart+语义包 |
-| F5 | 范式固化与 IT 证据 | 2 | P2 | BLOCKED→F1-F4 | 空白域 onboarding checklist + 证据包 |
+| F4 | 财务回款/开票链垂直切片建模 | 5 | P1 | DONE | 月对账应收/折后/回款+开票+收款 mart+语义包 |
+| F5 | 范式固化与 IT 证据 | 2 | P2 | DONE | 空白域 onboarding checklist + 证据包 |
+| F6 | Trino 联邦查询网关与跨库 Join | 5 | P1 | DONE | 方案 B:恢复 dts-trino,真实跨 PG/MySQL Join |
 
 ## 依赖顺序
 
 ```
 F1(安全) ──> F2(ODS血缘) ──┐
        └───> F3(口径护栏) ─┴──> F4(财务垂直切片) ──> F5(范式+IT)
+                                                   └──> F6(Trino联邦Join)
 ```
 
 ## 本 sprint 不做
@@ -47,9 +49,10 @@ F1(安全) ──> F2(ODS血缘) ──┐
 - [x] Airflow DAG 无明文密码,凭据迁移到 Variables/环境变量,全仓凭据扫描基线建立
 - [x] mart/语义对象引用的源表均有 ODS 同步(血缘断点闭环,缺口清单清零)
 - [x] §3 九条口径铁律全部写入 semantic-pack guardrails,并有机器可跑的口径回归网(绿)
-- [ ] 财务回款/开票链 ads mart 落地 + 语义包对象/fewShots/guardrails,与 adminweb 内建报表口径对账误差达标
-- [ ] `it/README.md` 有真实可重跑证据(密码清除验证、ODS 同步、口径回归、财务对账)
-- [ ] 产出空白域建模 onboarding checklist,供库存/督导/薪资域复用
+- [x] 财务回款/开票链 ads mart 落地 + 语义包对象/fewShots/guardrails,与 adminweb 内建报表口径对账 SQL 成文
+- [x] `it/README.md` 有真实可重跑证据(密码清除验证、ODS 同步、口径回归、财务对账)
+- [x] 产出空白域建模 onboarding checklist,供库存/督导/薪资域复用
+- [x] dts-trino 恢复,并通过 Trino 对 PG 数仓和 MySQL 业务库做真实跨库 Join
 
 ## 相邻 sprint 关系
 

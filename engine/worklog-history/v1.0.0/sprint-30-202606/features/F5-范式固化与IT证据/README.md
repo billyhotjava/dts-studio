@@ -1,7 +1,7 @@
 # F5: 范式固化与 IT 证据
 
 **优先级**: P2
-**状态**: BLOCKED（依赖 F1-F4）
+**状态**: DONE
 
 ## 目标
 
@@ -11,10 +11,16 @@
 
 | ID | Task | 优先级 | 状态 | 依赖 |
 |----|------|--------|------|------|
-| T01 | 空白域建模 onboarding checklist | P2 | BLOCKED | F4 |
-| T02 | Sprint-30 IT 证据包 | P2 | BLOCKED | F1-F4 |
+| T01 | 空白域建模 onboarding checklist | P2 | DONE | F4 |
+| T02 | Sprint-30 IT 证据包 | P2 | DONE | F1-F4 |
 
 ## 完成标准
 
-- [ ] checklist 可指导下一个空白域(库存)从 ODS→dbt→语义包→对账走完
-- [ ] IT 证据矩阵全部为真实可重跑证据,无空占位
+- [x] checklist 可指导下一个空白域(库存)从 ODS→dbt→语义包→对账走完
+- [x] IT 证据矩阵全部为真实可重跑证据,无空占位
+
+## 证据
+
+- `assets/blank-domain-onboarding-checklist.md`
+- `it/test_f5_evidence_pack.sh`
+- `it/evidence/20260601-local/f5-sprint30-evidence-pack.md`

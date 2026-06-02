@@ -4,64 +4,66 @@
   "objects": [
     {
       "name": "月对账",
-      "view": "public.xycyl_ads_finance_month_accounting",
+      "view": "public.xycyl_ads_finance_month_settlement",
       "description": "项目、客户、业务月份维度的租摆月对账汇总，必须区分名义租金、应收折前、折后实收和已回款。",
       "keyDimensions": ["业务月份", "项目", "客户", "业务类型", "金额层级"],
-      "keyMeasures": ["名义租金", "应收折前", "折后实收", "已回款", "未回款"],
+      "keyMeasures": ["名义租金", "应收折前", "折后实收", "剔除销售摊入折后实收", "已回款", "未回款", "回款进度", "销售摊入金额"],
       "commonFilters": ["业务月份", "项目", "客户", "业务类型"],
       "defaultTimeField": "业务月份"
     },
     {
-      "name": "销售账单",
-      "view": "public.xycyl_ads_finance_sale_account",
-      "description": "售花、赠花、坏账链路的销售账单汇总，金额含税；坏账 receivable 表示损失，不作为收入。",
-      "keyDimensions": ["业务月份", "项目", "客户", "销售类型", "账单状态"],
-      "keyMeasures": ["含税应收", "含税已回款", "坏账损失", "账单数"],
-      "commonFilters": ["业务月份", "项目", "客户", "销售类型", "账单状态"],
-      "defaultTimeField": "业务月份"
-    },
-    {
-      "name": "开票项目",
-      "view": "public.xycyl_ads_finance_invoice_item",
-      "description": "开票明细与业务来源的汇总视图，必须使用 a_invoice_item.biz_type 区分租摆月对账、销售账单、绿化和其他。",
-      "keyDimensions": ["开票月份", "项目", "客户", "开票业务类型", "开票状态"],
-      "keyMeasures": ["开票金额", "开票项目数"],
+      "name": "开票进度",
+      "view": "public.xycyl_ads_finance_invoice_progress",
+      "description": "开票进度 ADS，按项目、客户、开票月份、开票业务类型、状态和税率汇总申请开票金额、实际开票金额、已回款和开票率。",
+      "keyDimensions": ["开票月份", "项目", "客户", "开票业务类型", "开票状态", "发票类型", "税率"],
+      "keyMeasures": ["申请开票金额", "实际开票金额", "已回款", "开票率", "开票单数", "开票项目数"],
       "commonFilters": ["开票月份", "项目", "客户", "开票业务类型", "开票状态"],
       "defaultTimeField": "开票月份"
     },
     {
-      "name": "收款项目",
-      "view": "public.xycyl_ads_finance_collection_item",
-      "description": "收款明细与业务来源的汇总视图，必须使用 a_collection_item.biz_type 区分收款来源。",
-      "keyDimensions": ["收款月份", "项目", "客户", "收款业务类型", "收款状态"],
-      "keyMeasures": ["收款金额", "收款项目数"],
-      "commonFilters": ["收款月份", "项目", "客户", "收款业务类型", "收款状态"],
+      "name": "收款明细",
+      "view": "public.xycyl_ads_finance_collection",
+      "description": "收款 ADS，按项目、收款月份、收款业务类型、是否带票、收款方式和收款状态汇总收款金额。",
+      "keyDimensions": ["收款月份", "项目", "收款业务类型", "是否带票", "收款方式", "收款状态"],
+      "keyMeasures": ["收款金额", "收款单数", "收款项目数"],
+      "commonFilters": ["收款月份", "项目", "收款业务类型", "是否带票", "收款方式", "收款状态"],
       "defaultTimeField": "收款月份"
     }
   ],
   "synonyms": [
-    {"term": "月对账", "field": "public.xycyl_ads_finance_month_accounting", "views": ["public.xycyl_ads_finance_month_accounting"]},
-    {"term": "应收", "field": "应收折前 / 折后实收 / 已回款，需按问句明确层级", "views": ["public.xycyl_ads_finance_month_accounting"]},
-    {"term": "实收", "field": "折后实收", "views": ["public.xycyl_ads_finance_month_accounting"]},
-    {"term": "已回款", "field": "已回款", "views": ["public.xycyl_ads_finance_month_accounting", "public.xycyl_ads_finance_collection_item"]},
-    {"term": "开票", "field": "public.xycyl_ads_finance_invoice_item", "views": ["public.xycyl_ads_finance_invoice_item"]},
-    {"term": "收款", "field": "public.xycyl_ads_finance_collection_item", "views": ["public.xycyl_ads_finance_collection_item"]},
-    {"term": "销售账单", "field": "public.xycyl_ads_finance_sale_account", "views": ["public.xycyl_ads_finance_sale_account"]},
-    {"term": "坏账金额", "field": "坏账损失", "views": ["public.xycyl_ads_finance_sale_account"]}
+    {"term": "月对账", "field": "public.xycyl_ads_finance_month_settlement", "views": ["public.xycyl_ads_finance_month_settlement"]},
+    {"term": "应收", "field": "应收折前 / 折后实收 / 已回款，需按问句明确层级", "views": ["public.xycyl_ads_finance_month_settlement"]},
+    {"term": "实收", "field": "折后实收", "views": ["public.xycyl_ads_finance_month_settlement"]},
+    {"term": "回款率", "field": "回款进度", "views": ["public.xycyl_ads_finance_month_settlement"]},
+    {"term": "已回款", "field": "已回款", "views": ["public.xycyl_ads_finance_month_settlement", "public.xycyl_ads_finance_collection"]},
+    {"term": "销售摊入", "field": "销售摊入金额 / 含销售摊入风险", "views": ["public.xycyl_ads_finance_month_settlement"]},
+    {"term": "开票", "field": "public.xycyl_ads_finance_invoice_progress", "views": ["public.xycyl_ads_finance_invoice_progress"]},
+    {"term": "开票率", "field": "开票率", "views": ["public.xycyl_ads_finance_invoice_progress"]},
+    {"term": "收款", "field": "public.xycyl_ads_finance_collection", "views": ["public.xycyl_ads_finance_collection"]},
+    {"term": "坏账金额", "field": "坏账损失，不作为收入", "views": ["public.xycyl_ads_finance_invoice_progress"]}
   ],
   "fewShots": [
     {
       "question": "本月租摆应收和实收分别是多少？",
-      "sql": "SELECT f.\"项目\", ROUND(SUM(f.\"应收折前\")::numeric, 2) AS \"应收折前\", ROUND(SUM(f.\"折后实收\")::numeric, 2) AS \"折后实收\", ROUND(SUM(f.\"已回款\")::numeric, 2) AS \"已回款\" FROM public.xycyl_ads_finance_month_accounting f WHERE f.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY f.\"项目\" ORDER BY \"折后实收\" DESC LIMIT 20"
+      "sql": "SELECT f.\"项目\", ROUND(SUM(f.\"应收折前\")::numeric, 2) AS \"应收折前\", ROUND(SUM(f.\"折后实收\")::numeric, 2) AS \"折后实收\", ROUND(SUM(f.\"已回款\")::numeric, 2) AS \"已回款\", ROUND(AVG(f.\"回款进度\")::numeric, 2) AS \"平均回款进度\" FROM public.xycyl_ads_finance_month_settlement f WHERE f.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY f.\"项目\" ORDER BY \"折后实收\" DESC LIMIT 20"
     },
     {
-      "question": "本月销售账单含税金额前 10",
-      "sql": "SELECT s.\"项目\", ROUND(SUM(s.\"含税应收\")::numeric, 2) AS \"含税应收\", SUM(s.\"账单数\") AS \"账单数\" FROM public.xycyl_ads_finance_sale_account s WHERE s.\"业务月份\" = to_char(current_date, 'YYYY-MM') AND s.\"销售类型\" <> '坏账' GROUP BY s.\"项目\" ORDER BY \"含税应收\" DESC LIMIT 10"
+      "question": "本月开票进度怎么样？",
+      "sql": "SELECT i.\"项目\", i.\"开票业务类型\", ROUND(SUM(i.\"申请开票金额\")::numeric, 2) AS \"申请开票金额\", ROUND(SUM(i.\"实际开票金额\")::numeric, 2) AS \"实际开票金额\", ROUND(AVG(i.\"开票率\")::numeric, 2) AS \"平均开票率\" FROM public.xycyl_ads_finance_invoice_progress i WHERE i.\"开票月份\" = to_char(current_date, 'YYYY-MM') GROUP BY i.\"项目\", i.\"开票业务类型\" ORDER BY \"实际开票金额\" DESC LIMIT 20"
+    },
+    {
+      "question": "本月收款按是否带票统计",
+      "sql": "SELECT c.\"是否带票\", c.\"收款业务类型\", ROUND(SUM(c.\"收款金额\")::numeric, 2) AS \"收款金额\", SUM(c.\"收款单数\") AS \"收款单数\" FROM public.xycyl_ads_finance_collection c WHERE c.\"收款月份\" = to_char(current_date, 'YYYY-MM') GROUP BY c.\"是否带票\", c.\"收款业务类型\" ORDER BY \"收款金额\" DESC"
+    },
+    {
+      "question": "查询2026年收款、应收和营收维度",
+      "sql": "WITH settlement AS (SELECT f.\"业务月份\" AS \"财务月份\", ROUND(SUM(f.\"应收折前\")::numeric, 2) AS \"应收折前\", ROUND(SUM(f.\"折后实收\")::numeric, 2) AS \"折后实收\", ROUND(SUM(f.\"已回款\")::numeric, 2) AS \"已回款\" FROM public.xycyl_ads_finance_month_settlement f WHERE f.\"业务月份\" >= '2026-01' GROUP BY f.\"业务月份\"), collection AS (SELECT c.\"收款月份\" AS \"财务月份\", ROUND(SUM(c.\"收款金额\")::numeric, 2) AS \"收款金额\" FROM public.xycyl_ads_finance_collection c WHERE c.\"收款月份\" >= '2026-01' GROUP BY c.\"收款月份\") SELECT COALESCE(s.\"财务月份\", c.\"财务月份\") AS \"财务月份\", COALESCE(c.\"收款金额\", 0) AS \"收款金额\", COALESCE(s.\"应收折前\", 0) AS \"应收折前\", COALESCE(s.\"折后实收\", 0) AS \"折后实收\", COALESCE(s.\"已回款\", 0) AS \"已回款\" FROM settlement s FULL OUTER JOIN collection c USING (\"财务月份\") ORDER BY \"财务月份\""
     }
   ],
   "guardrails": [
     "默认只用 PostgreSQL 语法。时间月份用 to_char(date, 'YYYY-MM')，模糊匹配用 ILIKE 或 LIKE，不要使用 MySQL 日期函数。",
     "财务 NL2SQL 默认查询 public.xycyl_ads_finance_* 或 public.xycyl_dws_finance_*；ODS 仅用于对账、血缘和明细排查。",
+    "禁止使用 public.xycyl_ads_finance_summary、\"财务月份\" 原始表、\"月营收\"、\"净利润\" 等未建模字段；2026 收款/应收/营收组合查询必须从 public.xycyl_ads_finance_month_settlement 和 public.xycyl_ads_finance_collection 组合得到。",
     "[CAL-BIZTYPE-SCOPE] 标签: biz_type_scope; 适用: t_flower_biz_info.biz_type/t_flower_biz_item.biz_type/编号生成函数/a_invoice_item.biz_type/a_collection_item.biz_type/仓储出入库类型/a_green_accounting.source_type; 规则: 同名 biz_type 在不同表中是独立枚举,跨表 JOIN 或过滤前必须声明表字段和枚举来源,不能把主表、明细、编号、开票、收款、仓储枚举互相套用。",
     "[CAL-SETTLEMENT-CHAIN] 标签: settlement_chain; 适用: a_month_accounting+a_green_accounting 与 a_sale_account+a_invoice_info; 规则: 租摆链不含增值税且含折扣,售赠坏链含增值税,两链不可直接混 SUM; 坏账 receivable 是损失,不能作为收入。",
     "[CAL-MONTH-AMOUNT-TIER] 标签: month_amount_tier; 适用: a_month_accounting; 规则: 每个 period/add/cut/adjust/sale 分项都要区分 *_total_amount 名义租金、*_receivable_total_amount 应收折前、*_net_receipt_total_amount/folding_after_total_amount 折后实收和 total_amount 已回款,问句未说明金额层级时必须追问或拆分。",

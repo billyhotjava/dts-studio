@@ -1,7 +1,7 @@
 # T04: 财务语义包对象 + fewShots + guardrails
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: T01,T02,T03
 
 ## 目标
@@ -25,9 +25,14 @@
 
 ## 验证
 
-- [ ] 语义包加载、schema 测试绿
-- [ ] fewShots 问句经 planner 命中对应 ads(口径回归网断言)
+- [x] 语义包加载、schema 测试绿
+- [x] fewShots 问句命中对应 ads(口径回归网断言)
 
 ## 完成标准
 
-- [ ] 财务语义对象可被 NL2SQL 命中,口径护栏齐备
+- [x] 财务语义对象可被 NL2SQL 命中,口径护栏齐备
+
+## 证据
+
+- `dts-copilot-ai/src/main/resources/semantic-packs/finance.json`
+- `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/copilot/SemanticPackCaliberGuardrailTest.java`

@@ -1,7 +1,7 @@
 # T01: 空白域建模 onboarding checklist
 
 **优先级**: P2
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: F4
 
 ## 目标
@@ -27,8 +27,12 @@
 
 ## 验证
 
-- [ ] 用库存域纸面演练一遍,确认每步可落地
+- [x] 用库存域纸面演练一遍,确认每步可落地
 
 ## 完成标准
 
-- [ ] checklist 成文且经一次纸面演练验证可用
+- [x] checklist 成文且经一次纸面演练验证可用
+
+## 证据
+
+- `assets/blank-domain-onboarding-checklist.md`

@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,11 @@ public class QueryExecutionFacade {
     private static final Pattern COMMA_BEFORE_CLOSE_PAREN_PATTERN = Pattern.compile(",\\s*\\)");
     private static final Pattern TRAILING_SQL_DELIMITER_PATTERN = Pattern.compile("\\s*[;；]+\\s*$");
     private static final Pattern TRAILING_COMMA_PATTERN = Pattern.compile(",\\s*$");
+    private static final String SQL_IDENTIFIER =
+            "(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:[^\"]|\"\")+\")"
+                    + "(?:\\s*\\.\\s*(?:[A-Za-z_][A-Za-z0-9_$]*|\"(?:[^\"]|\"\")+\"))*";
+    private static final Pattern POSTGRES_TO_DATE_SIMPLE_IDENTIFIER_PATTERN = Pattern.compile(
+            "(?i)\\bto_date\\s*\\(\\s*(" + SQL_IDENTIFIER + ")\\s*,\\s*'(?:[^']|'')*'\\s*\\)");
     private static final List<String> DANGEROUS_SQL_KEYWORDS = List.of(
             " insert ",
             " update ",
@@ -281,6 +287,41 @@ public class QueryExecutionFacade {
     }
 
     public DatasetQueryService.DatasetResult executeRaw(PreparedQuery prepared) throws SQLException {
+        int retries =
+                prepared != null && "native".equalsIgnoreCase(prepared.type()) ? DEFAULT_NATIVE_AUTOFIX_RETRIES : 0;
+        PreparedQuery current = prepared;
+        SQLException lastError = null;
+
+        for (int attempt = 0; attempt <= retries; attempt++) {
+            try {
+                return executeRawOnce(current);
+            } catch (SQLException ex) {
+                lastError = ex;
+                if (attempt >= retries) {
+                    throw ex;
+                }
+                PreparedQuery rewritten = tryAutoFixRetry(current, ex);
+                if (rewritten == null) {
+                    throw ex;
+                }
+                log.warn(
+                        "[analytics] raw auto-fix retry {}/{} on db={}, reason={}, sql={}",
+                        attempt + 1,
+                        retries,
+                        current.databaseId(),
+                        rootCauseMessage(ex),
+                        current.sql());
+                current = rewritten;
+            }
+        }
+
+        if (lastError != null) {
+            throw lastError;
+        }
+        throw new SQLException("Query execution failed");
+    }
+
+    private DatasetQueryService.DatasetResult executeRawOnce(PreparedQuery prepared) throws SQLException {
         return datasetQueryService.runNative(
                 prepared.databaseId(), prepared.sql(), prepared.constraints(), prepared.bindings());
     }
@@ -322,7 +363,7 @@ public class QueryExecutionFacade {
         for (int attempt = 0; attempt <= retries; attempt++) {
             long attemptStartedNanos = System.nanoTime();
             try {
-                DatasetQueryService.DatasetResult result = screenComplianceService.applyMasking(executeRaw(current));
+                DatasetQueryService.DatasetResult result = screenComplianceService.applyMasking(executeRawOnce(current));
                 safeListener.onAttempt(new ExecutionAttempt(
                         attempt + 1,
                         current.sql(),
@@ -396,7 +437,7 @@ public class QueryExecutionFacade {
             return null;
         }
         String message = rootCauseMessage(error).toLowerCase(Locale.ROOT);
-        if (!isRetryableSqlSyntaxError(message)) {
+        if (!isRetryableSqlAutoFixError(message)) {
             return null;
         }
 
@@ -418,15 +459,24 @@ public class QueryExecutionFacade {
                 prepared.constraints());
     }
 
-    private static boolean isRetryableSqlSyntaxError(String errorMessage) {
+    private static boolean isRetryableSqlAutoFixError(String errorMessage) {
         if (errorMessage == null || errorMessage.isBlank()) {
             return false;
         }
+        return isRetryableSqlSyntaxError(errorMessage) || isPostgresToDateDateArgumentError(errorMessage);
+    }
+
+    private static boolean isRetryableSqlSyntaxError(String errorMessage) {
         return errorMessage.contains("syntax error")
                 || errorMessage.contains("parse error")
                 || errorMessage.contains("mismatched input")
                 || errorMessage.contains("at or near")
                 || errorMessage.contains("unterminated");
+    }
+
+    private static boolean isPostgresToDateDateArgumentError(String errorMessage) {
+        return errorMessage.contains("function to_date(date, unknown) does not exist")
+                || errorMessage.contains("function to_date(date, text) does not exist");
     }
 
     private static String normalizeSqlForAutoFix(String sql) {
@@ -435,6 +485,7 @@ public class QueryExecutionFacade {
                 .replace('；', ';')
                 .replace('（', '(')
                 .replace('）', ')');
+        out = rewritePostgresToDateDateArgument(out);
         String previous;
         do {
             previous = out;
@@ -446,6 +497,16 @@ public class QueryExecutionFacade {
         out = TRAILING_SQL_DELIMITER_PATTERN.matcher(out).replaceAll("");
         out = out.replaceAll("\\s+", " ").trim();
         return out;
+    }
+
+    private static String rewritePostgresToDateDateArgument(String sql) {
+        Matcher matcher = POSTGRES_TO_DATE_SIMPLE_IDENTIFIER_PATTERN.matcher(sql);
+        StringBuffer out = new StringBuffer();
+        while (matcher.find()) {
+            matcher.appendReplacement(out, Matcher.quoteReplacement(matcher.group(1) + "::date"));
+        }
+        matcher.appendTail(out);
+        return out.toString();
     }
 
     private static String rootCauseMessage(Throwable error) {

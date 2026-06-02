@@ -47,6 +47,37 @@ class SemanticPackCaliberGuardrailTest {
                 .contains("CAL-EXTRA-COST-VS-EXPENSE");
     }
 
+    @Test
+    void shouldLoadFinanceVerticalSliceObjectsAndFewShots() {
+        SemanticPackService service = new SemanticPackService(objectMapper);
+
+        service.init();
+
+        SemanticPackService.SemanticPack finance = service.getPack("finance").orElseThrow();
+        assertThat(finance.objects()).extracting(SemanticPackService.SemanticObject::view)
+                .containsExactly(
+                        "public.xycyl_ads_finance_month_settlement",
+                        "public.xycyl_ads_finance_invoice_progress",
+                        "public.xycyl_ads_finance_collection");
+        assertThat(finance.fewShots()).extracting(SemanticPackService.FewShot::sql)
+                .anySatisfy(sql -> assertThat(sql).contains("public.xycyl_ads_finance_month_settlement"))
+                .anySatisfy(sql -> assertThat(sql).contains("public.xycyl_ads_finance_invoice_progress"))
+                .anySatisfy(sql -> assertThat(sql).contains("public.xycyl_ads_finance_collection"));
+    }
+
+    @Test
+    void shouldRejectSyntheticFinanceSummaryTableInPromptContext() {
+        SemanticPackService service = new SemanticPackService(objectMapper);
+
+        service.init();
+
+        String context = service.getContextForDomain("finance");
+        assertThat(context)
+                .contains("禁止使用 public.xycyl_ads_finance_summary")
+                .contains("public.xycyl_ads_finance_month_settlement")
+                .contains("public.xycyl_ads_finance_collection");
+    }
+
     private static void assertPackHasRequiredGuardrails(SemanticPackService.SemanticPack pack) {
         assertThat(pack.guardrails()).hasSizeGreaterThanOrEqualTo(REQUIRED_RULE_IDS.size());
         for (String ruleId : REQUIRED_RULE_IDS) {

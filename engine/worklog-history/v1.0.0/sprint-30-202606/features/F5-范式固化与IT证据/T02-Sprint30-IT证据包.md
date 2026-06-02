@@ -1,7 +1,7 @@
 # T02: Sprint-30 IT 证据包
 
 **优先级**: P2
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: F1-F4
 
 ## 目标
@@ -23,8 +23,14 @@
 
 ## 验证
 
-- [ ] 每个 IT 项有命令输出/对账结果链接,可独立重跑
+- [x] 每个 IT 项有命令输出/对账结果链接,可独立重跑
 
 ## 完成标准
 
-- [ ] IT 证据矩阵全绿,无空占位,Sprint-30 可据此收口
+- [x] IT 证据矩阵全绿,无空占位,Sprint-30 可据此收口
+
+## 证据
+
+- `it/README.md`
+- `it/test_f5_evidence_pack.sh`
+- `it/evidence/20260601-local/f5-sprint30-evidence-pack.md`

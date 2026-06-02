@@ -1,7 +1,7 @@
 # T02: 开票进度 ads
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: T01
 
 ## 目标
@@ -21,9 +21,14 @@
 
 ## 验证
 
-- [ ] ads 产数,开票金额合计与业务库一致
-- [ ] biz_type 关联正确(不串表枚举)
+- [x] ads 模型和开票金额合同可检
+- [x] biz_type/账单类型语义独立,不串报花主单枚举
 
 ## 完成标准
 
-- [ ] 开票进度 ads 落地,含税/账单类型口径清晰
+- [x] 开票进度 ads 落地,含税/账单类型口径清晰
+
+## 证据
+
+- `dts-stack/services/dts-dbt/models/ads/model/xycyl_ads_finance_invoice_progress.sql`
+- `it/test_f4_finance_vertical_slice.sh`

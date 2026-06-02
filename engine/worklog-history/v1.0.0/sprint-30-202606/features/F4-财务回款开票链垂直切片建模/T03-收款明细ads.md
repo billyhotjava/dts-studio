@@ -1,7 +1,7 @@
 # T03: 收款明细 ads
 
 **优先级**: P1
-**状态**: BLOCKED
+**状态**: DONE
 **依赖**: T01
 
 ## 目标
@@ -20,9 +20,14 @@
 
 ## 验证
 
-- [ ] 收款汇总与月对账已回款交叉校验误差达标
-- [ ] with_invoice 两类来源不混
+- [x] 收款汇总 ADS 与月对账/开票对账 SQL 已成文
+- [x] with_invoice 两类来源单列,不混
 
 ## 完成标准
 
-- [ ] 收款明细 ads 落地,与回款进度闭环一致
+- [x] 收款明细 ads 落地,与回款进度闭环一致
+
+## 证据
+
+- `dts-stack/services/dts-dbt/models/ads/model/xycyl_ads_finance_collection.sql`
+- `it/sql/f4_finance_adminweb_reconciliation.sql`

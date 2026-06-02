@@ -316,9 +316,10 @@ class AssetBackedPlannerPolicyTest {
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
-        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
         assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.overview");
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-OVERVIEW");
         assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
         assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_overview");
         assertThat(plan.promptContext()).contains("L2 固定报表资产");
@@ -341,9 +342,11 @@ class AssetBackedPlannerPolicyTest {
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
-        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
+        assertThat(plan.routedDomain()).isEqualTo("flowerbiz");
         assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-LEASE-EXECUTION");
         assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
         assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
         assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_lease_summary");
@@ -395,9 +398,10 @@ class AssetBackedPlannerPolicyTest {
 
         ConversationPlan plan = policy.plan(question, Map.of());
 
-        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
         assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-LEASE-EXECUTION");
         assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
         assertThat(plan.qualityLevel()).isEqualTo("MEDIUM");
         assertThat(plan.qualityNotes()).isNotEmpty();
@@ -554,6 +558,34 @@ class AssetBackedPlannerPolicyTest {
                 .contains("建议发起坏账处理单草稿")
                 .contains("创建坏账处理单")
                 .contains("HAVING");
+    }
+
+    @Test
+    void explicitMonthlyReportOpenQuestionPrefersFixedReportOverSignalKeyword() {
+        String question = "打开报花月报，按月展示 PRS 租赁报花执行、收入、回收和异常波动。";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("flowerbiz", "public.xycyl_ads_flowerbiz_lease_summary", List.of(), 0.86, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("flowerbiz")).thenReturn("flowerbiz semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.FIXED_REPORT);
+        assertThat(plan.reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(plan.templateCode()).isEqualTo("PRS-FLOWERBIZ-LEASE-EXECUTION");
+        assertThat(plan.dataSurface()).isEqualTo("L2_FIXED_REPORT");
+        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_lease_summary");
+        assertThat(plan.sourceRefs())
+                .contains("fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION");
+        assertThat(plan.promptContext()).contains("L2 固定报表资产");
     }
 
     @Test
