@@ -142,25 +142,11 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("仓库固定报表意图: 库存现量命中库存固定报表")
-    void matchWarehouseStockOverviewFixedReport() {
-        TemplateMatchResult result = matcherService.match("库存现量");
-
-        assertThat(result.matched()).isTrue();
-        assertThat(result.template().getTemplateCode()).isEqualTo("WH-STOCK-OVERVIEW");
-        assertThat(result.template().getTargetView()).isEqualTo("authority.inventory.stock_overview");
-        assertThat(result.resolvedSql()).isNull();
-    }
-
-    @Test
-    @DisplayName("仓库固定报表意图: 出入库记录命中出入库固定报表")
-    void matchWarehouseInOutRecordFixedReport() {
-        TemplateMatchResult result = matcherService.match("本月出入库记录");
-
-        assertThat(result.matched()).isTrue();
-        assertThat(result.template().getTemplateCode()).isEqualTo("WH-INOUT-RECORD");
-        assertThat(result.template().getTargetView()).isEqualTo("authority.inventory.inout_record");
-        assertThat(result.resolvedSql()).isNull();
+    @DisplayName("仓库主题: 未发布到资产库的 authority 模板不进入资产快路径")
+    void warehouseAuthorityTopicsDoNotMatchFixedReportFastPath() {
+        assertThat(matcherService.match("库存现量").matched()).isFalse();
+        assertThat(matcherService.match("低库存预警").matched()).isFalse();
+        assertThat(matcherService.match("本月出入库记录").matched()).isFalse();
     }
 
     @Test
@@ -240,6 +226,21 @@ class TemplateMatcherServiceTest {
         assertThat(result.extractedParams().get("good_name")).isEqualTo("绿萝");
         assertThat(result.resolvedSql()).contains("t_purchase_price_item");
         assertThat(result.resolvedSql()).contains("ORDER BY a.purchase_time DESC");
+    }
+
+    @Test
+    @DisplayName("采购域: 全年各绿植采购情况命中联邦 MySQL 汇总模板")
+    void matchProcurementGreenPurchaseOverviewByYear() {
+        TemplateMatchResult result = matcherService.match("看下2026年各个绿植的采购情况");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-34");
+        assertThat(result.extractedParams()).containsEntry("year", "2026");
+        assertThat(result.resolvedSql()).contains("mysql.rs_cloud_flower.t_purchase_price_item");
+        assertThat(result.resolvedSql()).contains("TIMESTAMP '2026-01-01 00:00:00'");
+        assertThat(result.resolvedSql()).doesNotContain("PRODUCTION");
+        assertThat(result.resolvedSql()).doesNotContain("TRY_TO_NUMBER");
+        assertThat(result.resolvedSql()).doesNotContain("PRS_PROCUREMENT_DELIVERY_RECORD");
     }
 
     @Test
@@ -373,10 +374,11 @@ class TemplateMatcherServiceTest {
 
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::question)
-                .contains("库存现量", "低库存预警", "PRS 租赁经营总览", "PRS 租赁报花执行看板");
+                .contains("PRS 租赁经营总览", "PRS 租赁报花执行看板")
+                .doesNotContain("库存现量", "低库存预警");
         assertThat(suggestions)
                 .extracting(SuggestedQuestion::templateCode)
-                .allMatch(code -> code.startsWith("PRS-FLOWERBIZ-") || code.startsWith("WH-") || code.startsWith("TPL-"));
+                .allMatch(code -> code.startsWith("PRS-FLOWERBIZ-") || code.startsWith("TPL-"));
     }
 
     @Test
@@ -501,6 +503,14 @@ class TemplateMatcherServiceTest {
                 "SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = :good_name AND a.purchase_time >= CONCAT(:month, '-01') AND a.purchase_time < DATE_ADD(CONCAT(:month, '-01'), INTERVAL 1 MONTH) GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC",
                 "{\"month\":{\"type\":\"string\",\"required\":true},\"good_name\":{\"type\":\"string\",\"required\":true}}",
                 "authority.procurement.purchase_amount_by_buyer", "某月某产品采购详细情况按采购人金额统计", 30));
+
+        // TPL-34: 全年各绿植采购情况（Trino 联邦入口）
+        templates.add(buildTemplate(34L, "TPL-34", "procurement", null,
+                "[\".*(\\\\d{4}年).*(各个|各|所有).*(绿植|产品|物品|商品).*(采购情况|采购统计|采购).*\",\".*(各个|各|所有).*(绿植|产品|物品|商品).*(采购情况|采购统计|采购).*\"]",
+                "[\"看下2026年各个绿植的采购情况\"]",
+                "SELECT a.good_name AS \"绿植\", COALESCE(NULLIF(a.good_specs, ''), '未填') AS \"规格\", COUNT(*) AS \"采购明细行数\", COUNT(DISTINCT b.id) AS \"采购单数\", SUM(COALESCE(c.real_purchase_number, 0)) AS \"采购数量\", ROUND(SUM(COALESCE(c.real_purchase_number, 0) * COALESCE(a.parchase_price, 0)), 2) AS \"采购金额\", MIN(a.purchase_time) AS \"最早采购时间\", MAX(a.purchase_time) AS \"最近采购时间\" FROM mysql.rs_cloud_flower.t_purchase_price_item a LEFT JOIN mysql.rs_cloud_flower.t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN mysql.rs_cloud_flower.t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.purchase_time >= TIMESTAMP ':year-01-01 00:00:00' AND a.purchase_time < TIMESTAMP ':year-01-01 00:00:00' + INTERVAL '1' YEAR GROUP BY a.good_name, COALESCE(NULLIF(a.good_specs, ''), '未填') ORDER BY \"采购金额\" DESC LIMIT 100",
+                "{\"year\":{\"type\":\"integer\",\"required\":true}}",
+                "mysql.rs_cloud_flower.t_purchase_price_item", "全年各绿植采购情况", 35));
 
         return templates;
     }

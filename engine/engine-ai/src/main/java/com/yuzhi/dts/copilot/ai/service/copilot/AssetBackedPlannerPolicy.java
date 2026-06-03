@@ -1097,6 +1097,8 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                 - 该问题命中业务对象，不要把裸 ODS 表当成默认经营报表资产。
                 - 优先使用字段画像和业务对象目录回答字段分布、状态分布、TOP 值、时间范围和明细定位。
                 - 只有用户需要具体明细或画像缺失时，才通过只读 ODS / DTS ODS 面查询，并先调用 schema_lookup 确认字段。
+                - 当前自动预览走 Trino 联邦查询入口，只允许 catalog `postgres` 和 `mysql`；MySQL 业务库表必须写成 `mysql.rs_cloud_flower.<table>`。
+                - 不要使用 `PRODUCTION`、`FLOWER_BIZ`、`PRS_*` 这类未授权 catalog/schema/table，也不要使用未确认的 Snowflake 函数。
                 - 输出结构化表格，摘要表固定表头为 `| 指标 | 结果 | 说明 |`，表格后补充业务页面路径和数据质量提示。
                 - 不允许执行业务写操作；需要改变业务状态时只生成动作提案。
                 """.trim());

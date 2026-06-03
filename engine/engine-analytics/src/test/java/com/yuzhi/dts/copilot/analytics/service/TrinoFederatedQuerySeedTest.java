@@ -14,19 +14,24 @@ class TrinoFederatedQuerySeedTest {
             "config/liquibase/changelog/0066_trino_federated_query_database.xml";
     private static final String FEDERATED_AGENT_DATASOURCE_CHANGELOG =
             "config/liquibase/changelog/0067_trino_federated_agent_datasource.xml";
+    private static final String ALIAS_SPLIT_CHANGELOG =
+            "config/liquibase/changelog/0068_prs_flowerbiz_split_mart_and_federated_aliases.xml";
 
     @Test
-    void masterShouldIncludeTrinoFederatedSeedAfterLogicalDatasourceRepair() throws Exception {
+    void masterShouldIncludeTrinoFederatedSeedAndAliasSplitAfterLogicalDatasourceRepair() throws Exception {
         String master = readResource("config/liquibase/master.xml");
 
         assertThat(master).contains(
                 LOGICAL_DATASOURCE_CHANGELOG,
                 FEDERATED_CHANGELOG,
-                FEDERATED_AGENT_DATASOURCE_CHANGELOG);
+                FEDERATED_AGENT_DATASOURCE_CHANGELOG,
+                ALIAS_SPLIT_CHANGELOG);
         assertThat(master.indexOf(LOGICAL_DATASOURCE_CHANGELOG))
                 .isLessThan(master.indexOf(FEDERATED_CHANGELOG));
         assertThat(master.indexOf(FEDERATED_CHANGELOG))
                 .isLessThan(master.indexOf(FEDERATED_AGENT_DATASOURCE_CHANGELOG));
+        assertThat(master.indexOf(FEDERATED_AGENT_DATASOURCE_CHANGELOG))
+                .isLessThan(master.indexOf(ALIAS_SPLIT_CHANGELOG));
     }
 
     @Test
@@ -66,6 +71,24 @@ class TrinoFederatedQuerySeedTest {
                 .doesNotContain("connection-password=secret")
                 .doesNotContain("password\":\"secret")
                 .doesNotContain("root:");
+    }
+
+    @Test
+    void aliasSplitChangelogShouldKeepDbtScreensOffTrinoFederatedGuardrail() throws Exception {
+        String changelog = readResource(ALIAS_SPLIT_CHANGELOG);
+
+        assertThat(changelog)
+                .contains("DTS dbt模型库")
+                .contains("prs.flowerbiz.mart")
+                .contains("prs.flowerbiz.federated")
+                .contains("analytics_screen")
+                .contains("analytics_screen_version")
+                .contains("290001")
+                .contains("290012")
+                .contains("\"databaseAlias\":\"prs.flowerbiz.mart\"");
+        assertThat(changelog)
+                .contains("AND lower(alias) <> lower('prs.flowerbiz.federated')")
+                .contains("components_json LIKE '%prs.flowerbiz.federated%'");
     }
 
     private static String readResource(String path) throws Exception {

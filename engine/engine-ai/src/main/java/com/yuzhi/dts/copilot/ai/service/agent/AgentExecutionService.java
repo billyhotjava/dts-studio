@@ -60,7 +60,7 @@ public class AgentExecutionService {
             2. 先对目标 dbt 模型调用 schema_lookup 工具验证表名和字段名；SQL 只能使用 schema_lookup 返回字段，不要猜测旧 ODS 字段
             3. 创建可保存的分析草稿：生成只读 SQL，并按需要调用 execute_query 做小样本预览
             4. 回复中必须包含一个 ```sql 代码块，并说明统计口径、推荐图表类型和可能的数据质量 caveat
-            5. 不要把固定报表模板当成新报表草稿返回，除非用户明确要求打开已有报表
+            5. 不要把资产库已有模板当成新报表草稿返回，除非用户明确要求打开资产库已有资产
             6. 指标摘要、口径说明、推荐图表和数据质量提示统一使用标准 Markdown 表格；报表摘要表固定使用表头 `| 指标 | 结果 | 说明 |`，第二行必须是 `| --- | --- | --- |`
             7. 不要只输出指标说明表，必须包含 ```sql 代码块；如果字段不足以生成 SQL，明确说明缺失字段并请求补充，不要声称已生成报表草稿
 
@@ -479,7 +479,7 @@ public class AgentExecutionService {
     }
 
     private String formatFixedReportResponse(ConversationPlan plan) {
-        StringBuilder sb = new StringBuilder("根据您的问题，已命中固定报表模板");
+        StringBuilder sb = new StringBuilder("根据您的问题，已命中资产库资产");
         if (StringUtils.hasText(plan.templateCode())) {
             sb.append(" `").append(plan.templateCode()).append("`");
         }
@@ -490,7 +490,7 @@ public class AgentExecutionService {
         if (StringUtils.hasText(plan.primaryTarget())) {
             sb.append("- 数据目标：`").append(plan.primaryTarget()).append("`\n");
         }
-        sb.append("- 已切换到固定报表快路径，可直接打开报表查看结果。");
+        sb.append("- 已切换到资产库资产路径，可在资产库查看或打开结果。");
         return sb.toString();
     }
 

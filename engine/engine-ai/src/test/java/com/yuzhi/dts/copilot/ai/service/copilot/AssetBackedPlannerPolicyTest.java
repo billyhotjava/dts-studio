@@ -466,6 +466,8 @@ class AssetBackedPlannerPolicyTest {
                 .contains("采购管理 > 配送记录")
                 .contains("字段画像")
                 .contains("只读 ODS")
+                .contains("mysql.rs_cloud_flower")
+                .contains("PRODUCTION")
                 .contains("| 指标 | 结果 | 说明 |");
     }
 
@@ -492,6 +494,38 @@ class AssetBackedPlannerPolicyTest {
         assertThat(plan.primaryTarget()).isEqualTo("business-object:prs.flowerbiz.biz_order");
         assertThat(plan.promptContext()).contains("报花管理 > 报花单据");
         assertThat(plan.promptContext()).contains("项目点, 业务类型, 单号");
+    }
+
+    @Test
+    void lowStockAlertUsesWarehouseBusinessObjectInsteadOfUnpublishedAsset() {
+        String question = "低库存预警";
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(false, null, null, null));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult("warehouse", "ods_ptr_mysql_s_stock_info", List.of(), 0.72, false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("warehouse")).thenReturn("");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.AGENT_WORKFLOW);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.BUSINESS_INSIGHT);
+        assertThat(plan.templateCode()).isNull();
+        assertThat(plan.reportCode()).isEqualTo("prs.warehouse.stock_info.profile");
+        assertThat(plan.dataSurface()).isEqualTo("L0_BUSINESS_OBJECT_PROFILE");
+        assertThat(plan.primaryTarget()).isEqualTo("business-object:prs.warehouse.stock_info");
+        assertThat(plan.sourceRefs())
+                .contains("business-object:prs.warehouse.stock_info", "mysql-table:s_stock_info");
+        assertThat(plan.promptContext())
+                .contains("仓库管理 > 库存管理 > 库存")
+                .contains("库存现量主表是 s_stock_info")
+                .doesNotContain("资产库资产")
+                .doesNotContain("固定报表资产");
     }
 
     @Test

@@ -26,6 +26,21 @@ class BusinessObjectCatalogServiceTest {
     }
 
     @Test
+    void genericGreenProcurementQuestionsPreferPurchaseOrderOverDeliveryRecord() {
+        Optional<BusinessObjectEntry> match = catalog.findBestMatch("看下2026年各个绿植的采购情况", "purchase_inventory");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().objectCode()).isEqualTo("prs.procurement.purchase_order");
+        assertThat(match.get().pagePath()).isEqualTo("采购管理 > 采购汇总/采购明细");
+        assertThat(match.get().sourceRefs())
+                .contains(
+                        "mysql-table:t_purchase_price_item",
+                        "mysql-table:t_purchase_info",
+                        "mysql-table:t_plan_purchase_item",
+                        "mysql-table:t_flower_biz_item");
+    }
+
+    @Test
     void coversCoreBusinessDomainsFromAdminApiAndAdminWeb() {
         assertThat(catalog.entries())
                 .extracting(BusinessObjectEntry::domain)

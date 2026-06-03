@@ -146,7 +146,9 @@ class AgentExecutionServiceTest {
                 "sess-1", "alice", "打开PRS租赁经营总览大屏", Collections.emptyList(), 7L, Map.of());
 
         assertThat(result.response()).contains("PRS-FLOWERBIZ-OVERVIEW");
-        assertThat(result.response()).contains("固定报表");
+        assertThat(result.response()).contains("资产库资产");
+        assertThat(result.response()).contains("资产库查看");
+        assertThat(result.response()).doesNotContain("打开报表查看结果");
         assertThat(result.generatedSql()).isNull();
         verify(reActEngine, never()).execute(any(), anyString(), anyList(), any(ToolContext.class), anyDouble(), anyInt());
     }
@@ -253,6 +255,7 @@ class AgentExecutionServiceTest {
                 .contains("标准 Markdown 表格")
                 .contains("| 指标 | 结果 | 说明 |")
                 .contains("不要只输出指标说明表，必须包含 ```sql 代码块")
+                .contains("不要把资产库已有模板当成新报表草稿返回")
                 .contains("先对目标 dbt 模型调用 schema_lookup")
                 .contains("只能使用 schema_lookup 返回字段");
     }

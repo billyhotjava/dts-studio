@@ -27,4 +27,5 @@
     <include file="config/liquibase/changelog/v1_0_0_021__project_dbt_query_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_022__project_adminweb_query_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_023__chat_message_copilot_contract.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_024__procurement_federated_query_templates.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

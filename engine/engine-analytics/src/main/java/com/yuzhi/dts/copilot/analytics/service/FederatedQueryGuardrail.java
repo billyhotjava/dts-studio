@@ -87,9 +87,6 @@ public class FederatedQueryGuardrail {
         }
 
         boolean hasJoin = JOIN_PATTERN.matcher(sql).find();
-        if (hasJoin && catalogs.size() < 2) {
-            throw new IllegalArgumentException("跨库 JOIN 至少包含两个 catalog");
-        }
         if (hasJoin && catalogs.size() >= 2 && !WHERE_OR_LIMIT_PATTERN.matcher(sql).find()) {
             throw new IllegalArgumentException("跨库 JOIN 必须包含 WHERE 或 LIMIT");
         }
