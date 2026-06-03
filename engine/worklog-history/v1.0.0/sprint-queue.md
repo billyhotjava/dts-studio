@@ -389,6 +389,38 @@
 
 > 依赖链:F1(安全)→F2(ODS血缘)/F3(口径护栏)→F4(财务垂直切片)→F5(范式+IT)。本 sprint 不一次性建模全部空白域,库存/督导/薪资顺延复用范式。F1 代码侧已清除 Airflow DAG 明文密码,生产侧轮换按资产台账跟进。
 
+## Sprint-31: 语义口径单一事实源收口（治理债先还） (202606)
+
+> 北极星:让 agent 在多场景下可靠 NL2SQL 拿到口径正确的业务数据、新场景可复制。本 sprint 是地基——先消除 pack/dbt/glossary 三源口径漂移,确立治理层为口径 SoT,建 pack⇄治理 sync 与本体草稿晋升闭环,9 条口径铁律机器规则化。前缀 SG。先收 finance/procurement 两域。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-口径事实源对账与定源 | 4 | P0 | READY |
+| F2-pack与治理层sync管线 | 3 | P0 | READY |
+| F3-本体指标草稿晋升闭环 | 3 | P1 | READY |
+| F4-跨源口径回归网 | 2 | P1 | READY |
+| F5-范式固化与IT证据 | 2 | P2 | READY |
+
+**统计**: READY=14, IN_PROGRESS=0, DONE=0, BLOCKED=0 (5 Feature / 14 Task)
+
+> 依赖链:F1(对账定源)→F2(sync下发)/F3(草稿晋升)→F4(回归网)→F5(范式+IT)。不抽 dts-platform modeling 微服务(架构判断 ROI 差)。
+
+## Sprint-32: Agent 数据访问路由阶梯与多场景接入套件 (202607)
+
+> 承接 Sprint-31:解决"怎么取数(路由)"与"怎么复制到新场景(套件)"。把取数固化为口径安全强度从强到弱的 5 层阶梯(指标→mart→对象图→guardrail联邦→直连)、治理 Trino 联邦层、把场景接入范式产品化为可复制套件并用一个空白域端到端验证。前缀 RK。依赖 Sprint-31 完成。子 task 已在各 Feature README「Task 明细」给出,转 IN_PROGRESS 时拆独立任务文件。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-五层路由阶梯与telemetry | 3 | P0 | READY |
+| F2-Trino联邦层访问治理 | 3 | P0 | READY |
+| F3-场景接入套件产品化 | 3 | P1 | READY |
+| F4-新场景端到端验证 | 2 | P1 | READY |
+| F5-范式固化与IT证据 | 2 | P2 | READY |
+
+**统计**: READY=13, IN_PROGRESS=0, DONE=0, BLOCKED=0 (5 Feature / 13 Task)
+
+> 依赖链:Sprint-31(口径SoT)→F1(路由阶梯)+F2(Trino治理)→F3(接入套件)→F4(新场景验证)→F5(范式+IT)。多场景硬隔离走 deploy-per-scenario,不做多租户行隔离改造。
+
 ## Backlog
 
 | ID | 任务 | 状态 | 说明 |
