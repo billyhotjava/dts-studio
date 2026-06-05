@@ -6,6 +6,7 @@ import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.security.CopilotUserContext;
 import com.yuzhi.dts.copilot.ai.security.CopilotUserContextHolder;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.chat.RouteTelemetryService;
 import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
 import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionApprovalService;
 import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionExecutor;
@@ -42,12 +43,15 @@ public class AgentChatResource {
     private static final Logger log = LoggerFactory.getLogger(AgentChatResource.class);
 
     private final AgentChatService agentChatService;
+    private final RouteTelemetryService routeTelemetryService;
     private final OntologyActionApprovalService actionApprovalService;
 
     public AgentChatResource(
             AgentChatService agentChatService,
+            RouteTelemetryService routeTelemetryService,
             OntologyActionApprovalService actionApprovalService) {
         this.agentChatService = agentChatService;
+        this.routeTelemetryService = routeTelemetryService;
         this.actionApprovalService = actionApprovalService;
     }
 
@@ -119,6 +123,16 @@ public class AgentChatResource {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * GET /api/ai/agent/chat/route-telemetry - Summarize route health and weak-path signals.
+     */
+    @GetMapping("/route-telemetry")
+    public ResponseEntity<RouteTelemetryService.RouteTelemetrySummary> getRouteTelemetry(
+            @RequestParam(required = false, defaultValue = "7") int days,
+            @RequestParam(required = false, defaultValue = "10") int limit) {
+        return ResponseEntity.ok(routeTelemetryService.summarize(days, limit));
     }
 
     /**

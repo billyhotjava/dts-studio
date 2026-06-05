@@ -2,7 +2,7 @@
 
 **时间**: 2026-06
 **前缀**: SG (Semantic Governance)
-**状态**: READY
+**状态**: IN_PROGRESS
 **目标**: 消除 pack / dbt mart / OpenMetadata glossary 三源口径漂移，确立治理层为口径**单一事实源（SoT）**，建立 pack⇄治理 sync 与本体/指标草稿晋升闭环，把 9 条口径铁律编码为机器可检规则。
 
 ## 北极星目标（本 sprint 承接的总目标）
@@ -34,10 +34,10 @@
 
 | ID | Feature | Task 数 | 优先级 | 状态 | 说明 |
 |----|---------|---------|--------|------|------|
-| F1 | 口径事实源对账与定源 | 4 | P0 | READY | 三源差异盘点 + 定 SoT + 9 铁律机器规则化 |
-| F2 | pack ⇄ 治理层 sync 管线 | 3 | P0 | READY | guardrails 从治理层生成，替代手维护 |
-| F3 | 本体/指标草稿晋升闭环 | 3 | P1 | READY | copilot 起草 → 治理 draft → 审通过回流 |
-| F4 | 跨源口径回归网 | 2 | P1 | READY | 三源一致性 + 铁律违规拦截回归 |
+| F1 | 口径事实源对账与定源 | 4 | P0 | IN_PROGRESS | 三源差异盘点 + 定 SoT + 9 铁律机器规则化 |
+| F2 | pack ⇄ 治理层 sync 管线 | 3 | P0 | DONE | guardrails 从治理层生成，替代手维护；漂移/降级 gate 已落地 |
+| F3 | 本体/指标草稿晋升闭环 | 3 | P1 | DONE | copilot 起草 → 治理 draft → 审通过回流 |
+| F4 | 跨源口径回归网 | 2 | P1 | DONE | T01 三源一致性 local fixture 门禁 + T02 铁律违规 SQL 拦截回归已完成 |
 | F5 | 范式固化与 IT 证据 | 2 | P2 | READY | 收口手册 + 可复现证据包 |
 
 ## 依赖顺序
@@ -58,10 +58,10 @@ F1(对账定源) ──┬──> F2(sync 下发) ──┐
 
 - [ ] 产出三源口径差异台账，逐条标注"以哪个为准"，并形成收口 ADR
 - [ ] 治理层确立为口径 SoT，9 条口径铁律全部编码为机器可检规则（含可跑校验）
-- [ ] dts-copilot 的 finance/procurement pack guardrails 改为**从治理层生成**，手维护下线
-- [ ] sync 漂移检测可跑，治理层不可达时按既有 glossary→BizEnumDictionary 范式降级
-- [ ] copilot 具备"语义草稿"端点，草稿落治理层 draft、审通过后回流 pack，全程不直改 SoT
-- [ ] 跨源口径一致性回归绿（pack 生成结果 == dbt 口径 == glossary）
+- [x] dts-copilot 的 finance/procurement pack guardrails 改为**从治理层生成**，手维护下线
+- [x] sync 漂移检测可跑，治理层不可达时按既有 stale cache/static pack 范式降级
+- [x] copilot 具备"语义草稿"端点，草稿落治理层 draft、审通过后回流 pack，全程不直改 SoT（2026-06-05 live：F3-T03）
+- [x] 跨源口径一致性回归绿（pack 生成结果 == dbt 口径 == glossary；local fixture 门禁，live manifest/glossary 接入待后续）
 - [ ] `it/README.md` 有真实可重跑证据（差异盘点、sync 生成、回归绿、降级演练）
 
 ## 相邻 sprint 关系

@@ -15,6 +15,7 @@ import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.ExtendedRout
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.SuggestedQuestion;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.TemplateMatchResult;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +66,39 @@ class AssetBackedPlannerPolicyTest {
                 businessObjectCatalogService,
                 indicatorMatcherService
         );
+    }
+
+    @Test
+    void routeTierOrderIsExplicitAndStable() {
+        Class<?> routeTierType = Arrays.stream(AssetBackedPlannerPolicy.class.getDeclaredClasses())
+                .filter(type -> "RouteTier".equals(type.getSimpleName()))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(routeTierType).isNotNull();
+        assertThat(routeTierType.isEnum()).isTrue();
+        assertThat(Arrays.stream(routeTierType.getEnumConstants())
+                .map(Object::toString))
+                .containsExactly(
+                        "TIER_1_PUBLISHED_INDICATOR",
+                        "TIER_2_MART_TEMPLATE",
+                        "TIER_3_ONTOLOGY_OBJECT_GRAPH",
+                        "TIER_4_GUARDRAIL_FEDERATED",
+                        "TIER_5_DIRECT_DETAIL");
+    }
+
+    @Test
+    void routeResolutionIsExplicitResponsibilityChain() throws Exception {
+        assertThat(Arrays.stream(AssetBackedPlannerPolicy.class.getDeclaredClasses())
+                .map(Class::getSimpleName))
+                .contains("RouteEvaluationContext", "PlanRoute");
+
+        java.lang.reflect.Method routeChain = AssetBackedPlannerPolicy.class.getDeclaredMethod("assetRouteChain");
+        routeChain.setAccessible(true);
+        Object value = routeChain.invoke(policy);
+
+        assertThat(value).isInstanceOf(List.class);
+        assertThat((List<?>) value).hasSizeGreaterThanOrEqualTo(10);
     }
 
     @Test
@@ -140,6 +174,14 @@ class AssetBackedPlannerPolicyTest {
 
         assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
         assertThat(plan.responseKind()).isEqualTo(ResponseKind.TEMPLATE_SQL);
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "HIT"));
+        assertThat(plan.routeTrace().get(1).target()).isEqualTo("flowerbiz.top-project");
     }
 
     @Test
@@ -281,6 +323,41 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
+    void procurementTemplateMetadataOverridesGenericGreenRouting() {
+        String question = "看下2026年各个绿植的采购情况";
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(
+                        true,
+                        buildTemplate("TPL-34", "procurement", "mysql.rs_cloud_flower.t_purchase_price_item"),
+                        Map.of("year", "2026"),
+                        "SELECT a.good_name FROM mysql.rs_cloud_flower.t_purchase_price_item a"));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult(
+                                "green",
+                                "public.xycyl_dwd_project_green_snapshot",
+                                List.of(),
+                                0.88,
+                                false),
+                        DataLayer.VIEW,
+                        null,
+                        false,
+                        null));
+        when(semanticPackService.getContextForDomain("procurement")).thenReturn("procurement semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.TEMPLATE_SQL);
+        assertThat(plan.templateCode()).isEqualTo("TPL-34");
+        assertThat(plan.routedDomain()).isEqualTo("procurement");
+        assertThat(plan.primaryTarget()).isEqualTo("mysql.rs_cloud_flower.t_purchase_price_item");
+        assertThat(plan.promptContext()).contains("procurement semantic pack");
+        assertThat(plan.promptContext()).doesNotContain("public.xycyl_dwd_project_green_snapshot");
+    }
+
+    @Test
     void ambiguousBusinessQuestionUsesAgentWorkflowInsteadOfHardClarification() {
         when(templateMatcherService.match("帮我做个统计"))
                 .thenReturn(new TemplateMatchResult(false, null, null, null));
@@ -353,6 +430,14 @@ class AssetBackedPlannerPolicyTest {
         assertThat(plan.sourceRefs())
                 .contains("fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION", "semantic-pack:flowerbiz");
         assertThat(plan.promptContext()).contains("L2 固定报表资产");
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "HIT"));
+        assertThat(plan.routeTrace().get(1).target()).isEqualTo("PRS-FLOWERBIZ-LEASE-EXECUTION");
     }
 
     @Test
@@ -469,6 +554,17 @@ class AssetBackedPlannerPolicyTest {
                 .contains("mysql.rs_cloud_flower")
                 .contains("PRODUCTION")
                 .contains("| 指标 | 结果 | 说明 |");
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_3_ONTOLOGY_OBJECT_GRAPH", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_4_GUARDRAIL_FEDERATED", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_5_DIRECT_DETAIL", "HIT"));
+        assertThat(plan.routeTrace().get(4).target()).isEqualTo("business-object:prs.procurement.delivery_record");
     }
 
     @Test
@@ -526,6 +622,17 @@ class AssetBackedPlannerPolicyTest {
                 .contains("库存现量主表是 s_stock_info")
                 .doesNotContain("资产库资产")
                 .doesNotContain("固定报表资产");
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_3_ONTOLOGY_OBJECT_GRAPH", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_4_GUARDRAIL_FEDERATED", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_5_DIRECT_DETAIL", "HIT"));
+        assertThat(plan.routeTrace().get(4).target()).isEqualTo("business-object:prs.warehouse.stock_info");
     }
 
     @Test
@@ -554,6 +661,15 @@ class AssetBackedPlannerPolicyTest {
                 "public.xycyl_dim_customer",
                 "public.xycyl_dim_project",
                 "public.xycyl_ads_flowerbiz_lease_detail");
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_3_ONTOLOGY_OBJECT_GRAPH", "HIT"));
+        assertThat(plan.routeTrace().get(2).target()).isEqualTo("ontology:flowerbiz");
         assertThat(plan.promptContext())
                 .contains("对象图导航")
                 .contains("LEFT JOIN public.xycyl_dim_project")
@@ -585,6 +701,15 @@ class AssetBackedPlannerPolicyTest {
         assertThat(plan.primaryTarget()).isEqualTo("ontology:flowerbiz:signals");
         assertThat(plan.reportCode()).isEqualTo("ontology.flowerbiz.signals");
         assertThat(plan.sourceRefs()).containsExactly("public.xycyl_ads_flowerbiz_baddebt_summary");
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_3_ONTOLOGY_OBJECT_GRAPH", "HIT"));
+        assertThat(plan.routeTrace().get(2).target()).isEqualTo("ontology:flowerbiz:signals");
         assertThat(plan.promptContext())
                 .contains("预警查询")
                 .contains("坏账风险")

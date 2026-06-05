@@ -11,6 +11,7 @@ import com.yuzhi.dts.copilot.ai.service.copilot.IndicatorMatcherService.Confiden
 import com.yuzhi.dts.copilot.ai.service.copilot.IndicatorMatcherService.IndicatorMatch;
 import com.yuzhi.dts.copilot.ai.service.copilot.IndicatorMatcherService.IndicatorMatchResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.ExtendedRoutingResult;
+import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.DataLayer;
 import com.yuzhi.dts.copilot.ai.service.copilot.IntentRouterService.RoutingResult;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.SuggestedQuestion;
 import com.yuzhi.dts.copilot.ai.service.copilot.TemplateMatcherService.TemplateMatchResult;
@@ -46,6 +47,24 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
     );
 
     private static final String METRIC_FALLBACK_GENERATED = "__fallback_generated__";
+
+    private enum RouteTier {
+        TIER_1_PUBLISHED_INDICATOR("指标优先"),
+        TIER_2_MART_TEMPLATE("dbt mart/template"),
+        TIER_3_ONTOLOGY_OBJECT_GRAPH("本体对象图/信号"),
+        TIER_4_GUARDRAIL_FEDERATED("受控联邦查询"),
+        TIER_5_DIRECT_DETAIL("业务对象只读明细");
+
+        private final String label;
+
+        RouteTier(String label) {
+            this.label = label;
+        }
+
+        String label() {
+            return label;
+        }
+    }
 
     private final IntentRouterService intentRouterService;
     private final TemplateMatcherService templateMatcherService;
@@ -115,18 +134,36 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             String userQuestion,
             Map<String, Boolean> martHealthSnapshot,
             String metricOverride) {
+        RouteEvaluationContext context = buildRouteEvaluationContext(userQuestion, martHealthSnapshot, metricOverride);
+        return assetRouteChain().stream()
+                .map(route -> route.resolve(context))
+                .flatMap(Optional::stream)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Asset route chain must provide a fallback plan"));
+    }
+
+    private RouteEvaluationContext buildRouteEvaluationContext(
+            String userQuestion,
+            Map<String, Boolean> martHealthSnapshot,
+            String metricOverride) {
+        RouteTrace routeTrace = new RouteTrace();
         IndicatorMatchResult indicatorMatch = indicatorMatcherService == null
                 ? IndicatorMatchResult.none()
                 : indicatorMatcherService.match(userQuestion);
-        if (!shouldSkipIndicatorRoute(metricOverride) && shouldUsePublishedIndicator(indicatorMatch)) {
-            return buildPublishedIndicatorPlan(indicatorMatch, metricOverride);
-        }
-
-        TemplateMatchResult templateMatch = templateMatcherService.match(userQuestion);
+        boolean skipIndicatorRoute = shouldSkipIndicatorRoute(metricOverride);
+        TemplateMatchResult templateMatch = Optional.ofNullable(templateMatcherService.match(userQuestion))
+                .orElse(new TemplateMatchResult(false, null, null, null));
         ExtendedRoutingResult extendedRouting = intentRouterService.routeWithDataLayer(
                 userQuestion, martHealthSnapshot == null ? Collections.emptyMap() : martHealthSnapshot);
+        if (extendedRouting == null) {
+            extendedRouting = new ExtendedRoutingResult(
+                    new RoutingResult(null, null, List.of(), 0.0, true),
+                    DataLayer.VIEW,
+                    null,
+                    false,
+                    null);
+        }
         RoutingResult routing = extendedRouting.baseResult();
-
         String domain = resolveDomain(routing, templateMatch);
         String primaryTarget = resolvePrimaryTarget(routing, templateMatch, extendedRouting);
         List<String> secondaryTargets = routing != null && routing.secondaryViews() != null
@@ -137,173 +174,354 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
                 : null;
         Optional<ReportCatalogEntry> reportCatalogMatch = reportCatalogService.findBestMatch(userQuestion, domain);
         Optional<BusinessObjectEntry> businessObjectMatch = businessObjectCatalogService.findBestMatch(userQuestion, domain);
-
         Optional<CatalogEntry> catalogMatch = directResponseCatalogService.findMatch(userQuestion);
-        if (catalogMatch.isPresent()) {
-            return new ConversationPlan(
-                    PlanMode.DIRECT_RESPONSE,
-                    ResponseKind.BUSINESS_DIRECT_RESPONSE,
-                    buildDirectResponse(catalogMatch.get()),
-                    domain,
-                    primaryTarget,
-                    secondaryTargets,
-                    templateCode,
-                    null,
-                    extendedRouting.dataLayer().name(),
-                    extendedRouting.martTable(),
-                    ""
-            );
-        }
 
-        if (templateMatch.matched() && StringUtils.hasText(templateMatch.resolvedSql())) {
-            return new ConversationPlan(
-                    PlanMode.TEMPLATE_FAST_PATH,
-                    ResponseKind.TEMPLATE_SQL,
-                    null,
-                    domain,
-                    primaryTarget,
-                    secondaryTargets,
-                    templateCode,
-                    templateMatch.resolvedSql(),
-                    extendedRouting.dataLayer().name(),
-                    extendedRouting.martTable(),
-                    buildBusinessRoutingPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode,
-                            templateMatch.resolvedSql()));
-        }
-
-        if (templateMatch.matched() && StringUtils.hasText(templateCode)) {
-            return new ConversationPlan(
-                    PlanMode.TEMPLATE_FAST_PATH,
-                    ResponseKind.FIXED_REPORT,
-                    null,
-                    domain,
-                    primaryTarget,
-                    secondaryTargets,
-                    templateCode,
-                    null,
-                    extendedRouting.dataLayer().name(),
-                    extendedRouting.martTable(),
-                    buildBusinessRoutingPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode,
-                            null));
-        }
-
-        if (reportCatalogMatch.isPresent() && shouldPreferFixedReportCatalog(userQuestion, reportCatalogMatch.get())) {
-            return buildReportCatalogPlan(
-                    reportCatalogMatch.get(),
-                    domain,
-                    secondaryTargets,
-                    templateCode,
-                    extendedRouting);
-        }
-
-        Optional<SignalQuery> signalQuery = resolveSignalQuery(userQuestion, domain);
-        if (signalQuery.isPresent()) {
-            return buildSignalQueryPlan(
-                    signalQuery.get(),
-                    domain,
-                    secondaryTargets,
-                    templateCode,
-                    extendedRouting);
-        }
-
-        Optional<OntologyNavigation> ontologyNavigation = resolveOntologyNavigation(userQuestion, domain);
-
-        if (businessObjectMatch.isPresent() && ontologyNavigation.isEmpty()) {
-            return buildBusinessObjectPlan(
-                    businessObjectMatch.get(),
-                    domain,
-                    secondaryTargets,
-                    templateCode,
-                    extendedRouting);
-        }
-
-        if (ontologyNavigation.isPresent()) {
-            return buildOntologyNavigationPlan(
-                    ontologyNavigation.get(),
-                    domain,
-                    secondaryTargets,
-                    templateCode,
-                    extendedRouting);
-        }
-
-        if (reportCatalogMatch.isPresent()) {
-            return buildReportCatalogPlan(
-                    reportCatalogMatch.get(),
-                    domain,
-                    secondaryTargets,
-                    templateCode,
-                    extendedRouting);
-        }
-
-        if (isGeneratedReportDraftRequest(userQuestion)) {
-            String generatedDataSurface = resolveGeneratedReportDataSurface(extendedRouting, primaryTarget);
-            return new ConversationPlan(
-                    PlanMode.AGENT_WORKFLOW,
-                    ResponseKind.REPORT_DRAFT,
-                    null,
-                    domain,
-                    primaryTarget,
-                    secondaryTargets,
-                    templateCode,
-                    null,
-                    extendedRouting.dataLayer().name(),
-                    extendedRouting.martTable(),
-                    buildReportDraftPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode),
-                    generatedDataSurface,
-                    "MEDIUM",
-                    buildGeneratedReportQualityNotes(generatedDataSurface, extendedRouting),
-                    resolveSuggestedDisplayFromQuestion(userQuestion),
-                    null);
-        }
-
-        String fixedReportDomain = resolveFixedReportSuggestionDomain(userQuestion, domain);
-        List<SuggestedQuestion> fixedReportCandidates = resolveFixedReportCandidates(userQuestion, fixedReportDomain);
-        if (!fixedReportCandidates.isEmpty()) {
-            return new ConversationPlan(
-                    PlanMode.DIRECT_RESPONSE,
-                    ResponseKind.FIXED_REPORT_CANDIDATES,
-                    buildFixedReportCandidatesResponse(fixedReportDomain, fixedReportCandidates),
-                    StringUtils.hasText(fixedReportDomain) ? fixedReportDomain : domain,
-                    primaryTarget,
-                    secondaryTargets,
-                    null,
-                    null,
-                    extendedRouting.dataLayer().name(),
-                    extendedRouting.martTable(),
-                    ""
-            );
-        }
-
-        if (routing == null || routing.needsClarification()) {
-            ResponseKind kind = StringUtils.hasText(domain)
-                    ? ResponseKind.BUSINESS_CLARIFICATION
-                    : ResponseKind.GENERIC_ANALYSIS;
-            return new ConversationPlan(
-                    PlanMode.AGENT_WORKFLOW,
-                    kind,
-                    null,
-                    domain,
-                    primaryTarget,
-                    secondaryTargets,
-                    templateCode,
-                    null,
-                    extendedRouting.dataLayer().name(),
-                    extendedRouting.martTable(),
-                    buildPlannerClarificationPrompt(domain));
-        }
-
-        return new ConversationPlan(
-                PlanMode.AGENT_WORKFLOW,
-                ResponseKind.BUSINESS_ANALYSIS,
-                null,
+        return new RouteEvaluationContext(
+                userQuestion,
+                metricOverride,
+                routeTrace,
+                indicatorMatch,
+                skipIndicatorRoute,
+                templateMatch,
+                extendedRouting,
+                routing,
                 domain,
                 primaryTarget,
                 secondaryTargets,
                 templateCode,
+                reportCatalogMatch,
+                businessObjectMatch,
+                catalogMatch);
+    }
+
+    private List<PlanRoute> assetRouteChain() {
+        return List.of(
+                this::tryPublishedIndicatorRoute,
+                this::tryDirectResponseRoute,
+                this::tryTemplateSqlRoute,
+                this::tryFixedReportTemplateRoute,
+                this::tryPreferredReportCatalogRoute,
+                this::trySignalQueryRoute,
+                this::tryBusinessObjectRoute,
+                this::tryOntologyNavigationRoute,
+                this::tryReportCatalogRoute,
+                this::tryGeneratedReportDraftRoute,
+                this::tryFixedReportCandidateRoute,
+                this::tryClarificationRoute,
+                this::buildFallbackBusinessAnalysisRoute);
+    }
+
+    private Optional<ConversationPlan> tryPublishedIndicatorRoute(RouteEvaluationContext context) {
+        if (!context.skipIndicatorRoute() && shouldUsePublishedIndicator(context.indicatorMatch())) {
+            return Optional.of(buildPublishedIndicatorPlan(context.indicatorMatch(), context.metricOverride())
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_1_PUBLISHED_INDICATOR,
+                            "命中 dts-platform 已发布指标",
+                            "indicator:" + selectIndicatorMatch(
+                                    context.indicatorMatch(),
+                                    context.metricOverride()).code())));
+        }
+        context.routeTrace().miss(
+                RouteTier.TIER_1_PUBLISHED_INDICATOR,
+                context.skipIndicatorRoute() ? "用户选择生成 SQL，跳过已发布指标" : "未命中高可信已发布指标");
+        return Optional.empty();
+    }
+
+    private Optional<ConversationPlan> tryDirectResponseRoute(RouteEvaluationContext context) {
+        if (context.catalogMatch().isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new ConversationPlan(
+                    PlanMode.DIRECT_RESPONSE,
+                    ResponseKind.BUSINESS_DIRECT_RESPONSE,
+                    buildDirectResponse(context.catalogMatch().get()),
+                    context.domain(),
+                    context.primaryTarget(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    null,
+                    context.extendedRouting().dataLayer().name(),
+                    context.extendedRouting().martTable(),
+                    ""
+            ));
+    }
+
+    private Optional<ConversationPlan> tryTemplateSqlRoute(RouteEvaluationContext context) {
+        TemplateMatchResult templateMatch = context.templateMatch();
+        if (!(templateMatch.matched() && StringUtils.hasText(templateMatch.resolvedSql()))) {
+            return Optional.empty();
+        }
+        return Optional.of(new ConversationPlan(
+                    PlanMode.TEMPLATE_FAST_PATH,
+                    ResponseKind.TEMPLATE_SQL,
+                    null,
+                    context.domain(),
+                    context.primaryTarget(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    templateMatch.resolvedSql(),
+                    context.extendedRouting().dataLayer().name(),
+                    context.extendedRouting().martTable(),
+                    buildBusinessRoutingPrompt(
+                            context.domain(),
+                            context.primaryTarget(),
+                            context.secondaryTargets(),
+                            context.extendedRouting(),
+                            context.templateCode(),
+                            templateMatch.resolvedSql()))
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_2_MART_TEMPLATE,
+                            "命中可执行模板 SQL",
+                            context.templateCode())));
+    }
+
+    private Optional<ConversationPlan> tryFixedReportTemplateRoute(RouteEvaluationContext context) {
+        TemplateMatchResult templateMatch = context.templateMatch();
+        if (!(templateMatch.matched() && StringUtils.hasText(context.templateCode()))) {
+            return Optional.empty();
+        }
+        return Optional.of(new ConversationPlan(
+                    PlanMode.TEMPLATE_FAST_PATH,
+                    ResponseKind.FIXED_REPORT,
+                    null,
+                    context.domain(),
+                    context.primaryTarget(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    null,
+                    context.extendedRouting().dataLayer().name(),
+                    context.extendedRouting().martTable(),
+                    buildBusinessRoutingPrompt(
+                            context.domain(),
+                            context.primaryTarget(),
+                            context.secondaryTargets(),
+                            context.extendedRouting(),
+                            context.templateCode(),
+                            null))
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_2_MART_TEMPLATE,
+                            "命中固定报表/资产模板",
+                            context.templateCode())));
+    }
+
+    private Optional<ConversationPlan> tryPreferredReportCatalogRoute(RouteEvaluationContext context) {
+        if (context.reportCatalogMatch().isEmpty()
+                || !shouldPreferFixedReportCatalog(context.userQuestion(), context.reportCatalogMatch().get())) {
+            return Optional.empty();
+        }
+        return Optional.of(buildReportCatalogPlan(
+                    context.reportCatalogMatch().get(),
+                    context.domain(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    context.extendedRouting())
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_2_MART_TEMPLATE,
+                            "命中固定报表/资产目录",
+                            resolveRouteTarget(context.reportCatalogMatch().get()))));
+    }
+
+    private Optional<ConversationPlan> trySignalQueryRoute(RouteEvaluationContext context) {
+        Optional<SignalQuery> signalQuery = resolveSignalQuery(context.userQuestion(), context.domain());
+        if (signalQuery.isPresent()) {
+            context.routeTrace().miss(
+                    RouteTier.TIER_2_MART_TEMPLATE,
+                    "未命中需要优先返回的可执行模板或固定报表资产");
+            return Optional.of(buildSignalQueryPlan(
+                    signalQuery.get(),
+                    context.domain(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    context.extendedRouting())
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                            "命中 semantic pack signal",
+                            "ontology:" + signalQuery.get().domain() + ":signals")));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ConversationPlan> tryBusinessObjectRoute(RouteEvaluationContext context) {
+        Optional<OntologyNavigation> ontologyNavigation = resolveOntologyNavigation(context.userQuestion(), context.domain());
+
+        if (context.businessObjectMatch().isPresent() && ontologyNavigation.isEmpty()) {
+            context.routeTrace().miss(
+                    RouteTier.TIER_2_MART_TEMPLATE,
+                    "未命中需要优先返回的可执行模板或固定报表资产");
+            context.routeTrace().missIfAbsent(
+                    RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                    "未命中本体对象链路或 semantic pack signal");
+            context.routeTrace().missIfAbsent(
+                    RouteTier.TIER_4_GUARDRAIL_FEDERATED,
+                    "未进入泛化联邦分析，优先使用已登记业务对象只读画像");
+            return Optional.of(buildBusinessObjectPlan(
+                    context.businessObjectMatch().get(),
+                    context.domain(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    context.extendedRouting())
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_5_DIRECT_DETAIL,
+                            "命中业务对象画像",
+                            context.businessObjectMatch().get().primaryTarget())));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ConversationPlan> tryOntologyNavigationRoute(RouteEvaluationContext context) {
+        Optional<OntologyNavigation> ontologyNavigation = resolveOntologyNavigation(context.userQuestion(), context.domain());
+        if (ontologyNavigation.isPresent()) {
+            context.routeTrace().miss(
+                    RouteTier.TIER_2_MART_TEMPLATE,
+                    "未命中需要优先返回的可执行模板或固定报表资产");
+            return Optional.of(buildOntologyNavigationPlan(
+                    ontologyNavigation.get(),
+                    context.domain(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    context.extendedRouting())
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                            "命中对象图链路",
+                            "ontology:" + ontologyNavigation.get().domain())));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ConversationPlan> tryReportCatalogRoute(RouteEvaluationContext context) {
+        if (context.reportCatalogMatch().isEmpty()) {
+            return Optional.empty();
+        }
+        ReportCatalogEntry reportCatalogEntry = context.reportCatalogMatch().get();
+        return Optional.of(buildReportCatalogPlan(
+                    reportCatalogEntry,
+                    context.domain(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    context.extendedRouting())
+                    .withRouteTrace(buildReportCatalogRouteTrace(context.routeTrace(), reportCatalogEntry)));
+    }
+
+    private Optional<ConversationPlan> tryGeneratedReportDraftRoute(RouteEvaluationContext context) {
+        if (!isGeneratedReportDraftRequest(context.userQuestion())) {
+            return Optional.empty();
+        }
+        String generatedDataSurface = resolveGeneratedReportDataSurface(context.extendedRouting(), context.primaryTarget());
+        context.routeTrace().miss(
+                    RouteTier.TIER_2_MART_TEMPLATE,
+                    "未命中需要优先返回的可执行模板或固定报表资产");
+        context.routeTrace().missIfAbsent(
+                    RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                    "未命中本体对象链路或 semantic pack signal");
+        return Optional.of(new ConversationPlan(
+                    PlanMode.AGENT_WORKFLOW,
+                    ResponseKind.REPORT_DRAFT,
+                    null,
+                    context.domain(),
+                    context.primaryTarget(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    null,
+                    context.extendedRouting().dataLayer().name(),
+                    context.extendedRouting().martTable(),
+                    buildReportDraftPrompt(
+                            context.domain(),
+                            context.primaryTarget(),
+                            context.secondaryTargets(),
+                            context.extendedRouting(),
+                            context.templateCode()),
+                    generatedDataSurface,
+                    "MEDIUM",
+                    buildGeneratedReportQualityNotes(generatedDataSurface, context.extendedRouting()),
+                    resolveSuggestedDisplayFromQuestion(context.userQuestion()),
+                    null)
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_4_GUARDRAIL_FEDERATED,
+                            "进入现生成报表草稿路径",
+                            context.primaryTarget())));
+    }
+
+    private Optional<ConversationPlan> tryFixedReportCandidateRoute(RouteEvaluationContext context) {
+        String fixedReportDomain = resolveFixedReportSuggestionDomain(context.userQuestion(), context.domain());
+        List<SuggestedQuestion> fixedReportCandidates = resolveFixedReportCandidates(context.userQuestion(), fixedReportDomain);
+        if (!fixedReportCandidates.isEmpty()) {
+            return Optional.of(new ConversationPlan(
+                    PlanMode.DIRECT_RESPONSE,
+                    ResponseKind.FIXED_REPORT_CANDIDATES,
+                    buildFixedReportCandidatesResponse(fixedReportDomain, fixedReportCandidates),
+                    StringUtils.hasText(fixedReportDomain) ? fixedReportDomain : context.domain(),
+                    context.primaryTarget(),
+                    context.secondaryTargets(),
+                    null,
+                    null,
+                    context.extendedRouting().dataLayer().name(),
+                    context.extendedRouting().martTable(),
+                    ""
+            ));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ConversationPlan> tryClarificationRoute(RouteEvaluationContext context) {
+        if (context.routing() == null || context.routing().needsClarification()) {
+            ResponseKind kind = StringUtils.hasText(context.domain())
+                    ? ResponseKind.BUSINESS_CLARIFICATION
+                    : ResponseKind.GENERIC_ANALYSIS;
+            context.routeTrace().miss(
+                    RouteTier.TIER_2_MART_TEMPLATE,
+                    "未命中需要优先返回的可执行模板或固定报表资产");
+            context.routeTrace().missIfAbsent(
+                    RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                    "未命中本体对象链路或 semantic pack signal");
+            return Optional.of(new ConversationPlan(
+                    PlanMode.AGENT_WORKFLOW,
+                    kind,
+                    null,
+                    context.domain(),
+                    context.primaryTarget(),
+                    context.secondaryTargets(),
+                    context.templateCode(),
+                    null,
+                    context.extendedRouting().dataLayer().name(),
+                    context.extendedRouting().martTable(),
+                    buildPlannerClarificationPrompt(context.domain()))
+                    .withRouteTrace(context.routeTrace().hit(
+                            RouteTier.TIER_4_GUARDRAIL_FEDERATED,
+                            "需要继续澄清或探索",
+                            context.primaryTarget())));
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ConversationPlan> buildFallbackBusinessAnalysisRoute(RouteEvaluationContext context) {
+        context.routeTrace().miss(
+                RouteTier.TIER_2_MART_TEMPLATE,
+                "未命中需要优先返回的可执行模板或固定报表资产");
+        context.routeTrace().missIfAbsent(
+                RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                "未命中本体对象链路或 semantic pack signal");
+        return Optional.of(new ConversationPlan(
+                PlanMode.AGENT_WORKFLOW,
+                ResponseKind.BUSINESS_ANALYSIS,
                 null,
-                extendedRouting.dataLayer().name(),
-                extendedRouting.martTable(),
-                buildBusinessRoutingPrompt(domain, primaryTarget, secondaryTargets, extendedRouting, templateCode, null));
+                context.domain(),
+                context.primaryTarget(),
+                context.secondaryTargets(),
+                context.templateCode(),
+                null,
+                context.extendedRouting().dataLayer().name(),
+                context.extendedRouting().martTable(),
+                buildBusinessRoutingPrompt(
+                        context.domain(),
+                        context.primaryTarget(),
+                        context.secondaryTargets(),
+                        context.extendedRouting(),
+                        context.templateCode(),
+                        null))
+                .withRouteTrace(context.routeTrace().hit(
+                        RouteTier.TIER_4_GUARDRAIL_FEDERATED,
+                        "进入通用业务分析路径",
+                        context.primaryTarget())));
     }
 
     private boolean shouldSkipIndicatorRoute(String metricOverride) {
@@ -405,11 +623,13 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
     }
 
     private String resolveDomain(RoutingResult routing, TemplateMatchResult templateMatch) {
+        if (templateMatch.matched()
+                && templateMatch.template() != null
+                && StringUtils.hasText(templateMatch.template().getDomain())) {
+            return templateMatch.template().getDomain();
+        }
         if (routing != null && StringUtils.hasText(routing.domain())) {
             return routing.domain();
-        }
-        if (templateMatch.matched() && templateMatch.template() != null) {
-            return templateMatch.template().getDomain();
         }
         return null;
     }
@@ -418,6 +638,11 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             RoutingResult routing,
             TemplateMatchResult templateMatch,
             ExtendedRoutingResult extendedRouting) {
+        if (templateMatch.matched()
+                && templateMatch.template() != null
+                && StringUtils.hasText(templateMatch.template().getTargetView())) {
+            return templateMatch.template().getTargetView();
+        }
         if (extendedRouting != null
                 && extendedRouting.dataLayer() == IntentRouterService.DataLayer.MART
                 && StringUtils.hasText(extendedRouting.martTable())) {
@@ -425,9 +650,6 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         }
         if (routing != null && StringUtils.hasText(routing.primaryView())) {
             return routing.primaryView();
-        }
-        if (templateMatch.matched() && templateMatch.template() != null) {
-            return templateMatch.template().getTargetView();
         }
         return null;
     }
@@ -1034,6 +1256,46 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         return null;
     }
 
+    private String resolveRouteTarget(ReportCatalogEntry entry) {
+        String templateCode = resolveReportCatalogTemplateCode(entry, null);
+        if (StringUtils.hasText(templateCode)) {
+            return templateCode;
+        }
+        return entry == null ? null : entry.reportCode();
+    }
+
+    private List<ConversationPlan.RouteStep> buildReportCatalogRouteTrace(
+            RouteTrace routeTrace,
+            ReportCatalogEntry entry) {
+        ResponseKind responseKind = ResponseKind.valueOf(entry.responseKind());
+        if (ResponseKind.FIXED_REPORT == responseKind) {
+            return routeTrace.hit(
+                    RouteTier.TIER_2_MART_TEMPLATE,
+                    "命中固定报表/资产目录",
+                    resolveRouteTarget(entry));
+        }
+        routeTrace.missIfAbsent(
+                RouteTier.TIER_2_MART_TEMPLATE,
+                "未命中需要优先返回的可执行模板或固定报表资产");
+        routeTrace.missIfAbsent(
+                RouteTier.TIER_3_ONTOLOGY_OBJECT_GRAPH,
+                "未命中本体对象链路或 semantic pack signal");
+        if (ResponseKind.BUSINESS_DETAIL == responseKind
+                || ResponseKind.BUSINESS_INSIGHT == responseKind) {
+            routeTrace.missIfAbsent(
+                    RouteTier.TIER_4_GUARDRAIL_FEDERATED,
+                    "未进入泛化联邦分析，优先使用目录中的业务只读入口");
+            return routeTrace.hit(
+                    RouteTier.TIER_5_DIRECT_DETAIL,
+                    "命中业务只读目录入口",
+                    entry.primaryTarget());
+        }
+        return routeTrace.hit(
+                RouteTier.TIER_4_GUARDRAIL_FEDERATED,
+                ResponseKind.ACTION_PROPOSAL == responseKind ? "命中受控动作提案" : "命中现生成报表草稿目录",
+                entry.primaryTarget());
+    }
+
     private ConversationPlan buildBusinessObjectPlan(
             BusinessObjectEntry entry,
             String routedDomain,
@@ -1216,6 +1478,34 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         return sb.toString().trim();
     }
 
+    private interface PlanRoute {
+        Optional<ConversationPlan> resolve(RouteEvaluationContext context);
+    }
+
+    private record RouteEvaluationContext(
+            String userQuestion,
+            String metricOverride,
+            RouteTrace routeTrace,
+            IndicatorMatchResult indicatorMatch,
+            boolean skipIndicatorRoute,
+            TemplateMatchResult templateMatch,
+            ExtendedRoutingResult extendedRouting,
+            RoutingResult routing,
+            String domain,
+            String primaryTarget,
+            List<String> secondaryTargets,
+            String templateCode,
+            Optional<ReportCatalogEntry> reportCatalogMatch,
+            Optional<BusinessObjectEntry> businessObjectMatch,
+            Optional<CatalogEntry> catalogMatch) {
+        private RouteEvaluationContext {
+            secondaryTargets = secondaryTargets == null ? List.of() : List.copyOf(secondaryTargets);
+            reportCatalogMatch = reportCatalogMatch == null ? Optional.empty() : reportCatalogMatch;
+            businessObjectMatch = businessObjectMatch == null ? Optional.empty() : businessObjectMatch;
+            catalogMatch = catalogMatch == null ? Optional.empty() : catalogMatch;
+        }
+    }
+
     private record ObjectMention(String objectName, int index) {
     }
 
@@ -1231,6 +1521,26 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
             List<OntologyService.SignalPlan> plans) {
         private SignalQuery {
             plans = plans == null ? List.of() : List.copyOf(plans);
+        }
+    }
+
+    private static final class RouteTrace {
+        private final List<ConversationPlan.RouteStep> steps = new ArrayList<>();
+
+        void miss(RouteTier tier, String reason) {
+            steps.add(new ConversationPlan.RouteStep(tier.name(), tier.label(), "MISS", reason, null));
+        }
+
+        void missIfAbsent(RouteTier tier, String reason) {
+            boolean alreadyRecorded = steps.stream().anyMatch(step -> tier.name().equals(step.tier()));
+            if (!alreadyRecorded) {
+                miss(tier, reason);
+            }
+        }
+
+        List<ConversationPlan.RouteStep> hit(RouteTier tier, String reason, String target) {
+            steps.add(new ConversationPlan.RouteStep(tier.name(), tier.label(), "HIT", reason, target));
+            return List.copyOf(steps);
         }
     }
 }

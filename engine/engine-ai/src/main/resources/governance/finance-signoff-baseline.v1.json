@@ -1,0 +1,67 @@
+{
+  "version": "2026-07-sprint33-finance-signoff-baseline-v1",
+  "policies": [
+    {
+      "id": "sprint33-finance-signoff-baseline",
+      "title": "Sprint-33 财务签字基线",
+      "accountPeriod": "2026-06",
+      "scorecardPolicyId": "sprint33-finance-daily-scorecard",
+      "assetPath": "worklog/v1.0.0/sprint-33-202607/assets/finance-signoff-baseline.md",
+      "itScript": "worklog/v1.0.0/sprint-33-202607/it/test_f5_finance_signoff_baseline.sh",
+      "requiredEvidence": [
+        {
+          "id": "f1-detail-reconciliation",
+          "feature": "F1",
+          "label": "明细级对账",
+          "command": "mvn -q -pl dts-copilot-ai -Dtest=FinanceDetailReconciliationServiceTest test",
+          "evidencePath": "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f1-detail-reconciliation-live-sample-sql-test.log"
+        },
+        {
+          "id": "f2-summary-dual-reconciliation",
+          "feature": "F2",
+          "label": "汇总双路对账",
+          "command": "mvn -q -pl dts-copilot-ai -Dtest=FinanceSummaryDualReconciliationServiceTest test",
+          "evidencePath": "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f2-summary-dual-reconciliation-test.log"
+        },
+        {
+          "id": "f2-voucher-subject-tieout",
+          "feature": "F2",
+          "label": "凭证科目 tie-out",
+          "command": "mvn -q -pl dts-copilot-ai -Dtest=FinanceVoucherSubjectTieoutServiceTest test",
+          "evidencePath": "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f2-voucher-subject-tieout-test.log"
+        },
+        {
+          "id": "f3-invariant-guardrails",
+          "feature": "F3",
+          "label": "不变量与静态口径 guardrail",
+          "command": "mvn -q -pl dts-copilot-ai -Dtest=FinanceInvariantRegressionServiceTest,CaliberRuleRegistryTest test",
+          "evidencePath": "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/static-caliber-guardrails-test.log"
+        },
+        {
+          "id": "f4-differential-scorecard",
+          "feature": "F4",
+          "label": "差分网格与持续记分卡",
+          "command": "mvn -q -pl dts-copilot-ai -Dtest=FinanceDifferentialGridServiceTest,FinanceReconciliationScorecardServiceTest test",
+          "evidencePath": "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f4-reconciliation-scorecard-test.log"
+        },
+        {
+          "id": "f5-answer-audit-trail",
+          "feature": "F5",
+          "label": "可审计溯源样例",
+          "command": "bash worklog/v1.0.0/sprint-33-202607/it/test_f5_finance_answer_audit_trail.sh",
+          "evidencePath": "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f5-finance-answer-audit-trail-test.log"
+        }
+      ],
+      "requiredSignatureRoles": [
+        {
+          "role": "FINANCE_OWNER",
+          "label": "财务负责人"
+        },
+        {
+          "role": "AUDITOR",
+          "label": "审计复核"
+        }
+      ]
+    }
+  ]
+}

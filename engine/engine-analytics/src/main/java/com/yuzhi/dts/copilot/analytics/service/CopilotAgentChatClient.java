@@ -103,6 +103,18 @@ public class CopilotAgentChatClient {
                 .body(new ParameterizedTypeReference<>() {});
     }
 
+    public Map<String, Object> getRouteTelemetry(int days, int limit) {
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/internal/agent/chat/route-telemetry")
+                        .queryParam("days", days)
+                        .queryParam("limit", limit)
+                        .build())
+                .header("X-Admin-Secret", adminSecret)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+    }
+
     public void sendMessageStream(String userId, String sessionId, String message,
                                    Long datasourceId, Map<String, Boolean> martHealth,
                                    Map<String, String> assumptionOverrides,

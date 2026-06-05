@@ -75,6 +75,9 @@ public class PlatformIndicatorClient implements PlatformIndicatorCatalogClient {
                 builder.header("Authorization", "Bearer " + token);
             }
         }
+        if (StringUtils.hasText(properties.activeDept())) {
+            builder.header("X-Active-Dept", properties.activeDept().trim());
+        }
         HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IllegalStateException("HTTP " + response.statusCode());

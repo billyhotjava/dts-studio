@@ -31,6 +31,7 @@ public class SemanticPackService {
             "semantic-packs/project-fulfillment.json",
             "semantic-packs/field-operations.json",
             "semantic-packs/procurement.json",
+            "semantic-packs/warehouse.json",
             "semantic-packs/finance.json",
             "semantic-packs/flowerbiz.json"
     };
@@ -187,14 +188,11 @@ public class SemanticPackService {
             sb.append("\n");
         }
 
-        JsonNode guardrails = pack.path("guardrails");
-        if (guardrails.isArray() && !guardrails.isEmpty()) {
+        List<String> guardrails = resolveGuardrails(pack);
+        if (!guardrails.isEmpty()) {
             sb.append("【口径护栏】\n");
-            for (JsonNode guardrail : guardrails) {
-                String text = guardrail.asText("");
-                if (!text.isBlank()) {
-                    sb.append("- ").append(text).append("\n");
-                }
+            for (String guardrail : guardrails) {
+                sb.append("- ").append(guardrail).append("\n");
             }
             sb.append("\n");
         }
@@ -231,7 +229,7 @@ public class SemanticPackService {
                 parseObjects(pack.path("objects")),
                 parseSynonyms(pack.path("synonyms")),
                 parseFewShots(pack.path("fewShots")),
-                parseTextArray(pack.path("guardrails")),
+                resolveGuardrails(pack),
                 parseLinks(pack.path("links")),
                 parseMetrics(pack.path("metrics")),
                 parseSignals(pack.path("signals")),
@@ -428,6 +426,42 @@ public class SemanticPackService {
             }
         }
         return List.copyOf(values);
+    }
+
+    private static List<String> resolveGuardrails(JsonNode pack) {
+        List<String> guardrails = new ArrayList<>();
+        Set<String> seenRuleIds = new java.util.LinkedHashSet<>();
+        appendGuardrails(guardrails, seenRuleIds, pack.path("generatedGuardrails").path("rules"));
+        appendGuardrails(guardrails, seenRuleIds, pack.path("guardrails"));
+        return List.copyOf(guardrails);
+    }
+
+    private static void appendGuardrails(List<String> guardrails, Set<String> seenRuleIds, JsonNode arrayNode) {
+        if (!arrayNode.isArray()) {
+            return;
+        }
+        for (JsonNode item : arrayNode) {
+            String value = item.asText("");
+            if (value.isBlank()) {
+                continue;
+            }
+            String ruleId = extractRuleId(value);
+            if (!ruleId.isBlank() && !seenRuleIds.add(ruleId)) {
+                continue;
+            }
+            guardrails.add(value);
+        }
+    }
+
+    private static String extractRuleId(String value) {
+        if (!value.startsWith("[CAL-")) {
+            return "";
+        }
+        int end = value.indexOf(']');
+        if (end <= 1) {
+            return "";
+        }
+        return value.substring(1, end);
     }
 
     private static void warnInvalidOntologyEntry(String section, JsonNode node) {

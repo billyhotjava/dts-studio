@@ -8,6 +8,7 @@ import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService.ChatExecutio
 import com.yuzhi.dts.copilot.ai.service.audit.AiAuditService;
 import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -36,13 +37,23 @@ public class AgentChatService {
     private final AiChatSessionRepository sessionRepository;
     private final AgentExecutionService agentExecutionService;
     private final AiAuditService auditService;
+    private final RouteTelemetryService routeTelemetryService;
 
     public AgentChatService(AiChatSessionRepository sessionRepository,
                             AgentExecutionService agentExecutionService,
                             AiAuditService auditService) {
+        this(sessionRepository, agentExecutionService, auditService, null);
+    }
+
+    @Autowired
+    public AgentChatService(AiChatSessionRepository sessionRepository,
+                            AgentExecutionService agentExecutionService,
+                            AiAuditService auditService,
+                            RouteTelemetryService routeTelemetryService) {
         this.sessionRepository = sessionRepository;
         this.agentExecutionService = agentExecutionService;
         this.auditService = auditService;
+        this.routeTelemetryService = routeTelemetryService;
     }
 
     /**
@@ -119,6 +130,8 @@ public class AgentChatService {
                 executionResult.conversationPlan(),
                 executionResult.generatedSql(),
                 executionResult.requestContext());
+        CopilotChatContract.attachFinanceAuditTrail(assistantMsg, executionResult.financeAuditTrail());
+        attachRouteTelemetry(assistantMsg, message);
         session.addMessage(assistantMsg);
 
         // Auto-generate title from first message
@@ -230,6 +243,8 @@ public class AgentChatService {
                 executionResult.conversationPlan(),
                 executionResult.generatedSql(),
                 executionResult.requestContext());
+        CopilotChatContract.attachFinanceAuditTrail(assistantMsg, executionResult.financeAuditTrail());
+        attachRouteTelemetry(assistantMsg, message);
         session.addMessage(assistantMsg);
 
         if (session.getTitle() == null || session.getTitle().isBlank()) {
@@ -297,6 +312,12 @@ public class AgentChatService {
             Map<String, String> clarificationAnswers) {
         return (assumptionOverrides != null && !assumptionOverrides.isEmpty())
                 || (clarificationAnswers != null && !clarificationAnswers.isEmpty());
+    }
+
+    private void attachRouteTelemetry(AiChatMessage assistantMsg, String userQuestion) {
+        if (routeTelemetryService != null) {
+            routeTelemetryService.attachQuestion(assistantMsg, userQuestion);
+        }
     }
 
     private List<Map<String, Object>> buildHistory(AiChatSession session) {

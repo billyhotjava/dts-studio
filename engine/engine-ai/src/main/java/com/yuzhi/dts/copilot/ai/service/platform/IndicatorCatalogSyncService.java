@@ -63,7 +63,7 @@ public class IndicatorCatalogSyncService {
                     .filter(IndicatorCatalogMapper::isPublished)
                     .map(IndicatorCatalogMapper::fromPlatform)
                     .toList();
-            SyncResult result = buildSuccessResult(entries);
+            SyncResult result = buildSuccessResult(fetched.size(), entries);
             store.replaceAll(entries, result);
             LOG.info("Platform indicator catalog synced: fetched={}, entries={}, changed={}",
                     fetched.size(), entries.size(), result.caliberChangedCodes().size());
@@ -78,7 +78,7 @@ public class IndicatorCatalogSyncService {
         }
     }
 
-    private SyncResult buildSuccessResult(List<IndicatorCatalogEntry> nextEntries) {
+    private SyncResult buildSuccessResult(int fetchedCount, List<IndicatorCatalogEntry> nextEntries) {
         Map<String, IndicatorCatalogEntry> previousByCode = byCode(store.all());
         Map<String, IndicatorCatalogEntry> nextByCode = byCode(nextEntries);
         int added = 0;
@@ -101,7 +101,7 @@ public class IndicatorCatalogSyncService {
                 removed += 1;
             }
         }
-        return SyncResult.success(nextEntries.size(), added, updated, removed, caliberChangedCodes);
+        return SyncResult.success(fetchedCount, added, updated, removed, caliberChangedCodes);
     }
 
     private static Map<String, IndicatorCatalogEntry> byCode(List<IndicatorCatalogEntry> entries) {

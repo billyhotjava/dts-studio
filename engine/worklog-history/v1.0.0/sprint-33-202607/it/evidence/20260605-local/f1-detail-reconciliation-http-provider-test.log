@@ -1,0 +1,21 @@
+# F1-T02 detail reconciliation HTTP provider contract
+
+Date: 2026-06-05 local
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceDetailReconciliationHttpPayloadProviderTest test
+```
+
+Result: PASS
+
+Coverage:
+- adminapi L2 POST endpoint: sends JSON body from `oracleRequest`.
+- adminapi L2 GET endpoint: sends query string from `oracleRequest`.
+- copilot `/api/dataset`: sends native query from `copilotRequest.database + nativeSql`.
+- `Authorization` and `Cookie` are forwarded to both oracle and dataset calls.
+- missing oracle/analytics base URL fails fast.
+
+Remaining:
+- live environment parameters and real sample `nativeSql/database` wiring.
+- real L2 adminapi + copilot dataset dual fetch against deployed services.

@@ -1,0 +1,30 @@
+{
+  "version": "2026-07-sprint33-finance-weak-path-reconciliation-candidates-v1",
+  "policies": [
+    {
+      "id": "sprint33-finance-weak-path-reconciliation",
+      "financeDomains": ["finance", "flowerbiz"],
+      "weakTiers": ["TIER_4_GUARDRAIL_FEDERATED", "TIER_5_DIRECT_DETAIL"],
+      "financeKeywords": [
+        "财务",
+        "月对账",
+        "折后实收",
+        "凭证",
+        "应收",
+        "回款",
+        "坏账",
+        "结算",
+        "售账",
+        "finance",
+        "voucher",
+        "receivable",
+        "settlement"
+      ],
+      "minCount": 2,
+      "semanticDraftThreshold": 3,
+      "reconciliationSets": ["f1-detail", "f3-invariant-seed", "f4-differential-grid"],
+      "itScript": "worklog/v1.0.0/sprint-33-202607/it/test_f4_weak_path_reconciliation_candidates.sh",
+      "notes": "F4-T03 本地 contract 策略；live telemetry 查询、候选持久化、Sprint-31 F3 草稿流转待接线。"
+    }
+  ]
+}

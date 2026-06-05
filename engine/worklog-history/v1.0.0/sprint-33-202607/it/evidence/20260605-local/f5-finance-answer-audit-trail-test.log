@@ -1,0 +1,136 @@
+2026-06-05 15:23 local rerun: PASS.
+Updated scope: `test_f5_finance_answer_audit_trail.sh` now includes `FinanceReconciliationScorecardPublisherServiceTest`, so F5 validates that a complete F4 scorecard bundle can publish the source consumed by `trace.financeAudit`, while incomplete live evidence does not overwrite the source.
+
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build what is described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (/home/billy/.m2/repository/net/bytebuddy/byte-buddy-agent/1.15.11/byte-buddy-agent-1.15.11.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+15:08:47.746 [main] INFO com.yuzhi.dts.copilot.ai.service.chat.AgentChatService -- Streaming chat interrupted: stream interrupted
+15:08:47.755 [main] ERROR com.yuzhi.dts.copilot.ai.service.chat.AgentChatService -- Streaming chat failed: upstream unavailable
+java.lang.IllegalStateException: upstream unavailable
+	at com.yuzhi.dts.copilot.ai.service.chat.AgentChatService.sendMessageStream(AgentChatService.java:214)
+	at com.yuzhi.dts.copilot.ai.service.chat.AgentChatService.sendMessageStream(AgentChatService.java:167)
+	at com.yuzhi.dts.copilot.ai.service.chat.AgentChatService.sendMessageStream(AgentChatService.java:161)
+	at com.yuzhi.dts.copilot.ai.service.chat.AgentChatServiceTest.sendMessageStreamPersistsAssistantErrorWhenStreamingFails(AgentChatServiceTest.java:390)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:767)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$8(TestMethodTestDescriptor.java:217)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:213)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:138)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:68)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:156)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:146)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:144)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:143)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:100)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:160)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:146)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:144)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:143)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:100)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:160)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:146)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:144)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:143)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:100)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+	at org.apache.maven.surefire.junitplatform.LazyLauncher.execute(LazyLauncher.java:56)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:194)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:150)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:124)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+15:08:48.112 [main] WARN com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService -- Rejected non-read-only generated SQL because it does not start with SELECT/WITH
+15:08:48.207 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.221 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.232 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.239 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.252 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.259 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.267 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.272 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.502 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.509 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.515 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.520 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.591 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.598 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.604 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.608 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.621 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.628 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.634 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.638 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.638 [main] WARN com.yuzhi.dts.copilot.ai.service.copilot.FinanceChatAuditTrailService -- Failed to load finance scorecard for oracleBindingId=month-settlement: scorecard store unavailable
+15:08:48.645 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.651 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.655 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.659 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.721 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.724 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.727 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.729 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.747 [main] WARN com.yuzhi.dts.copilot.ai.service.copilot.FinanceReconciliationScorecardSnapshotService -- Failed to parse finance scorecard snapshot id=null: Unexpected character ('b' (code 98)): was expecting double-quote to start field name
+ at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 2]
+15:08:48.770 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.773 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.777 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.782 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.790 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.793 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.797 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.800 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+15:08:48.806 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailRegistry -- Loaded 1 finance answer audit trail policy(s) and 3 binding policy(s) from governance/finance-answer-audit-trail.v1.json
+15:08:48.809 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:08:48.812 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceInvariantRegistry -- Loaded 8 finance invariant(s) from governance/finance-invariants.v1.json
+15:08:48.815 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry -- Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+
+ RUN  v4.1.0 /opt/prod/prs/source/dts-copilot/dts-copilot-webapp
+
+
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+   Start at  15:08:49
+   Duration  1.88s (transform 364ms, setup 221ms, import 605ms, tests 417ms, environment 2.63s)

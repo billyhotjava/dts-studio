@@ -39,6 +39,23 @@ public final class CopilotChatContract {
         message.setTrace(writeJson(buildTrace(plan, generatedSql)));
     }
 
+    public static void attachFinanceAuditTrail(
+            AiChatMessage message,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
+        if (message == null || financeAuditTrail == null) {
+            return;
+        }
+        try {
+            ObjectNode trace = StringUtils.hasText(message.getTrace())
+                    ? (ObjectNode) MAPPER.readTree(message.getTrace())
+                    : MAPPER.createObjectNode();
+            trace.set("financeAudit", MAPPER.valueToTree(financeAuditTrail));
+            message.setTrace(writeJson(trace));
+        } catch (Exception ignored) {
+            // Keep the answer visible even if optional finance audit serialization fails.
+        }
+    }
+
     public static void putMessageFields(AiChatMessage message, Map<String, Object> target) {
         if (message == null || target == null) {
             return;
@@ -77,6 +94,15 @@ public final class CopilotChatContract {
             ConversationPlan plan,
             String generatedSql,
             CopilotChatRequestContext requestContext) {
+        putDoneFields(done, plan, generatedSql, requestContext, null);
+    }
+
+    public static void putDoneFields(
+            ObjectNode done,
+            ConversationPlan plan,
+            String generatedSql,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
         if (done == null) {
             return;
         }
@@ -93,6 +119,9 @@ public final class CopilotChatContract {
             done.set("clarifications", MAPPER.valueToTree(clarifications));
         }
         Map<String, Object> trace = buildTrace(plan, generatedSql);
+        if (financeAuditTrail != null) {
+            trace.put("financeAudit", MAPPER.valueToTree(financeAuditTrail));
+        }
         if (!trace.isEmpty()) {
             done.set("trace", MAPPER.valueToTree(trace));
         }
@@ -270,6 +299,11 @@ public final class CopilotChatContract {
             trace.put("sources", sources);
         }
 
+        List<Map<String, Object>> routeTrace = buildRouteTrace(plan);
+        if (!routeTrace.isEmpty()) {
+            trace.put("routeTrace", routeTrace);
+        }
+
         String sql = StringUtils.hasText(generatedSql) ? generatedSql : plan.resolvedSql();
         if (StringUtils.hasText(sql)) {
             trace.put("sql", sql);
@@ -300,6 +334,24 @@ public final class CopilotChatContract {
         return sources;
     }
 
+    private static List<Map<String, Object>> buildRouteTrace(ConversationPlan plan) {
+        if (plan == null || plan.routeTrace().isEmpty()) {
+            return List.of();
+        }
+        return plan.routeTrace().stream()
+                .map(step -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    putIfPresent(item, "tier", step.tier());
+                    putIfPresent(item, "label", step.label());
+                    putIfPresent(item, "status", step.status());
+                    putIfPresent(item, "reason", step.reason());
+                    putIfPresent(item, "target", step.target());
+                    return item;
+                })
+                .filter(item -> !item.isEmpty())
+                .toList();
+    }
+
     private static String extractSourceTable(String sourceRef) {
         if (!StringUtils.hasText(sourceRef)) {
             return null;
@@ -309,6 +361,12 @@ public final class CopilotChatContract {
         return separator >= 0 && separator < trimmed.length() - 1
                 ? trimmed.substring(separator + 1)
                 : trimmed;
+    }
+
+    private static void putIfPresent(Map<String, Object> target, String key, String value) {
+        if (StringUtils.hasText(value)) {
+            target.put(key, value);
+        }
     }
 
     private static String writeJson(Object value) {

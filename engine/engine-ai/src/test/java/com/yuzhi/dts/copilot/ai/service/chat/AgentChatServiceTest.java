@@ -6,12 +6,15 @@ import com.yuzhi.dts.copilot.ai.repository.AiChatSessionRepository;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService;
 import com.yuzhi.dts.copilot.ai.service.agent.AgentExecutionService.ChatExecutionResult;
 import com.yuzhi.dts.copilot.ai.service.audit.AiAuditService;
+import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatRequestContext;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ResponseKind;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailService;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +39,7 @@ class AgentChatServiceTest {
         AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
         AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
         AiAuditService auditService = mock(AiAuditService.class);
+        RouteTelemetryService routeTelemetryService = mock(RouteTelemetryService.class);
 
         AiChatSession session = new AiChatSession();
         session.setSessionId("sess-1");
@@ -63,7 +67,8 @@ class AgentChatServiceTest {
                                 "业务范围说明"),
                         null));
 
-        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+        AgentChatService service = new AgentChatService(
+                sessionRepository, agentExecutionService, auditService, routeTelemetryService);
 
         String response = service.sendMessage("sess-1", "alice", "你能分析哪些业务", 7L, Map.of());
 
@@ -80,6 +85,7 @@ class AgentChatServiceTest {
         AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
         AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
         AiAuditService auditService = mock(AiAuditService.class);
+        RouteTelemetryService routeTelemetryService = mock(RouteTelemetryService.class);
 
         AiChatSession session = new AiChatSession();
         session.setSessionId("sess-1");
@@ -113,7 +119,8 @@ class AgentChatServiceTest {
                                 List.of("dbt-model:public.xycyl_dws_flowerbiz_project_monthly")),
                         null));
 
-        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+        AgentChatService service = new AgentChatService(
+                sessionRepository, agentExecutionService, auditService, routeTelemetryService);
 
         service.sendMessage("sess-1", "alice", "租赁收入按月趋势怎么样", 7L, Map.of());
 
@@ -125,6 +132,7 @@ class AgentChatServiceTest {
         assertThat(assistantMessage.getSuggestedDisplay()).isEqualTo("line");
         assertThat(assistantMessage.getReportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
         assertThat(assistantMessage.getSourceRefs()).isEqualTo("dbt-model:public.xycyl_dws_flowerbiz_project_monthly");
+        verify(routeTelemetryService).attachQuestion(assistantMessage, "租赁收入按月趋势怎么样");
     }
 
     @Test
@@ -176,6 +184,42 @@ class AgentChatServiceTest {
                 .contains("\"domain\":\"flowerbiz\"")
                 .contains("\"table\":\"public.ads_profit\"")
                 .contains("\"sql\":\"select month_id, profit from public.ads_profit\"");
+    }
+
+    @Test
+    void sendMessagePersistsFinanceAuditTrailOnAssistantTrace() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-finance");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        when(sessionRepository.findBySessionId("sess-finance")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(agentExecutionService.executeChat(
+                eq("sess-finance"), eq("alice"), eq("月对账折后实收是多少"), anyList(), eq(7L), anyMap()))
+                .thenReturn(new ChatExecutionResult(
+                        "折后实收为 1128.00。",
+                        "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+                        financeMonthSettlementPlan(),
+                        null,
+                        CopilotChatRequestContext.empty(),
+                        financeAuditReport()));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+
+        service.sendMessage("sess-finance", "alice", "月对账折后实收是多少", 7L, Map.of());
+
+        AiChatMessage assistantMessage = session.getMessages().get(1);
+        assertThat(assistantMessage.getTrace())
+                .contains("\"financeAudit\"")
+                .contains("\"sanitizedSql\"")
+                .contains("CAL-MONTH-AMOUNT-TIER")
+                .contains("xycyl_ads_month_settlement_summary")
+                .contains("\"healthStatus\":\"PASS\"");
     }
 
     @Test
@@ -241,6 +285,54 @@ class AgentChatServiceTest {
                 eq(martHealth),
                 eq(assumptionOverrides),
                 eq(clarificationAnswers));
+    }
+
+    @Test
+    void sendMessageStreamPersistsFinanceAuditTrailOnAssistantTrace() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-finance-stream");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        when(sessionRepository.findBySessionId("sess-finance-stream")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(agentExecutionService.executeChatStream(
+                eq("sess-finance-stream"),
+                eq("alice"),
+                eq("月对账折后实收是多少"),
+                anyList(),
+                eq(7L),
+                anyMap(),
+                any()))
+                .thenReturn(new ChatExecutionResult(
+                        "折后实收为 1128.00。",
+                        "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+                        financeMonthSettlementPlan(),
+                        null,
+                        CopilotChatRequestContext.empty(),
+                        financeAuditReport()));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        service.sendMessageStream(
+                "sess-finance-stream",
+                "alice",
+                "月对账折后实收是多少",
+                7L,
+                output);
+
+        AiChatMessage assistantMessage = session.getMessages().get(1);
+        assertThat(assistantMessage.getTrace())
+                .contains("\"financeAudit\"")
+                .contains("\"sanitizedSql\"")
+                .contains("CAL-MONTH-AMOUNT-TIER")
+                .contains("\"healthStatus\":\"PASS\"");
+        verify(sessionRepository).save(session);
     }
 
     @Test
@@ -319,5 +411,68 @@ class AgentChatServiceTest {
     void buildStreamFailureMessageFallsBackToGenericCopyWhenExceptionHasNoMessage() {
         assertThat(AgentChatService.buildStreamFailureMessage(new IllegalStateException()))
                 .isEqualTo("抱歉，本次回答失败，请稍后重试。");
+    }
+
+    private static ConversationPlan financeMonthSettlementPlan() {
+        return new ConversationPlan(
+                PlanMode.AGENT_WORKFLOW,
+                ResponseKind.REPORT_DRAFT,
+                null,
+                "finance",
+                "xycyl_ads_month_settlement_summary",
+                List.of(),
+                null,
+                null,
+                "MART",
+                "xycyl_ads_month_settlement_summary",
+                "月对账折后实收",
+                "L3_ADS",
+                "HIGH",
+                List.of("财务回答必须附审计溯源"),
+                "table",
+                "finance.month_settlement",
+                List.of("dbt-model:xycyl_ads_month_settlement_summary"),
+                null,
+                List.of(new ConversationPlan.RouteStep(
+                        "TIER_2_MART_TEMPLATE",
+                        "ADS 模型",
+                        "HIT",
+                        "命中月对账 ADS",
+                        "xycyl_ads_month_settlement_summary")));
+    }
+
+    private static FinanceAnswerAuditTrailService.AuditTrailReport financeAuditReport() {
+        return new FinanceAnswerAuditTrailService.AuditTrailReport(
+                true,
+                "",
+                List.of("sql", "caliberRules", "lineage", "oracleStatus", "routeTrace"),
+                "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+                List.of(new FinanceAnswerAuditTrailService.AppliedCaliberRule(
+                        "CAL-MONTH-AMOUNT-TIER",
+                        "月对账金额必须区分四层。",
+                        "P0",
+                        "折后实收列必须使用 folding_after_total_amount。",
+                        List.of("month-settlement"))),
+                List.of(),
+                List.of(new FinanceAnswerAuditTrailService.LineageNode(
+                        "ADS_MODEL",
+                        "xycyl_ads_month_settlement_summary",
+                        "auditable-result-model",
+                        List.of("dbt:model.xy_cyl.xycyl_ads_month_settlement_summary"))),
+                new FinanceAnswerAuditTrailService.OracleAuditStatus(
+                        "month-settlement",
+                        "月对账",
+                        "L2",
+                        "rent-settlement",
+                        true,
+                        "PASS",
+                        BigDecimal.ZERO,
+                        ""),
+                List.of(new FinanceAnswerAuditTrailService.RouteTraceStep(
+                        "TIER_2_MART_TEMPLATE",
+                        "ADS 模型",
+                        "HIT",
+                        "命中月对账 ADS",
+                        "xycyl_ads_month_settlement_summary")));
     }
 }

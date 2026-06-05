@@ -142,10 +142,18 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("仓库主题: 未发布到资产库的 authority 模板不进入资产快路径")
-    void warehouseAuthorityTopicsDoNotMatchFixedReportFastPath() {
-        assertThat(matcherService.match("库存现量").matched()).isFalse();
-        assertThat(matcherService.match("低库存预警").matched()).isFalse();
+    @DisplayName("仓库主题: 库存现量和低库存走可执行模板, 未发布出入库资产仍不进快路径")
+    void warehouseAuthorityTopicsUseExecutableTemplatesInsteadOfFixedReportPlaceholders() {
+        TemplateMatchResult stockOverview = matcherService.match("库存现量");
+        assertThat(stockOverview.matched()).isTrue();
+        assertThat(stockOverview.template().getTemplateCode()).isEqualTo("TPL-53");
+        assertThat(stockOverview.template().getTargetView()).isEqualTo("mysql.rs_cloud_flower.s_stock_info");
+
+        TemplateMatchResult lowStock = matcherService.match("低库存预警");
+        assertThat(lowStock.matched()).isTrue();
+        assertThat(lowStock.template().getTemplateCode()).isEqualTo("TPL-54");
+        assertThat(lowStock.template().getTargetView()).isEqualTo("mysql.rs_cloud_flower.s_stock_info");
+
         assertThat(matcherService.match("本月出入库记录").matched()).isFalse();
     }
 
@@ -241,6 +249,73 @@ class TemplateMatcherServiceTest {
         assertThat(result.resolvedSql()).doesNotContain("PRODUCTION");
         assertThat(result.resolvedSql()).doesNotContain("TRY_TO_NUMBER");
         assertThat(result.resolvedSql()).doesNotContain("PRS_PROCUREMENT_DELIVERY_RECORD");
+    }
+
+    @Test
+    @DisplayName("报花域: 年度销售情况命中 dbt 销售汇总模板")
+    void matchFlowerbizSalesOverviewByYear() {
+        TemplateMatchResult result = matcherService.match("查询2026年销售情况");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-52");
+        assertThat(result.extractedParams()).containsEntry("year", "2026");
+        assertThat(result.template().getDomain()).isEqualTo("flowerbiz");
+        assertThat(result.template().getTargetView()).isEqualTo("public.xycyl_ads_flowerbiz_sale_summary");
+        assertThat(result.resolvedSql()).contains("public.xycyl_ads_flowerbiz_sale_summary");
+        assertThat(result.resolvedSql()).contains("s.\"年份\" = 2026");
+        assertThat(result.resolvedSql()).doesNotContain("::numeric");
+        assertThat(result.resolvedSql()).doesNotContain("to_char");
+        assertThat(result.resolvedSql()).doesNotContain("PRODUCTION");
+        assertThat(result.resolvedSql()).doesNotContain("v_flower_biz_detail");
+    }
+
+    @Test
+    @DisplayName("库存域: 库存现状命中联邦 MySQL 库存现量模板")
+    void matchInventoryStockOverview() {
+        TemplateMatchResult result = matcherService.match("展示2026年库存现状");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-53");
+        assertThat(result.template().getDomain()).isEqualTo("warehouse");
+        assertThat(result.template().getTargetView()).isEqualTo("mysql.rs_cloud_flower.s_stock_info");
+        assertThat(result.resolvedSql()).contains("mysql.rs_cloud_flower.s_stock_info");
+        assertThat(result.resolvedSql()).contains("good_price_id");
+        assertThat(result.resolvedSql()).doesNotContain("authority.inventory.stock_overview");
+        assertThat(result.resolvedSql()).doesNotContain("WH-STOCK-OVERVIEW");
+    }
+
+    @Test
+    @DisplayName("库存域: 低库存预警命中可执行弱路径模板而不是资产库占位")
+    void matchInventoryLowStockAlert() {
+        TemplateMatchResult result = matcherService.match("低库存预警");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-54");
+        assertThat(result.template().getDomain()).isEqualTo("warehouse");
+        assertThat(result.template().getTargetView()).isEqualTo("mysql.rs_cloud_flower.s_stock_info");
+        assertThat(result.resolvedSql()).contains("HAVING SUM(COALESCE(good_number, 0)) <= 2");
+        assertThat(result.resolvedSql()).doesNotContain("authority.inventory.low_stock_alert");
+        assertThat(result.resolvedSql()).doesNotContain("WH-LOW-STOCK-ALERT");
+    }
+
+    @Test
+    @DisplayName("报花域: 某月报花单据明细命中业务对象真实字段模板")
+    void matchFlowerbizMonthlyOrderDetail() {
+        TemplateMatchResult result = matcherService.match("2026年3月的报花单据查下");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-55");
+        assertThat(result.extractedParams()).containsEntry("month", "2026-03");
+        assertThat(result.template().getTargetView()).isEqualTo("mysql.rs_cloud_flower.t_flower_biz_info");
+        assertThat(result.resolvedSql())
+                .contains("mysql.rs_cloud_flower.t_flower_biz_info")
+                .contains("f.customer_name")
+                .contains("f.project_manage_name")
+                .contains("f.apply_use_name")
+                .contains("CAST('2026-03' || '-01 00:00:00' AS TIMESTAMP)")
+                .doesNotContain("curr_customer_name")
+                .doesNotContain("proj_manager_name")
+                .doesNotContain("apply_user_name");
     }
 
     @Test
@@ -511,6 +586,38 @@ class TemplateMatcherServiceTest {
                 "SELECT a.good_name AS \"绿植\", COALESCE(NULLIF(a.good_specs, ''), '未填') AS \"规格\", COUNT(*) AS \"采购明细行数\", COUNT(DISTINCT b.id) AS \"采购单数\", SUM(COALESCE(c.real_purchase_number, 0)) AS \"采购数量\", ROUND(SUM(COALESCE(c.real_purchase_number, 0) * COALESCE(a.parchase_price, 0)), 2) AS \"采购金额\", MIN(a.purchase_time) AS \"最早采购时间\", MAX(a.purchase_time) AS \"最近采购时间\" FROM mysql.rs_cloud_flower.t_purchase_price_item a LEFT JOIN mysql.rs_cloud_flower.t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN mysql.rs_cloud_flower.t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.purchase_time >= TIMESTAMP ':year-01-01 00:00:00' AND a.purchase_time < TIMESTAMP ':year-01-01 00:00:00' + INTERVAL '1' YEAR GROUP BY a.good_name, COALESCE(NULLIF(a.good_specs, ''), '未填') ORDER BY \"采购金额\" DESC LIMIT 100",
                 "{\"year\":{\"type\":\"integer\",\"required\":true}}",
                 "mysql.rs_cloud_flower.t_purchase_price_item", "全年各绿植采购情况", 35));
+
+        // TPL-52: 年度销售情况（dbt flowerbiz mart）
+        templates.add(buildTemplate(52L, "TPL-52", "flowerbiz", null,
+                "[\".*(20\\\\d{2}|\\\\d{4}年|今年|去年).*(销售|售花|卖花).*(情况|统计|汇总|金额|收入).*\",\".*(销售|售花|卖花).*(20\\\\d{2}|\\\\d{4}年|今年|去年).*(情况|统计|汇总|金额|收入).*\"]",
+                "[\"查询2026年销售情况\"]",
+                "SELECT s.\"业务月份\", s.\"项目\", ROUND(SUM(CAST(NULLIF(CAST(s.\"销售金额全口径\" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS \"销售金额\", SUM(CAST(NULLIF(CAST(s.\"销售单数\" AS VARCHAR), '') AS DECIMAL(18,2))) AS \"销售单数\", SUM(CAST(NULLIF(CAST(s.\"赠送单数\" AS VARCHAR), '') AS DECIMAL(18,2))) AS \"赠送单数\", ROUND(SUM(CAST(NULLIF(CAST(s.\"赠送成本全口径\" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS \"赠送成本\" FROM public.xycyl_ads_flowerbiz_sale_summary s WHERE s.\"年份\" = :year GROUP BY s.\"业务月份\", s.\"项目\" ORDER BY s.\"业务月份\", \"销售金额\" DESC LIMIT 200",
+                "{\"year\":{\"type\":\"integer\",\"required\":true}}",
+                "public.xycyl_ads_flowerbiz_sale_summary", "年度销售情况汇总", 35));
+
+        // TPL-53: 库存现量（Trino 联邦 MySQL 弱路径）
+        templates.add(buildTemplate(53L, "TPL-53", "warehouse", null,
+                "[\".*(库存现量|当前库存|库存现状|库存总览|库存看板).*\", \".*(展示|查看|查询|统计).*(库存).*\"]",
+                "[\"展示当前库存现状\"]",
+                "SELECT COALESCE(storehouse_name, '未填') AS \"库房\", CAST(good_price_id AS VARCHAR) AS \"SKU\", COALESCE(good_name, '未填') AS \"物品名称\", COALESCE(good_norms, '') AS \"规格\", COALESCE(good_specs, '') AS \"属性\", COALESCE(good_unit, '') AS \"单位\", SUM(COALESCE(good_number, 0)) AS \"可用库存\", ROUND(SUM(CAST(COALESCE(good_number, 0) AS DOUBLE) * CAST(COALESCE(out_cost, 0) AS DOUBLE)), 2) AS \"库存成本\", COUNT(*) AS \"库存行数\", MAX(update_time) AS \"最近更新时间\" FROM mysql.rs_cloud_flower.s_stock_info WHERE (del_flag IS NULL OR del_flag = '0') GROUP BY COALESCE(storehouse_name, '未填'), good_price_id, COALESCE(good_name, '未填'), COALESCE(good_norms, ''), COALESCE(good_specs, ''), COALESCE(good_unit, '') ORDER BY 7 DESC, 8 DESC LIMIT 100",
+                "{}",
+                "mysql.rs_cloud_flower.s_stock_info", "库存现量按库房和 SKU 汇总", 46));
+
+        // TPL-54: 低库存预警（Trino 联邦 MySQL 弱路径）
+        templates.add(buildTemplate(54L, "TPL-54", "warehouse", null,
+                "[\".*(低库存|缺货).*(预警|告警|清单|列表|情况).*\", \".*(库存).*(不足|偏低|低于|小于).*(预警|告警|清单|列表|情况)?.*\"]",
+                "[\"查看低库存SKU清单\"]",
+                "SELECT COALESCE(storehouse_name, '未填') AS \"库房\", CAST(good_price_id AS VARCHAR) AS \"SKU\", COALESCE(good_name, '未填') AS \"物品名称\", COALESCE(good_norms, '') AS \"规格\", COALESCE(good_specs, '') AS \"属性\", COALESCE(good_unit, '') AS \"单位\", SUM(COALESCE(good_number, 0)) AS \"可用库存\", ROUND(SUM(CAST(COALESCE(good_number, 0) AS DOUBLE) * CAST(COALESCE(out_cost, 0) AS DOUBLE)), 2) AS \"库存成本\", MAX(update_time) AS \"最近更新时间\" FROM mysql.rs_cloud_flower.s_stock_info WHERE (del_flag IS NULL OR del_flag = '0') GROUP BY COALESCE(storehouse_name, '未填'), good_price_id, COALESCE(good_name, '未填'), COALESCE(good_norms, ''), COALESCE(good_specs, ''), COALESCE(good_unit, '') HAVING SUM(COALESCE(good_number, 0)) <= 2 ORDER BY 7 ASC, 3 LIMIT 100",
+                "{}",
+                "mysql.rs_cloud_flower.s_stock_info", "低库存 SKU 清单", 47));
+
+        // TPL-55: 某月报花单据明细（业务对象真实字段）
+        templates.add(buildTemplate(55L, "TPL-55", "flowerbiz", null,
+                "[\".*(\\\\d{4}年\\\\d{1,2}月|\\\\d{4}-\\\\d{2}).*(报花单据|报花单|报花业务单).*(查|查询|看|查看|列表|明细|清单)?.*\",\".*(报花单据|报花单|报花业务单).*(\\\\d{4}年\\\\d{1,2}月|\\\\d{4}-\\\\d{2}).*(查|查询|看|查看|列表|明细|清单)?.*\"]",
+                "[\"2026年3月的报花单据查下\"]",
+                "SELECT CAST(f.id AS VARCHAR) AS \"报花单ID\", f.code AS \"报花单号\", f.customer_name AS \"客户\", f.project_manage_name AS \"项目经理\", f.apply_use_name AS \"发起人\", f.create_time AS \"创建时间\" FROM mysql.rs_cloud_flower.t_flower_biz_info f WHERE (f.del_flag IS NULL OR f.del_flag = '0') AND f.create_time >= CAST(:month || '-01 00:00:00' AS TIMESTAMP) AND f.create_time < CAST(:month || '-01 00:00:00' AS TIMESTAMP) + INTERVAL '1' MONTH ORDER BY f.create_time DESC LIMIT 100",
+                "{\"month\":{\"type\":\"string\",\"required\":true}}",
+                "mysql.rs_cloud_flower.t_flower_biz_info", "某月报花单据明细（业务对象）", 55));
 
         return templates;
     }

@@ -1,0 +1,26 @@
+Date: 2026-06-05 local
+Scope: Sprint-33 F1-T02 detail reconciliation live sample SQL contract
+
+RED:
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceDetailReconciliationHarnessTest test
+- Result: FAILED before sample update.
+- Expected failure: sample copilotRequest missed database=prs.flowerbiz.federated.
+
+GREEN:
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceDetailReconciliationHarnessTest test
+- Result: PASS.
+- Command: bash worklog/v1.0.0/sprint-33-202607/it/test_f1_detail_reconciliation.sh
+- Result: PASS.
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceOracleRegistryTest,FinanceDetailReconciliationServiceTest,FinanceDetailReconciliationHarnessTest,FinanceDetailReconciliationJsonSourceClientTest,FinanceDetailReconciliationHttpPayloadProviderTest,FinanceAmountColumnAlignmentServiceTest,VoucherLedgerTieoutRegistryTest,FinanceInvariantRegistryTest,FinanceInvariantRegressionServiceTest,CaliberRuleRegistryTest test
+- Result: PASS.
+- Command: git -C dts-copilot diff --check
+- Result: PASS.
+
+Covered:
+- governance/finance-detail-reconciliation-samples.v1.json and sprint-33 assets sample are identical.
+- month-settlement-js2026060008 uses database prs.flowerbiz.federated and nativeSql against public.ods_ptr_mysql_a_month_accounting.
+- sale-account-bx202606030968 uses database prs.flowerbiz.federated and nativeSql against public.ods_ptr_mysql_a_sale_account joined to public.ods_ptr_mysql_t_flower_biz_info.
+
+Pending:
+- Live adminapi + /api/dataset double fetch has not been executed in this local evidence.
+- Month-settlement L2 endpoint returns dynamic MonthSettlementDataVo, while a_month_accounting has no independent settlement code column; live data validation should confirm whether endpoint preview values and ODS persisted values share the same identity/timepoint, or switch to a more stable month accounting id/code.

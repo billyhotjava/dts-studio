@@ -1,0 +1,46 @@
+# Sprint-33 F2-T03 voucher subject tie-out local evidence
+
+Date: 2026-06-05
+Scope: F2-T03 收入/应收/回款锚到凭证科目
+Environment: local Maven test, dts-copilot-ai
+
+## RED
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceVoucherSubjectTieoutServiceTest test
+```
+
+Result:
+
+- Failed at compilation because `FinanceVoucherSubjectTieoutService` / `FinanceVoucherSubjectTieoutRegistry` did not exist.
+- This proved the new contract was not already implemented.
+- A second RED tightened the contract with `voucherBusinessType`; the test failed because `SubjectTieoutSpec` did not yet carry voucher business type.
+
+## GREEN
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceVoucherSubjectTieoutServiceTest test
+```
+
+Result:
+
+- PASS
+
+Covered checks:
+
+- `finance-voucher-subject-tieout.v1.json` loads 3 metric-to-subject mappings.
+- Every mapping binds to `FinanceOracleRegistry` oracle binding `voucher-ledger`.
+- `settlement-discounted-receivable` ties copilot summary amount to voucher debit subjects by `businessCode + accountPeriod`.
+- Voucher rows are filtered by mapping-level `voucherBusinessType` before subject-side amount aggregation.
+- Amount mismatch emits visible `summary/voucher/ignoredVoucher/difference` values.
+- Wrong chain/metric, missing voucher subject cell, and duplicate summary cell fail fast.
+- `bad-debt-loss` is mapped to a loss subject group, not to income/receivable aggregation.
+
+## Pending live proof
+
+- `subjectIds` are local replaceable samples; real subject IDs must be confirmed from the live finance subject tree.
+- Real business-code/account-period tie-out still needs live L3 voucher extraction plus finance signoff.

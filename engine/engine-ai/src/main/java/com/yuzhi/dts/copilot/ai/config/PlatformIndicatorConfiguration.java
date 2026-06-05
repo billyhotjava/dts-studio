@@ -28,6 +28,7 @@ public class PlatformIndicatorConfiguration {
             @Value("${copilot.platform.indicator.auth-token:}") String authToken,
             @Value("${copilot.platform.indicator.service-name:dts-copilot}") String serviceName,
             @Value("${copilot.platform.indicator.service-token:${DTS_INBOUND_FROM_COPILOT:${DTS_INBOUND_FROM_ANALYTICS:${DTS_ADMIN_SERVICE_TOKEN:}}}}") String serviceToken,
+            @Value("${copilot.platform.indicator.active-dept:}") String activeDept,
             @Value("${copilot.platform.indicator.timeout-seconds:10}") int timeoutSeconds) {
         return new PlatformIndicatorProperties(
                 baseUrl,
@@ -37,6 +38,7 @@ public class PlatformIndicatorConfiguration {
                 authToken,
                 serviceName,
                 serviceToken,
+                activeDept,
                 timeoutSeconds);
     }
 }

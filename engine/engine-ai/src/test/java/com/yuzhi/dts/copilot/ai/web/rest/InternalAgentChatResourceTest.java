@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.chat.RouteTelemetryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.isNull;
@@ -19,6 +21,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InternalAgentChatResourceTest {
+
+    @Test
+    void getRouteTelemetryRequiresAdminSecretAndReturnsSummary() {
+        AgentChatService agentChatService = mock(AgentChatService.class);
+        RouteTelemetryService routeTelemetryService = mock(RouteTelemetryService.class);
+        RouteTelemetryService.RouteTelemetrySummary summary =
+                new RouteTelemetryService.RouteTelemetrySummary(
+                        14,
+                        3,
+                        Map.of("TIER_5_DIRECT_DETAIL", 3L),
+                        List.of());
+        when(routeTelemetryService.summarize(14, 5)).thenReturn(summary);
+
+        InternalAgentChatResource resource =
+                new InternalAgentChatResource(agentChatService, routeTelemetryService, "secret");
+
+        ResponseEntity<?> response = resource.getRouteTelemetry("secret", 14, 5);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isEqualTo(summary);
+    }
 
     @Test
     void getSessionIncludesResponseKindInMessagePayload() {

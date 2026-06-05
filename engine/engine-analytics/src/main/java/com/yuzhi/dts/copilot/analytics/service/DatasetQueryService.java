@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,9 +30,19 @@ public class DatasetQueryService {
     private static final DateTimeFormatter ISO_INSTANT = DateTimeFormatter.ISO_INSTANT;
 
     private final ExternalDatabaseDataSourceRegistry dataSourceRegistry;
+    private final FederatedNativeSqlQualifier federatedNativeSqlQualifier;
 
     public DatasetQueryService(ExternalDatabaseDataSourceRegistry dataSourceRegistry) {
+        this(dataSourceRegistry, FederatedNativeSqlQualifier.noop());
+    }
+
+    @Autowired
+    public DatasetQueryService(
+            ExternalDatabaseDataSourceRegistry dataSourceRegistry,
+            FederatedNativeSqlQualifier federatedNativeSqlQualifier) {
         this.dataSourceRegistry = dataSourceRegistry;
+        this.federatedNativeSqlQualifier =
+                federatedNativeSqlQualifier == null ? FederatedNativeSqlQualifier.noop() : federatedNativeSqlQualifier;
     }
 
     public DatasetResult runNative(long databaseId, String sql, DatasetConstraints constraints) throws SQLException {
@@ -39,9 +50,10 @@ public class DatasetQueryService {
     }
 
     public DatasetResult runNative(long databaseId, String sql, DatasetConstraints constraints, List<Object> bindings) throws SQLException {
+        String executableSql = federatedNativeSqlQualifier.qualify(databaseId, sql);
         HikariDataSource dataSource = dataSourceRegistry.get(databaseId);
         try (Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql)) {
+                PreparedStatement statement = connection.prepareStatement(executableSql)) {
             if (constraints.queryTimeoutSeconds() > 0) {
                 statement.setQueryTimeout(constraints.queryTimeoutSeconds());
             }

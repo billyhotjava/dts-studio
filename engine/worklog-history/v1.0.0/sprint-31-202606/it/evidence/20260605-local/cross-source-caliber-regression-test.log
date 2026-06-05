@@ -1,0 +1,32 @@
+15:37:06.200 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:37:06.217 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=project, file=semantic-packs/project-fulfillment.json
+15:37:06.219 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/field-operations.json
+15:37:06.221 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=procurement, file=semantic-packs/procurement.json
+15:37:06.223 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=warehouse, file=semantic-packs/warehouse.json
+15:37:06.225 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=finance, file=semantic-packs/finance.json
+15:37:06.231 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/flowerbiz.json
+15:37:06.238 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Semantic packs initialized: 5 domain(s) loaded
+15:37:06.363 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:37:06.365 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=project, file=semantic-packs/project-fulfillment.json
+15:37:06.366 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/field-operations.json
+15:37:06.366 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=procurement, file=semantic-packs/procurement.json
+15:37:06.367 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=warehouse, file=semantic-packs/warehouse.json
+15:37:06.368 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=finance, file=semantic-packs/finance.json
+15:37:06.370 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/flowerbiz.json
+15:37:06.371 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Semantic packs initialized: 5 domain(s) loaded
+15:37:06.395 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:37:06.400 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=project, file=semantic-packs/project-fulfillment.json
+15:37:06.401 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/field-operations.json
+15:37:06.401 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=procurement, file=semantic-packs/procurement.json
+15:37:06.402 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=warehouse, file=semantic-packs/warehouse.json
+15:37:06.403 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=finance, file=semantic-packs/finance.json
+15:37:06.405 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/flowerbiz.json
+15:37:06.407 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Semantic packs initialized: 5 domain(s) loaded
+15:37:06.421 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+15:37:06.425 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=project, file=semantic-packs/project-fulfillment.json
+15:37:06.426 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/field-operations.json
+15:37:06.427 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=procurement, file=semantic-packs/procurement.json
+15:37:06.427 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=warehouse, file=semantic-packs/warehouse.json
+15:37:06.429 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=finance, file=semantic-packs/finance.json
+15:37:06.431 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Loaded semantic pack: domain=flowerbiz, file=semantic-packs/flowerbiz.json
+15:37:06.432 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService -- Semantic packs initialized: 5 domain(s) loaded

@@ -1,7 +1,7 @@
 # T02: copilot 从治理层生成 pack guardrails
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: T01
 
 ## 目标
@@ -21,12 +21,18 @@
 - 可能新增 `scripts/generate-semantic-pack.*` 与 pack lint 校验
 - 关联 sprint-30 F3 guardrail 消费逻辑（消费方式不变）
 
+## 实施记录
+
+- 2026-06-05：`finance.json` / `procurement.json` 新增 `generatedGuardrails` 生成区，标注 `_generated=true` 与 `_source=governance/caliber-rules.v1.json`。
+- 2026-06-05：`SemanticPackService` 解析时优先使用生成区，并按 `CAL-*` rule id 对旧静态护栏去重；旧 pack 缺失生成区时仍回退 `guardrails` 数组。
+- 2026-06-05：新增 `SemanticPackGovernanceGuardrailTest`，校验生成区与 `CaliberRuleRegistry` 完全一致，同时保留采购/财务的手维护 operational guardrails。
+
 ## 验证
 
-- [ ] 生成的 finance/procurement guardrails 与治理层规则逐条对应
-- [ ] 手改生成区被 lint 阻断
-- [ ] 现有 `SemanticPackCaliberGuardrailTest` 仍绿（消费侧不变）
+- [x] 生成的 finance/procurement guardrails 与治理层规则逐条对应
+- [x] 手改生成区被测试阻断（生成区必须与 registry 完全一致）
+- [x] 现有 `SemanticPackCaliberGuardrailTest` 仍绿（消费侧不变）
 
 ## 完成标准
 
-- [ ] guardrails 由生成器产出，pack 不再独立漂移；旧 pack 平滑兼容
+- [x] guardrails 由生成器产出，pack 不再独立漂移；旧 pack 平滑兼容

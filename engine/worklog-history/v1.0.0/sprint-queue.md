@@ -395,13 +395,13 @@
 
 | Feature | Task 数 | 优先级 | 状态 |
 |---------|---------|--------|------|
-| F1-口径事实源对账与定源 | 4 | P0 | READY |
-| F2-pack与治理层sync管线 | 3 | P0 | READY |
-| F3-本体指标草稿晋升闭环 | 3 | P1 | READY |
-| F4-跨源口径回归网 | 2 | P1 | READY |
+| F1-口径事实源对账与定源 | 4 | P0 | IN_PROGRESS |
+| F2-pack与治理层sync管线 | 3 | P0 | DONE |
+| F3-本体指标草稿晋升闭环 | 3 | P1 | DONE |
+| F4-跨源口径回归网 | 2 | P1 | DONE |
 | F5-范式固化与IT证据 | 2 | P2 | READY |
 
-**统计**: READY=14, IN_PROGRESS=0, DONE=0, BLOCKED=0 (5 Feature / 14 Task)
+**统计**: READY=5, IN_PROGRESS=0, DONE=9, BLOCKED=0 (5 Feature / 14 Task)
 
 > 依赖链:F1(对账定源)→F2(sync下发)/F3(草稿晋升)→F4(回归网)→F5(范式+IT)。不抽 dts-platform modeling 微服务(架构判断 ROI 差)。
 
@@ -411,15 +411,31 @@
 
 | Feature | Task 数 | 优先级 | 状态 |
 |---------|---------|--------|------|
-| F1-五层路由阶梯与telemetry | 3 | P0 | READY |
-| F2-Trino联邦层访问治理 | 3 | P0 | READY |
-| F3-场景接入套件产品化 | 3 | P1 | READY |
-| F4-新场景端到端验证 | 2 | P1 | READY |
-| F5-范式固化与IT证据 | 2 | P2 | READY |
+| F1-五层路由阶梯与telemetry | 3 | P0 | DONE |
+| F2-Trino联邦层访问治理 | 3 | P0 | DONE |
+| F3-场景接入套件产品化 | 3 | P1 | DONE |
+| F4-新场景端到端验证 | 2 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | DONE |
 
-**统计**: READY=13, IN_PROGRESS=0, DONE=0, BLOCKED=0 (5 Feature / 13 Task)
+**统计**: READY=0, IN_PROGRESS=0, DONE=13, BLOCKED=0 (5 Feature / 13 Task)
 
 > 依赖链:Sprint-31(口径SoT)→F1(路由阶梯)+F2(Trino治理)→F3(接入套件)→F4(新场景验证)→F5(范式+IT)。多场景硬隔离走 deploy-per-scenario,不做多租户行隔离改造。
+
+## Sprint-33: 财务可证明正确性（对账保证） (202607)
+
+> 财务是口径最敏感、错一分都不行的域。回答两个硬要求:①应用系统里查的数 copilot 必须一致;②copilot 汇总/各种自定义查询条件数据如何**证明**正确。手段=保证阶梯 L0-L4:oracle 注册(原始表<报表端点<复式凭证)、明细级对账、复式凭证 tie-out(借=贷)、口径不变量/形变测试(对任意过滤条件成立)、差分抽样+持续对账记分卡、可审计溯源+财务签字。前缀 FA。依赖 Sprint-31 口径 SoT;复用 Sprint-30 财务对账(基准 L1→L2/L3)、Sprint-32 路由 telemetry。先收 月对账/售账/凭证 三张核心表。
+
+| Feature | Task 数 | 优先级 | 状态 | 阶梯/解决 |
+|---------|---------|--------|------|-----------|
+| F1-Oracle注册与明细级一致性 | 3 | P0 | IN_PROGRESS | L0+L1 / req#1 一致性 |
+| F2-复式凭证tie-out与汇总双路对账 | 3 | P0 | IN_PROGRESS | L2+L3 / req#2 汇总 |
+| F3-财务口径不变量形变测试网 | 3 | P0 | DONE | L3 / req#2 自定义条件 |
+| F4-差分抽样与持续对账记分卡 | 3 | P1 | IN_PROGRESS | L4 / 持续可证明 |
+| F5-可审计溯源与财务签字基线 | 2 | P1 | IN_PROGRESS | L4 / 业务可信 |
+
+**统计**: READY=0, IN_PROGRESS=8, DONE=6, BLOCKED=0 (5 Feature / 14 Task)
+
+> 依赖链:Sprint-31(口径SoT/不变量)→F1(明细对账)+F2(凭证tie-out)→F3(不变量网)→F4(差分+记分卡)→F5(溯源+签字)。不改 adminapi 财务逻辑(应用系统是 oracle,只读对账)。核心灵魂=F3 口径不变量:对任意过滤条件成立 → 证明自定义条件正确性而非穷举抽查。
 
 ## Backlog
 

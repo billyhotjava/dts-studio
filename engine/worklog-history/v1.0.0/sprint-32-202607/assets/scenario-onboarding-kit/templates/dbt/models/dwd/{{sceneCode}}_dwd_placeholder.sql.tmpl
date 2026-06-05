@@ -1,0 +1,8 @@
+-- {{domainName}} DWD placeholder.
+-- Replace this file with business-key normalization and enum expansion.
+
+select
+  source_id,
+  source_updated_at,
+  cast(null as varchar) as business_status
+from {{ ref('{{stgPrefix}}_placeholder') }}

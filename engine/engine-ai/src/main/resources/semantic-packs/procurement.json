@@ -31,6 +31,13 @@
     { "term": "采购详细情况", "field": "authority.procurement.purchase_item_detail", "views": ["authority.procurement.purchase_item_detail"] },
     { "term": "采购明细", "field": "authority.procurement.purchase_item_detail", "views": ["authority.procurement.purchase_item_detail"] }
   ],
+  "generatedGuardrails": {
+    "_generated": true,
+    "_source": "governance/caliber-rules.v1.json",
+    "rules": [
+      "[CAL-INVENTORY-COST] 标签: inventory_cost_sku; 规则: 库存成本是加权平均 out_cost，不是 FIFO 也不是 b_goods_price.cost_price；库存、采购、出库必须按 good_price_id/SKU 关联。"
+    ]
+  },
   "fewShots": [
     {
       "question": "查询2025年2月绿萝采购明细",

@@ -1,7 +1,7 @@
 # T03: sync 漂移检测 + 不可达降级
 
 **优先级**: P0
-**状态**: READY
+**状态**: DONE
 **依赖**: T02
 
 ## 目标
@@ -24,10 +24,13 @@
 
 ## 验证
 
-- [ ] 人为制造 pack 与治理层不一致 → 漂移告警触发
-- [ ] 断开治理层 → agent 仍可用，降级状态透出且不静默
-- [ ] 恢复后自动回到最新生成区
+- [x] 人为制造 pack 与治理层不一致 → 漂移告警触发：`CaliberGuardrailSyncServiceTest.shouldDetectGeneratedPackDriftAgainstGovernanceExport`
+- [x] 断开治理层 → agent 仍可用，降级状态透出且不静默：`CaliberGuardrailSyncServiceTest.shouldKeepLastSuccessfulGovernanceExportWhenProviderFails` / `shouldFallbackToStaticPackGuardrailsWhenProviderFailsBeforeAnyCache`
+- [x] 健康组件透出 `caliberSyncDrift` / `stale` / `fallbackMode`：`CaliberGuardrailSyncHealthIndicatorTest`
+- [x] 恢复后自动回到最新生成区：provider 成功 refresh 会替换 `lastSuccessfulExport` 并清除 stale/fallback
+
+> 当前默认 provider 为本地 `governance/caliber-rules.v1.json` 导出，保证 build/health gate 可跑；live dts-platform governance export 接入时只需替换 `GovernanceCaliberExportProvider`。
 
 ## 完成标准
 
-- [ ] 漂移可检测、可门禁；降级链路演练通过且有证据（入 F5/IT）
+- [x] 漂移可检测、可门禁；降级链路演练通过且有证据（入 F5/IT）

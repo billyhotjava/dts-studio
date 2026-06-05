@@ -1,0 +1,208 @@
+{
+  "version": "v1",
+  "invariants": [
+    {
+      "id": "FIN-INV-01-VOUCHER-BALANCE",
+      "statement": "任意凭证子集必须满足借方金额合计等于贷方金额合计。",
+      "appliesTo": ["voucher-ledger"],
+      "severity": "error",
+      "check": {
+        "type": "VOUCHER_BALANCE",
+        "expression": "sum(debit_amount) == sum(credit_amount)",
+        "resultColumns": ["debit_amount", "credit_amount"]
+      },
+      "positiveExample": {
+        "rows": [
+          {"voucher_code": "V001", "debit_amount": 100.00, "credit_amount": 0.00},
+          {"voucher_code": "V001", "debit_amount": 0.00, "credit_amount": 100.00}
+        ]
+      },
+      "negativeExample": {
+        "rows": [
+          {"voucher_code": "V002", "debit_amount": 100.00, "credit_amount": 0.00},
+          {"voucher_code": "V002", "debit_amount": 0.00, "credit_amount": 90.00}
+        ]
+      },
+      "sourceRuleIds": [],
+      "sourceRefs": [
+        "adminapi/rs-modules/rs-flowers-base/src/main/java/com/rs/flowers/base/finace/controller/VoucherController.java",
+        "adminapi/rs-modules/rs-flowers-base/src/main/java/com/rs/flowers/base/finace/mapper/VoucherItemSQLProvider.java",
+        "dts-copilot-ai/src/main/resources/governance/finance-oracle-registry.v1.json#voucher-ledger"
+      ]
+    },
+    {
+      "id": "FIN-INV-02-AMOUNT-TIER-ORDER",
+      "statement": "月对账金额层级必须满足名义金额 >= 应收折前 >= 折后应收 >= 0。",
+      "appliesTo": ["month-settlement", "aggregate-result"],
+      "severity": "error",
+      "check": {
+        "type": "AMOUNT_TIER_ORDER",
+        "expression": "nominal_amount >= receivable_before_discount >= discounted_receivable >= 0",
+        "resultColumns": ["nominal_amount", "receivable_before_discount", "discounted_receivable"]
+      },
+      "positiveExample": {
+        "rows": [
+          {"project_id": 101, "nominal_amount": 1200.00, "receivable_before_discount": 1000.00, "discounted_receivable": 900.00}
+        ]
+      },
+      "negativeExample": {
+        "rows": [
+          {"project_id": 101, "nominal_amount": 1000.00, "receivable_before_discount": 1200.00, "discounted_receivable": 900.00}
+        ]
+      },
+      "sourceRuleIds": ["CAL-MONTH-AMOUNT-TIER"],
+      "sourceRefs": [
+        "adminapi/rs-modules/rs-flowers-base/src/main/resources/mapper/operate/RentalMonthlyReportMapper.xml",
+        "dts-copilot-ai/src/main/resources/governance/caliber-rules.v1.json#CAL-MONTH-AMOUNT-TIER"
+      ]
+    },
+    {
+      "id": "FIN-INV-03-PAYMENT-NOT-EXCEED-DISCOUNTED",
+      "statement": "任意条件下已回款金额不能超过折后应收金额。",
+      "appliesTo": ["month-settlement", "aggregate-result"],
+      "severity": "error",
+      "check": {
+        "type": "PAYMENT_NOT_EXCEED_DISCOUNTED",
+        "expression": "paid_amount <= discounted_receivable",
+        "resultColumns": ["paid_amount", "discounted_receivable"]
+      },
+      "positiveExample": {
+        "rows": [
+          {"project_id": 101, "discounted_receivable": 900.00, "paid_amount": 700.00}
+        ]
+      },
+      "negativeExample": {
+        "rows": [
+          {"project_id": 101, "discounted_receivable": 900.00, "paid_amount": 950.00}
+        ]
+      },
+      "sourceRuleIds": ["CAL-MONTH-AMOUNT-TIER"],
+      "sourceRefs": [
+        "adminapi/rs-modules/rs-flowers-base/src/main/resources/mapper/operate/RentalMonthlyReportMapper.xml",
+        "dts-copilot-ai/src/main/resources/governance/caliber-rules.v1.json#CAL-MONTH-AMOUNT-TIER"
+      ]
+    },
+    {
+      "id": "FIN-INV-04-ADDITIVITY",
+      "statement": "全集聚合金额必须等于同一条件下完整分区金额之和。",
+      "appliesTo": ["aggregate-result", "month-settlement"],
+      "severity": "error",
+      "check": {
+        "type": "ADDITIVITY",
+        "expression": "total.amount == sum(partitions.amount)",
+        "resultColumns": ["amount"]
+      },
+      "positiveExample": {
+        "total": {"amount": 300.00},
+        "partitions": [
+          {"partition": "2026-01", "amount": 120.00},
+          {"partition": "2026-02", "amount": 180.00}
+        ]
+      },
+      "negativeExample": {
+        "total": {"amount": 300.00},
+        "partitions": [
+          {"partition": "2026-01", "amount": 120.00},
+          {"partition": "2026-02", "amount": 170.00}
+        ]
+      },
+      "sourceRuleIds": [],
+      "sourceRefs": [
+        "worklog/v1.0.0/sprint-33-202607/features/F3-财务口径不变量形变测试网/README.md#FIN-INV-04"
+      ]
+    },
+    {
+      "id": "FIN-INV-05-MONOTONICITY",
+      "statement": "追加过滤条件后的行数与金额不得超过原条件全集。",
+      "appliesTo": ["aggregate-result"],
+      "severity": "error",
+      "check": {
+        "type": "MONOTONICITY",
+        "expression": "subset.row_count <= base.row_count && subset.amount <= base.amount",
+        "resultColumns": ["row_count", "amount"]
+      },
+      "positiveExample": {
+        "base": {"row_count": 10, "amount": 1000.00},
+        "subset": {"row_count": 4, "amount": 360.00}
+      },
+      "negativeExample": {
+        "base": {"row_count": 10, "amount": 1000.00},
+        "subset": {"row_count": 11, "amount": 1100.00}
+      },
+      "sourceRuleIds": [],
+      "sourceRefs": [
+        "worklog/v1.0.0/sprint-33-202607/features/F3-财务口径不变量形变测试网/README.md#FIN-INV-05"
+      ]
+    },
+    {
+      "id": "FIN-INV-06-SETTLEMENT-CHAIN-NOT-MIXED",
+      "statement": "租摆链 a_month_accounting 与售赠坏链 a_sale_account 不得出现在同一 SUM 聚合。",
+      "appliesTo": ["generated-sql", "analytics-sql"],
+      "severity": "error",
+      "check": {
+        "type": "SQL_STATIC",
+        "expression": "CAL-SETTLEMENT-CHAIN",
+        "resultColumns": []
+      },
+      "positiveExample": {
+        "sql": "SELECT SUM(m.receivable_total_amount) AS amount FROM a_month_accounting m"
+      },
+      "negativeExample": {
+        "sql": "SELECT SUM(m.receivable_total_amount) + SUM(s.receivable_amount) AS amount FROM a_month_accounting m JOIN a_sale_account s ON s.project_id = m.project_id"
+      },
+      "sourceRuleIds": ["CAL-SETTLEMENT-CHAIN"],
+      "sourceRefs": [
+        "dts-copilot-ai/src/main/resources/governance/caliber-rules.v1.json#CAL-SETTLEMENT-CHAIN"
+      ]
+    },
+    {
+      "id": "FIN-INV-07-BAD-DEBT-EXCLUDED-FROM-INCOME",
+      "statement": "坏账 biz_type=6 是损失，不得贡献到收入金额。",
+      "appliesTo": ["sale-account", "aggregate-result"],
+      "severity": "error",
+      "check": {
+        "type": "BAD_DEBT_EXCLUDED_FROM_INCOME",
+        "expression": "rows[biz_type == 6].income_amount == 0",
+        "resultColumns": ["biz_type", "income_amount"]
+      },
+      "positiveExample": {
+        "rows": [
+          {"biz_id": 1, "biz_type": 7, "income_amount": 100.00},
+          {"biz_id": 2, "biz_type": 6, "income_amount": 0.00}
+        ]
+      },
+      "negativeExample": {
+        "rows": [
+          {"biz_id": 3, "biz_type": 6, "income_amount": 80.00}
+        ]
+      },
+      "sourceRuleIds": ["CAL-SETTLEMENT-CHAIN"],
+      "sourceRefs": [
+        "adminweb/src/views/flowermanager/list-flower.vue",
+        "adminweb/src/api/flower/operate/saleAccount.js",
+        "dts-copilot-ai/src/main/resources/governance/caliber-rules.v1.json#CAL-SETTLEMENT-CHAIN"
+      ]
+    },
+    {
+      "id": "FIN-INV-08-SOURCE-TYPE-8-DEDUP",
+      "statement": "a_green_accounting.source_type=8 已代表业务单销售收入，不能再与 a_sale_account 重复求和。",
+      "appliesTo": ["generated-sql", "analytics-sql"],
+      "severity": "error",
+      "check": {
+        "type": "SQL_STATIC",
+        "expression": "CAL-SALE-IN-RENT",
+        "resultColumns": []
+      },
+      "positiveExample": {
+        "sql": "SELECT SUM(m.sale_total_amount) AS amount FROM a_month_accounting m JOIN a_green_accounting g ON g.month_accounting_id = m.id WHERE g.source_type = 8"
+      },
+      "negativeExample": {
+        "sql": "SELECT SUM(m.sale_total_amount) + SUM(s.receivable_amount) AS amount FROM a_month_accounting m JOIN a_green_accounting g ON g.month_accounting_id = m.id JOIN a_sale_account s ON s.id = g.source_id WHERE g.source_type = 8"
+      },
+      "sourceRuleIds": ["CAL-SALE-IN-RENT"],
+      "sourceRefs": [
+        "dts-copilot-ai/src/main/resources/governance/caliber-rules.v1.json#CAL-SALE-IN-RENT"
+      ]
+    }
+  ]
+}

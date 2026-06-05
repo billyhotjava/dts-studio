@@ -1,0 +1,59 @@
+{
+  "domain": "warehouse",
+  "description": "仓库库存主题域。当前优先覆盖库存现量、低库存预警和出入库流水的只读分析；Sprint-32 已定义 inventory_ads_* 首版模型，运行态导入/构建完成前，库存查询仍标记为联邦弱路径。",
+  "objects": [
+    {
+      "name": "库存现量",
+      "view": "mysql.rs_cloud_flower.s_stock_info",
+      "description": "按库房、SKU/good_price_id、物品名称、规格和状态统计当前可用库存。对应 adminweb 仓库管理 > 库存管理页面。",
+      "keyDimensions": ["storehouse_name", "good_price_id", "good_name", "good_norms", "good_specs", "good_unit", "status"],
+      "keyMeasures": ["good_number", "out_cost"],
+      "commonFilters": ["storehouse_name", "good_name", "status"],
+      "defaultTimeField": "update_time"
+    },
+    {
+      "name": "物品价格主数据",
+      "view": "mysql.rs_cloud_flower.b_goods_price",
+      "description": "物品 SKU/价格主数据，用于补充物品规格、属性、成本价和指导价。",
+      "keyDimensions": ["id", "goods_id", "goods_name", "specifications", "goods_att", "unit", "status"],
+      "keyMeasures": ["cost_price", "guidance_price"],
+      "commonFilters": ["goods_name", "status"],
+      "defaultTimeField": "create_time"
+    },
+    {
+      "name": "出入库流水",
+      "view": "mysql.rs_cloud_flower.t_warehousing_item + mysql.rs_cloud_flower.t_ex_warehouse_item",
+      "description": "入库和出库/配送流水统一分析面。ADS 未建成前，需要分别查询入库和出库表后合并口径。",
+      "keyDimensions": ["biz_type", "code", "storehouse_info_id", "good_price_id", "good_name", "status"],
+      "keyMeasures": ["good_number", "price"],
+      "commonFilters": ["good_name", "storehouse_info_id", "status"],
+      "defaultTimeField": "biz_time"
+    }
+  ],
+  "synonyms": [
+    { "term": "库存", "field": "good_number", "views": ["mysql.rs_cloud_flower.s_stock_info"] },
+    { "term": "库存现量", "field": "good_number", "views": ["mysql.rs_cloud_flower.s_stock_info"] },
+    { "term": "低库存", "field": "good_number", "views": ["mysql.rs_cloud_flower.s_stock_info"] },
+    { "term": "库房", "field": "storehouse_name", "views": ["mysql.rs_cloud_flower.s_stock_info"] },
+    { "term": "物品", "field": "good_name", "views": ["mysql.rs_cloud_flower.s_stock_info", "mysql.rs_cloud_flower.b_goods_price"] },
+    { "term": "SKU", "field": "good_price_id", "views": ["mysql.rs_cloud_flower.s_stock_info"] },
+    { "term": "成本", "field": "out_cost", "views": ["mysql.rs_cloud_flower.s_stock_info"] }
+  ],
+  "fewShots": [
+    {
+      "question": "展示2026年库存现状",
+      "sql": "SELECT storehouse_name, good_price_id, good_name, good_norms, good_specs, good_unit, SUM(good_number) AS total_stock, ROUND(SUM(CAST(COALESCE(good_number, 0) AS DOUBLE) * CAST(COALESCE(out_cost, 0) AS DOUBLE)), 2) AS stock_cost FROM mysql.rs_cloud_flower.s_stock_info WHERE (del_flag IS NULL OR del_flag = '0') GROUP BY storehouse_name, good_price_id, good_name, good_norms, good_specs, good_unit ORDER BY 7 DESC LIMIT 100"
+    },
+    {
+      "question": "低库存预警",
+      "sql": "SELECT storehouse_name, good_price_id, good_name, good_norms, good_specs, good_unit, SUM(good_number) AS total_stock FROM mysql.rs_cloud_flower.s_stock_info WHERE (del_flag IS NULL OR del_flag = '0') GROUP BY storehouse_name, good_price_id, good_name, good_norms, good_specs, good_unit HAVING SUM(COALESCE(good_number, 0)) <= 2 ORDER BY 7 ASC, 3 LIMIT 100"
+    }
+  ],
+  "guardrails": [
+    "自动预览走 Trino 联邦入口时，所有表必须使用 catalog.schema.table 三段式。",
+    "库存 ADS 未完成运行态构建前，不要把源表明细回答包装成已认证经营报表，只能标记为 L0/L4 弱路径。",
+    "库存余额、出入库和成本统计必须优先按 good_price_id/SKU 关联，不要只按 good_name 粗聚合。",
+    "s_stock_info.out_cost、b_goods_price.cost_price、出入库明细 price 是不同口径，回答成本问题必须说明取值来源。",
+    "需要业务写操作时只生成动作提案，不直接执行写入。"
+  ]
+}

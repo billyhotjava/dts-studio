@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-027-warehouse-inventory-federated-query-templates" author="codex">
+        <comment>Route warehouse inventory questions to executable Trino mysql catalog templates instead of unpublished fixed-report placeholders.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority, is_active)
+VALUES
+('TPL-53', 'warehouse', NULL,
+ '[".*(库存现量|当前库存|库存现状|库存总览|库存看板).*", ".*(展示|查看|查询|统计).*(库存).*"]',
+ '["展示当前库存现状","库存现量按库房和SKU汇总"]',
+ $tpl$SELECT
+  COALESCE(storehouse_name, '未填') AS "库房",
+  CAST(good_price_id AS VARCHAR) AS "SKU",
+  COALESCE(good_name, '未填') AS "物品名称",
+  COALESCE(good_norms, '') AS "规格",
+  COALESCE(good_specs, '') AS "属性",
+  COALESCE(good_unit, '') AS "单位",
+  SUM(COALESCE(good_number, 0)) AS "可用库存",
+  ROUND(SUM(CAST(COALESCE(good_number, 0) AS DOUBLE) * CAST(COALESCE(out_cost, 0) AS DOUBLE)), 2) AS "库存成本",
+  COUNT(*) AS "库存行数",
+  MAX(update_time) AS "最近更新时间"
+FROM mysql.rs_cloud_flower.s_stock_info
+WHERE (del_flag IS NULL OR del_flag = '0')
+GROUP BY
+  COALESCE(storehouse_name, '未填'),
+  good_price_id,
+  COALESCE(good_name, '未填'),
+  COALESCE(good_norms, ''),
+  COALESCE(good_specs, ''),
+  COALESCE(good_unit, '')
+ORDER BY 7 DESC, 8 DESC
+LIMIT 100$tpl$,
+ '{}',
+ 'mysql.rs_cloud_flower.s_stock_info', '库存现量按库房和 SKU 汇总（Trino 联邦 MySQL）', 46, true),
+('TPL-54', 'warehouse', NULL,
+ '[".*(低库存|缺货).*(预警|告警|清单|列表|情况).*", ".*(库存).*(不足|偏低|低于|小于).*(预警|告警|清单|列表|情况)?.*"]',
+ '["查看低库存SKU清单","低库存预警"]',
+ $tpl$SELECT
+  COALESCE(storehouse_name, '未填') AS "库房",
+  CAST(good_price_id AS VARCHAR) AS "SKU",
+  COALESCE(good_name, '未填') AS "物品名称",
+  COALESCE(good_norms, '') AS "规格",
+  COALESCE(good_specs, '') AS "属性",
+  COALESCE(good_unit, '') AS "单位",
+  SUM(COALESCE(good_number, 0)) AS "可用库存",
+  ROUND(SUM(CAST(COALESCE(good_number, 0) AS DOUBLE) * CAST(COALESCE(out_cost, 0) AS DOUBLE)), 2) AS "库存成本",
+  MAX(update_time) AS "最近更新时间"
+FROM mysql.rs_cloud_flower.s_stock_info
+WHERE (del_flag IS NULL OR del_flag = '0')
+GROUP BY
+  COALESCE(storehouse_name, '未填'),
+  good_price_id,
+  COALESCE(good_name, '未填'),
+  COALESCE(good_norms, ''),
+  COALESCE(good_specs, ''),
+  COALESCE(good_unit, '')
+HAVING SUM(COALESCE(good_number, 0)) <= 2
+ORDER BY 7 ASC, 3
+LIMIT 100$tpl$,
+ '{}',
+ 'mysql.rs_cloud_flower.s_stock_info', '低库存 SKU 清单（Trino 联邦 MySQL 弱路径）', 47, true)
+ON CONFLICT (template_code) DO UPDATE
+SET domain = EXCLUDED.domain,
+    role_hint = EXCLUDED.role_hint,
+    intent_patterns = EXCLUDED.intent_patterns,
+    question_samples = EXCLUDED.question_samples,
+    sql_template = EXCLUDED.sql_template,
+    parameters = EXCLUDED.parameters,
+    target_view = EXCLUDED.target_view,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

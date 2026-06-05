@@ -1,0 +1,27 @@
+# {{domainName}}路由接线
+
+## 场景
+
+- domain: `{{sceneCode}}`
+- owner: `{{owner}}`
+- source: `{{sourceCatalog}}.{{sourceSchema}}`
+- warehouse: `{{warehouseCatalog}}.{{warehouseSchema}}`
+
+## 五层路由
+
+| Tier | 路由目标 | {{domainName}}接线 |
+|------|----------|--------------------|
+| TIER_1_PUBLISHED_INDICATOR | 已发布平台指标 | 接入后填写指标编码 |
+| TIER_2_MART_TEMPLATE | dbt ADS / 模板 | `{{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview` |
+| TIER_3_ONTOLOGY_OBJECT_GRAPH | 对象图 links/signals | 接入后填写对象图链接 |
+| TIER_4_GUARDRAIL_FEDERATED | Trino 联邦查询 | `{{sourceCatalog}}.{{sourceSchema}}.*` + `{{warehouseCatalog}}.{{warehouseSchema}}.*` |
+| TIER_5_DIRECT_DETAIL | 只读业务明细 | 仅用于字段画像、明细定位和 ADS 缺失时的临时兜底 |
+
+## 弱路径升级规则
+
+如果同一目标连续进入 `martCandidateSignals`，优先补：
+
+1. ADS 模型。
+2. semantic pack fewShot。
+3. 资产库表格资产。
+4. 平台指标。

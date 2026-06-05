@@ -10,6 +10,8 @@ import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatRequestContext;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailService;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceChatAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
@@ -24,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -94,6 +97,7 @@ public class AgentExecutionService {
     private final ConversationPlannerService conversationPlannerService;
     private final LlmProviderClientFactory clientFactory;
     private final AiDataSourceRepository dataSourceRepository;
+    private final FinanceChatAuditTrailService financeChatAuditTrailService;
 
     private volatile LlmProviderClient cachedClient;
     private volatile String cachedClientKey;
@@ -104,12 +108,31 @@ public class AgentExecutionService {
                                  ConversationPlannerService conversationPlannerService,
                                  LlmProviderClientFactory clientFactory,
                                  AiDataSourceRepository dataSourceRepository) {
+        this(
+                reActEngine,
+                ragService,
+                providerConfigRepository,
+                conversationPlannerService,
+                clientFactory,
+                dataSourceRepository,
+                null);
+    }
+
+    @Autowired
+    public AgentExecutionService(ReActEngine reActEngine,
+                                 RagService ragService,
+                                 AiProviderConfigRepository providerConfigRepository,
+                                 ConversationPlannerService conversationPlannerService,
+                                 LlmProviderClientFactory clientFactory,
+                                 AiDataSourceRepository dataSourceRepository,
+                                 FinanceChatAuditTrailService financeChatAuditTrailService) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
         this.conversationPlannerService = conversationPlannerService;
         this.clientFactory = clientFactory;
         this.dataSourceRepository = dataSourceRepository;
+        this.financeChatAuditTrailService = financeChatAuditTrailService;
     }
 
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
@@ -145,7 +168,9 @@ public class AgentExecutionService {
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext);
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                    buildFinanceAuditTrail(conversationPlan, generatedSql);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext, financeAuditTrail);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -182,12 +207,16 @@ public class AgentExecutionService {
                 toolContext,
                 provider.getTemperature(),
                 provider.getMaxTokens());
+        String generatedSql = resolveGeneratedSql(response, conversationPlan);
+        FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                buildFinanceAuditTrail(conversationPlan, generatedSql);
         return new ChatExecutionResult(
                 response,
-                resolveGeneratedSql(response, conversationPlan),
+                generatedSql,
                 conversationPlan,
                 null,
-                requestContext
+                requestContext,
+                financeAuditTrail
         );
     }
 
@@ -230,8 +259,10 @@ public class AgentExecutionService {
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null, requestContext);
-            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext);
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                    buildFinanceAuditTrail(conversationPlan, generatedSql);
+            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null, requestContext, financeAuditTrail);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext, financeAuditTrail);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -265,14 +296,23 @@ public class AgentExecutionService {
                 provider.getMaxTokens(),
                 sseOutput);
         String sql = resolveGeneratedSql(response, conversationPlan);
-        writeDoneEvent(sseOutput, sql, conversationPlan, inferSuggestedDisplay(userMessage, sql, conversationPlan), requestContext);
+        FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                buildFinanceAuditTrail(conversationPlan, sql);
+        writeDoneEvent(
+                sseOutput,
+                sql,
+                conversationPlan,
+                inferSuggestedDisplay(userMessage, sql, conversationPlan),
+                requestContext,
+                financeAuditTrail);
 
         return new ChatExecutionResult(
                 response,
                 sql,
                 conversationPlan,
                 extractReasoningFromMessages(messages),
-                requestContext
+                requestContext,
+                financeAuditTrail
         );
     }
 
@@ -352,6 +392,20 @@ public class AgentExecutionService {
             return normalizeReadOnlySql(conversationPlan.resolvedSql());
         }
         return null;
+    }
+
+    private FinanceAnswerAuditTrailService.AuditTrailReport buildFinanceAuditTrail(
+            ConversationPlan conversationPlan,
+            String generatedSql) {
+        if (financeChatAuditTrailService == null) {
+            return null;
+        }
+        try {
+            return financeChatAuditTrailService.buildAuditTrail(conversationPlan, generatedSql).orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to build finance answer audit trail: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String normalizeReadOnlySql(String sql) {
@@ -526,10 +580,21 @@ public class AgentExecutionService {
             ConversationPlan conversationPlan,
             String suggestedDisplay,
             CopilotChatRequestContext requestContext) {
+        writeTokenAndDone(out, text, sql, conversationPlan, suggestedDisplay, requestContext, null);
+    }
+
+    private void writeTokenAndDone(
+            OutputStream out,
+            String text,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
         try {
             String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
-            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext);
+            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, financeAuditTrail);
             out.flush();
         } catch (IOException e) {
             log.debug("SSE write failed: {}", e.getMessage());
@@ -550,6 +615,16 @@ public class AgentExecutionService {
             ConversationPlan conversationPlan,
             String suggestedDisplay,
             CopilotChatRequestContext requestContext) {
+        writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, null);
+    }
+
+    private void writeDoneEvent(
+            OutputStream out,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
         try {
             ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
@@ -592,7 +667,7 @@ public class AgentExecutionService {
                     var sourceRefs = done.putArray("sourceRefs");
                     conversationPlan.sourceRefs().forEach(sourceRefs::add);
                 }
-                CopilotChatContract.putDoneFields(done, conversationPlan, sql, requestContext);
+                CopilotChatContract.putDoneFields(done, conversationPlan, sql, requestContext, financeAuditTrail);
             }
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -656,14 +731,24 @@ public class AgentExecutionService {
             String generatedSql,
             ConversationPlan conversationPlan,
             String reasoningContent,
-            CopilotChatRequestContext requestContext
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail
     ) {
         public ChatExecutionResult(
                 String response,
                 String generatedSql,
                 ConversationPlan conversationPlan,
                 String reasoningContent) {
-            this(response, generatedSql, conversationPlan, reasoningContent, CopilotChatRequestContext.empty());
+            this(response, generatedSql, conversationPlan, reasoningContent, CopilotChatRequestContext.empty(), null);
+        }
+
+        public ChatExecutionResult(
+                String response,
+                String generatedSql,
+                ConversationPlan conversationPlan,
+                String reasoningContent,
+                CopilotChatRequestContext requestContext) {
+            this(response, generatedSql, conversationPlan, reasoningContent, requestContext, null);
         }
     }
 }

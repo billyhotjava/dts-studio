@@ -1,0 +1,133 @@
+{
+  "version": "2026-06-sprint31-cross-source-regression-v1",
+  "domains": [
+    {
+      "domain": "finance",
+      "ruleIds": [
+        "CAL-BIZTYPE-SCOPE",
+        "CAL-SETTLEMENT-CHAIN",
+        "CAL-MONTH-AMOUNT-TIER",
+        "CAL-SALE-IN-RENT",
+        "CAL-RENT-HISTORY",
+        "CAL-INVENTORY-COST",
+        "CAL-JSON-EXPAND",
+        "CAL-VARCHAR-AMOUNT-CAST",
+        "CAL-EXTRA-COST-VS-EXPENSE"
+      ],
+      "dbtEvidence": [
+        {
+          "ruleId": "CAL-BIZTYPE-SCOPE",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/assets/finance-mart-catalog.md#invoice-collection-biz-type",
+          "attributes": ["开票业务类型", "收款业务类型", "表限定枚举"]
+        },
+        {
+          "ruleId": "CAL-SETTLEMENT-CHAIN",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/assets/finance-mart-catalog.md#public.xycyl_ads_finance_month_settlement",
+          "attributes": ["a_month_accounting", "a_green_accounting", "销售摊入金额", "坏账损失"]
+        },
+        {
+          "ruleId": "CAL-MONTH-AMOUNT-TIER",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/assets/finance-mart-catalog.md#public.xycyl_ads_finance_month_settlement",
+          "attributes": ["名义租金", "应收折前", "折后实收", "已回款"]
+        },
+        {
+          "ruleId": "CAL-SALE-IN-RENT",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/assets/finance-mart-catalog.md#sale-in-rent",
+          "attributes": ["剔除销售摊入折后实收", "销售摊入金额", "source_type=8"]
+        },
+        {
+          "ruleId": "CAL-RENT-HISTORY",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/features/F4-财务回款开票链垂直切片建模/T01-月对账应收折后回款dbt模型.md#history-rent",
+          "attributes": ["p_project_green_sett", "历史快照"]
+        },
+        {
+          "ruleId": "CAL-INVENTORY-COST",
+          "ref": "dbt:worklog/v1.0.0/sprint-32-202607/assets/scenario-onboarding-kit/examples/finance.md#inventory-cost",
+          "attributes": ["good_price_id", "SKU", "out_cost"]
+        },
+        {
+          "ruleId": "CAL-JSON-EXPAND",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/assets/finance-mart-catalog.md#json-expand-lineage",
+          "attributes": ["f_settlement.biz_ids_json", "JSON 展开后 JOIN"]
+        },
+        {
+          "ruleId": "CAL-VARCHAR-AMOUNT-CAST",
+          "ref": "dbt:worklog/v1.0.0/sprint-30-202606/assets/finance-mart-catalog.md#rent-numeric-cast",
+          "attributes": ["a_sale_account_rent_item.rent", "numeric CAST"]
+        },
+        {
+          "ruleId": "CAL-EXTRA-COST-VS-EXPENSE",
+          "ref": "dbt:worklog/v1.0.0/sprint-33-202607/assets/finance-answer-audit-trail.v1.json#voucher-expense",
+          "attributes": ["t_flower_extra_cost", "f_expense_account_info", "rs.spelrule"]
+        }
+      ],
+      "glossaryEvidence": [
+        {
+          "ruleId": "CAL-BIZTYPE-SCOPE",
+          "ref": "openmetadata:glossary.finance.biz_type_scope",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-SETTLEMENT-CHAIN",
+          "ref": "openmetadata:glossary.finance.settlement_chain",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-MONTH-AMOUNT-TIER",
+          "ref": "openmetadata:glossary.finance.month_amount_tier",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-SALE-IN-RENT",
+          "ref": "openmetadata:glossary.finance.sale_in_rent_double_count",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-RENT-HISTORY",
+          "ref": "openmetadata:glossary.finance.rent_history",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-INVENTORY-COST",
+          "ref": "openmetadata:glossary.finance.inventory_cost_sku",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-JSON-EXPAND",
+          "ref": "openmetadata:glossary.finance.json_expand_join",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-VARCHAR-AMOUNT-CAST",
+          "ref": "openmetadata:glossary.finance.varchar_amount_cast",
+          "attributes": []
+        },
+        {
+          "ruleId": "CAL-EXTRA-COST-VS-EXPENSE",
+          "ref": "openmetadata:glossary.finance.extra_cost_vs_expense_voucher",
+          "attributes": []
+        }
+      ]
+    },
+    {
+      "domain": "procurement",
+      "ruleIds": [
+        "CAL-INVENTORY-COST"
+      ],
+      "dbtEvidence": [
+        {
+          "ruleId": "CAL-INVENTORY-COST",
+          "ref": "dbt:semantic-pack.procurement#authority.procurement.purchase_item_detail",
+          "attributes": ["good_price_id", "SKU", "out_cost"]
+        }
+      ],
+      "glossaryEvidence": [
+        {
+          "ruleId": "CAL-INVENTORY-COST",
+          "ref": "openmetadata:glossary.procurement.inventory_cost_sku",
+          "attributes": []
+        }
+      ]
+    }
+  ]
+}

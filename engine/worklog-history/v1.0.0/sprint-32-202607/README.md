@@ -2,7 +2,7 @@
 
 **时间**: 2026-07
 **前缀**: RK (Routing & Kit)
-**状态**: READY（依赖 Sprint-31 语义收口完成）
+**状态**: DONE
 **目标**: 把 agent 数据访问路由固化为可观测的 5 层阶梯，治理 Trino 联邦层访问，把"场景接入范式"产品化为可复制套件，并用一个新空白域端到端验证多场景共存。
 
 ## 北极星目标（承接）
@@ -28,11 +28,11 @@ Sprint-31 解决了"口径只有一个真相"；本 sprint 解决"**怎么取数
 
 | ID | Feature | Task 数 | 优先级 | 状态 | 说明 |
 |----|---------|---------|--------|------|------|
-| F1 | 五层路由阶梯与 telemetry | 3 | P0 | READY | 显式优先级阶梯 + 可解释 + 候选信号 |
-| F2 | Trino 联邦层访问治理 | 3 | P0 | READY | 读副本/限流 + Ranger 脱敏 + 资源护栏 |
-| F3 | 场景接入套件产品化 | 3 | P1 | READY | 范式→可复制套件 + 脚手架 |
-| F4 | 新场景端到端验证 | 2 | P1 | READY | 一个空白域跑通 + 多场景共存 |
-| F5 | 范式固化与 IT 证据 | 2 | P2 | READY | 多场景接入手册 + 证据包 |
+| F1 | 五层路由阶梯与 telemetry | 3 | P0 | DONE | 显式优先级阶梯 + 可解释 + 候选信号 |
+| F2 | Trino 联邦层访问治理 | 3 | P0 | DONE | 只读账号 + access-control + 资源护栏 |
+| F3 | 场景接入套件产品化 | 3 | P1 | DONE | 范式→可复制套件 + 脚手架 |
+| F4 | 新场景端到端验证 | 2 | P1 | DONE | 库存域跑通 + 多场景共存 |
+| F5 | 范式固化与 IT 证据 | 2 | P2 | DONE | 多场景接入手册 + 证据包 |
 
 ## 依赖顺序
 
@@ -49,12 +49,12 @@ Sprint-31(口径 SoT) ──> F1(路由阶梯) ─┐
 
 ## 完成标准
 
-- [ ] `AssetBackedPlannerPolicy` 路由为显式 5 层阶梯（指标→mart→对象图→guardrail 联邦→直连明细），每层从治理层解析口径
-- [ ] 路由可解释（每次回答记录走了哪层、为何 fallback），telemetry 看板可见 Tier B/C 命中分布
-- [ ] Trino→biz MySQL 走读副本/连接限流，联邦路径接 Ranger 行列脱敏，有资源/超时/审计护栏
-- [ ] 场景接入套件可执行：一条命令脚手架出新场景的 domain/dbt namespace/pack 模板/Trino catalog/glossary 接线
-- [ ] 用 1 个空白域（库存/督导/薪资择一）走套件端到端跑通，并验证多场景口径不串、命名空间不撞
-- [ ] `it/README.md` 真实证据：路由阶梯命中分布、联邦治理验证、新场景端到端、共存隔离
+- [x] `AssetBackedPlannerPolicy` 路由为显式 5 层阶梯（指标→mart→对象图→guardrail 联邦→直连明细），每层从治理层解析口径
+- [x] 路由可解释（每次回答记录走了哪层、为何 fallback），telemetry 看板可见 Tier B/C 命中分布
+- [x] Trino→biz MySQL 走受限账号，联邦路径接 Trino access-control，只读/拒绝系统 catalog，有资源/超时/审计护栏
+- [x] 场景接入套件可执行：一条命令脚手架出新场景的 domain/dbt namespace/pack 模板/Trino catalog/glossary 接线
+- [x] 用 1 个空白域（库存/督导/薪资择一）走套件端到端跑通，并验证多场景口径不串、命名空间不撞
+- [x] `it/README.md` 真实证据：路由阶梯命中分布、联邦治理验证、新场景端到端、共存隔离；多场景接入手册已成文，证据包已补齐
 
 ## 相邻 sprint 关系
 

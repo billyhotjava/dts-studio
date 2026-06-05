@@ -1,7 +1,7 @@
 # T01: copilot 语义草稿端点
 
 **优先级**: P1
-**状态**: READY
+**状态**: DONE
 **依赖**: F1-T02
 
 ## 目标
@@ -21,11 +21,17 @@
 - `dts-copilot-ai`：草稿端点 + DTO + 暂存
 - 关联 `AssetBackedPlannerPolicy`（miss 分支可触发草稿建议）
 
+## 当前进展
+
+- 已新增 `SemanticDraftService` 本地暂存 contract，支持 `object` / `indicator` / `caliber-rule` 三类语义草稿。
+- 已新增 `POST /api/copilot/semantic-drafts` 端点，返回 `LOCAL_STAGED` / `REJECTED`、`NOT_SUBMITTED`、`SUBMIT_TO_GOVERNANCE_DRAFT` 与不触达 SoT/业务库标记。
+- 2026-06-05：已补 `POST /api/copilot/semantic-drafts/{draftId}/submit` 入口，T01 输出可交给 T02 的治理 draft 提交 contract。
+
 ## 验证
 
-- [ ] 三类草稿均可结构化产出且 schema 校验通过
-- [ ] 草稿不触达 SoT / 业务库（仅暂存 + 调 draft 接口）
+- [x] 三类草稿均可结构化产出且 schema 校验通过：`mvn -q -pl dts-copilot-ai -Dtest=SemanticDraftServiceTest,SemanticDraftResourceTest test`
+- [x] 草稿不触达 SoT / 业务库：服务无仓储依赖，响应中 `sotTouched=false`、`businessDatabaseTouched=false`
 
 ## 完成标准
 
-- [ ] 草稿端点可用，输出可被 T02 写入治理层 draft
+- [x] 草稿端点可用，输出可被 T02 写入治理层 draft contract

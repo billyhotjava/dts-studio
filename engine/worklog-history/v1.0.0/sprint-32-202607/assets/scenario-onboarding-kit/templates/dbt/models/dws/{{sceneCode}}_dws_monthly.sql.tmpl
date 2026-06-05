@@ -1,0 +1,9 @@
+-- {{domainName}} DWS monthly placeholder.
+-- Replace dimensions and measures with verified business caliber.
+
+select
+  date_trunc('month', source_updated_at)::date as business_month,
+  business_status,
+  count(*) as row_count
+from {{ ref('{{dwdPrefix}}_placeholder') }}
+group by 1, 2

@@ -42,6 +42,21 @@
     {"term": "收款", "field": "public.xycyl_ads_finance_collection", "views": ["public.xycyl_ads_finance_collection"]},
     {"term": "坏账金额", "field": "坏账损失，不作为收入", "views": ["public.xycyl_ads_finance_invoice_progress"]}
   ],
+  "generatedGuardrails": {
+    "_generated": true,
+    "_source": "governance/caliber-rules.v1.json",
+    "rules": [
+      "[CAL-BIZTYPE-SCOPE] 标签: biz_type_scope; 规则: biz_type/source_type 必须带表限定并说明枚举来源，不能把主表、明细、开票、收款、仓储枚举互相套用。",
+      "[CAL-SETTLEMENT-CHAIN] 标签: settlement_chain; 规则: 租摆链不含增值税且含折扣，售赠坏链含增值税，两链不可直接混 SUM；坏账 receivable 是损失，不能作为收入。",
+      "[CAL-MONTH-AMOUNT-TIER] 标签: month_amount_tier; 规则: period/add/cut/adjust/sale 分项要区分名义租金、应收折前、折后实收和已回款，问句未说明金额层级时必须追问或拆分。",
+      "[CAL-SALE-IN-RENT] 标签: sale_in_rent_double_count; 规则: 售花摊入租摆后跨链汇总必须剔除或标注 source_type=8，避免双重计数。",
+      "[CAL-RENT-HISTORY] 标签: rent_history; 规则: saverentfeeandapply 会覆盖 p_project_green.rent，历史租金必须读取 p_project_green_sett 或 mart 历史快照。",
+      "[CAL-INVENTORY-COST] 标签: inventory_cost_sku; 规则: 库存成本是加权平均 out_cost，不是 FIFO 也不是 b_goods_price.cost_price；库存、采购、出库必须按 good_price_id/SKU 关联。",
+      "[CAL-JSON-EXPAND] 标签: json_expand_join; 规则: f_settlement.biz_ids_json/t_*.draft_item_json JOIN 必须先展开再匹配，不能用报花单 id 与 JSON 字符串等值 JOIN。",
+      "[CAL-VARCHAR-AMOUNT-CAST] 标签: varchar_amount_cast; 规则: rent 是 varchar 金额列，参与 SUM/AVG/比较前必须过滤空值并 CAST 为 numeric。",
+      "[CAL-EXTRA-COST-VS-EXPENSE] 标签: extra_cost_vs_expense_voucher; 规则: 额外费用是向客户收取或承担的附加费，费用报销是公司支出报销，两者不可合并；SpEL 开关关闭时结算可能无凭证。"
+    ]
+  },
   "fewShots": [
     {
       "question": "本月租摆应收和实收分别是多少？",

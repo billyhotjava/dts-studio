@@ -1,0 +1,33 @@
+{
+  "domain": "{{sceneCode}}",
+  "description": "{{domainName}}主题域语义包模板。默认走 {{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_*，源表仅用于血缘排查和弱路径兜底。",
+  "objects": [
+    {
+      "name": "{{domainName}}总览",
+      "view": "{{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview",
+      "description": "{{domainName}}已认证 ADS 总览表。接入时替换字段、口径和时间列。",
+      "keyDimensions": ["业务日期", "状态"],
+      "keyMeasures": ["单据数", "金额"],
+      "commonFilters": ["业务日期", "状态"],
+      "defaultTimeField": "业务日期"
+    }
+  ],
+  "synonyms": [
+    {
+      "term": "{{domainName}}",
+      "field": "{{sceneCode}}",
+      "views": ["{{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview"]
+    }
+  ],
+  "fewShots": [
+    {
+      "question": "查看{{domainName}}本月总览",
+      "sql": "SELECT * FROM {{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview WHERE 1=1 LIMIT 50"
+    }
+  ],
+  "guardrails": [
+    "自动预览走 Trino 联邦入口时，所有表必须使用 catalog.schema.table 三段式。",
+    "{{domainName}}未沉淀 ADS 前，不要把源表明细回答包装成已认证经营报表。",
+    "需要业务写操作时只生成动作提案，不直接执行写入。"
+  ]
+}

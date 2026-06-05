@@ -1,0 +1,4 @@
+# Sprint-31 F3-T01 semantic draft endpoint IT evidence
+date: 2026-06-05
+command: bash worklog/v1.0.0/sprint-31-202606/it/test_sprint31_semantic_drafts.sh
+result: PASS
