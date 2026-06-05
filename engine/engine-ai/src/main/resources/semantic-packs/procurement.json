@@ -31,19 +31,27 @@
     { "term": "采购详细情况", "field": "authority.procurement.purchase_item_detail", "views": ["authority.procurement.purchase_item_detail"] },
     { "term": "采购明细", "field": "authority.procurement.purchase_item_detail", "views": ["authority.procurement.purchase_item_detail"] }
   ],
+  "generatedGuardrails": {
+    "_generated": true,
+    "_source": "governance/caliber-rules.v1.json",
+    "rules": [
+      "[CAL-INVENTORY-COST] 标签: inventory_cost_sku; 规则: 库存成本是加权平均 out_cost，不是 FIFO 也不是 b_goods_price.cost_price；库存、采购、出库必须按 good_price_id/SKU 关联。"
+    ]
+  },
   "fewShots": [
     {
       "question": "查询2025年2月绿萝采购明细",
-      "sql": "SELECT b.purchase_user_name, a.purchase_time, a.good_name, a.good_specs, c.real_purchase_number AS parchase_number, a.parchase_price, ROUND(c.real_purchase_number * a.parchase_price, 2) AS total_amount, a.supply_name, f.code AS biz_code, f.project_name FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = '绿萝' AND a.purchase_time >= '2025-02-01' AND a.purchase_time < '2025-03-01' ORDER BY a.purchase_time DESC, b.purchase_user_name ASC"
+      "sql": "SELECT b.purchase_user_name, a.purchase_time, a.good_name, a.good_specs, c.real_purchase_number AS parchase_number, a.parchase_price, ROUND(c.real_purchase_number * a.parchase_price, 2) AS total_amount, a.supply_name, f.code AS biz_code, f.project_name FROM mysql.rs_cloud_flower.t_purchase_price_item a LEFT JOIN mysql.rs_cloud_flower.t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN mysql.rs_cloud_flower.t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = '绿萝' AND a.purchase_time >= TIMESTAMP '2025-02-01 00:00:00' AND a.purchase_time < TIMESTAMP '2025-03-01 00:00:00' ORDER BY a.purchase_time DESC, b.purchase_user_name ASC"
     },
     {
       "question": "查询2025年2月，绿萝这个产品的采购详细情况，按采购人、采购金额统计",
-      "sql": "SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM t_purchase_price_item a LEFT JOIN t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = '绿萝' AND a.purchase_time >= '2025-02-01' AND a.purchase_time < '2025-03-01' GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC"
+      "sql": "SELECT b.purchase_user_name, COUNT(*) AS row_count, SUM(c.real_purchase_number) AS total_quantity, ROUND(SUM(c.real_purchase_number * a.parchase_price), 2) AS purchase_amount FROM mysql.rs_cloud_flower.t_purchase_price_item a LEFT JOIN mysql.rs_cloud_flower.t_purchase_info b ON a.purchase_info_id = b.id LEFT JOIN mysql.rs_cloud_flower.t_plan_purchase_item c ON c.purchase_price_id = a.id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_item d ON d.id = c.flower_item_id LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_info f ON f.id = d.flower_biz_id WHERE d.status <> -1 AND d.id IS NOT NULL AND c.status <> -1 AND a.good_name = '绿萝' AND a.purchase_time >= TIMESTAMP '2025-02-01 00:00:00' AND a.purchase_time < TIMESTAMP '2025-03-01 00:00:00' GROUP BY b.purchase_user_name ORDER BY purchase_amount DESC"
     }
   ],
   "guardrails": [
     "不要使用 t_purchase_info.title like '%产品名%' 作为采购产品过滤条件。",
     "不要把 i_pendulum_purchase* 作为采购明细默认表链。",
+    "自动预览走 Trino 联邦入口时，只能使用 mysql.rs_cloud_flower.* 或 postgres.public.*，不要使用 PRODUCTION/FLOWER_BIZ/PRS_* 这类未授权 catalog/schema/table。",
     "对产品名必须区分精确匹配 good_name='绿萝' 与模糊匹配 LIKE '%绿萝%' 的不同口径。"
   ]
 }

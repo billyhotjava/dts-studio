@@ -10,6 +10,8 @@ import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatRequestContext;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailService;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceChatAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
@@ -24,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -60,7 +63,7 @@ public class AgentExecutionService {
             2. 先对目标 dbt 模型调用 schema_lookup 工具验证表名和字段名；SQL 只能使用 schema_lookup 返回字段，不要猜测旧 ODS 字段
             3. 创建可保存的分析草稿：生成只读 SQL，并按需要调用 execute_query 做小样本预览
             4. 回复中必须包含一个 ```sql 代码块，并说明统计口径、推荐图表类型和可能的数据质量 caveat
-            5. 不要把固定报表模板当成新报表草稿返回，除非用户明确要求打开已有报表
+            5. 不要把资产库已有模板当成新报表草稿返回，除非用户明确要求打开资产库已有资产
             6. 指标摘要、口径说明、推荐图表和数据质量提示统一使用标准 Markdown 表格；报表摘要表固定使用表头 `| 指标 | 结果 | 说明 |`，第二行必须是 `| --- | --- | --- |`
             7. 不要只输出指标说明表，必须包含 ```sql 代码块；如果字段不足以生成 SQL，明确说明缺失字段并请求补充，不要声称已生成报表草稿
 
@@ -94,6 +97,7 @@ public class AgentExecutionService {
     private final ConversationPlannerService conversationPlannerService;
     private final LlmProviderClientFactory clientFactory;
     private final AiDataSourceRepository dataSourceRepository;
+    private final FinanceChatAuditTrailService financeChatAuditTrailService;
 
     private volatile LlmProviderClient cachedClient;
     private volatile String cachedClientKey;
@@ -104,12 +108,31 @@ public class AgentExecutionService {
                                  ConversationPlannerService conversationPlannerService,
                                  LlmProviderClientFactory clientFactory,
                                  AiDataSourceRepository dataSourceRepository) {
+        this(
+                reActEngine,
+                ragService,
+                providerConfigRepository,
+                conversationPlannerService,
+                clientFactory,
+                dataSourceRepository,
+                null);
+    }
+
+    @Autowired
+    public AgentExecutionService(ReActEngine reActEngine,
+                                 RagService ragService,
+                                 AiProviderConfigRepository providerConfigRepository,
+                                 ConversationPlannerService conversationPlannerService,
+                                 LlmProviderClientFactory clientFactory,
+                                 AiDataSourceRepository dataSourceRepository,
+                                 FinanceChatAuditTrailService financeChatAuditTrailService) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
         this.conversationPlannerService = conversationPlannerService;
         this.clientFactory = clientFactory;
         this.dataSourceRepository = dataSourceRepository;
+        this.financeChatAuditTrailService = financeChatAuditTrailService;
     }
 
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
@@ -145,7 +168,9 @@ public class AgentExecutionService {
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext);
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                    buildFinanceAuditTrail(conversationPlan, generatedSql);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext, financeAuditTrail);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -182,12 +207,16 @@ public class AgentExecutionService {
                 toolContext,
                 provider.getTemperature(),
                 provider.getMaxTokens());
+        String generatedSql = resolveGeneratedSql(response, conversationPlan);
+        FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                buildFinanceAuditTrail(conversationPlan, generatedSql);
         return new ChatExecutionResult(
                 response,
-                resolveGeneratedSql(response, conversationPlan),
+                generatedSql,
                 conversationPlan,
                 null,
-                requestContext
+                requestContext,
+                financeAuditTrail
         );
     }
 
@@ -230,8 +259,10 @@ public class AgentExecutionService {
         if (isTemplateFastPath(conversationPlan)) {
             String response = formatFastPathResponse(conversationPlan);
             String generatedSql = resolveFastPathGeneratedSql(conversationPlan);
-            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null, requestContext);
-            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext);
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                    buildFinanceAuditTrail(conversationPlan, generatedSql);
+            writeTokenAndDone(sseOutput, response, generatedSql, conversationPlan, null, requestContext, financeAuditTrail);
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, null, requestContext, financeAuditTrail);
         }
 
         AiProviderConfig provider = resolveProvider();
@@ -265,14 +296,23 @@ public class AgentExecutionService {
                 provider.getMaxTokens(),
                 sseOutput);
         String sql = resolveGeneratedSql(response, conversationPlan);
-        writeDoneEvent(sseOutput, sql, conversationPlan, inferSuggestedDisplay(userMessage, sql, conversationPlan), requestContext);
+        FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
+                buildFinanceAuditTrail(conversationPlan, sql);
+        writeDoneEvent(
+                sseOutput,
+                sql,
+                conversationPlan,
+                inferSuggestedDisplay(userMessage, sql, conversationPlan),
+                requestContext,
+                financeAuditTrail);
 
         return new ChatExecutionResult(
                 response,
                 sql,
                 conversationPlan,
                 extractReasoningFromMessages(messages),
-                requestContext
+                requestContext,
+                financeAuditTrail
         );
     }
 
@@ -352,6 +392,20 @@ public class AgentExecutionService {
             return normalizeReadOnlySql(conversationPlan.resolvedSql());
         }
         return null;
+    }
+
+    private FinanceAnswerAuditTrailService.AuditTrailReport buildFinanceAuditTrail(
+            ConversationPlan conversationPlan,
+            String generatedSql) {
+        if (financeChatAuditTrailService == null) {
+            return null;
+        }
+        try {
+            return financeChatAuditTrailService.buildAuditTrail(conversationPlan, generatedSql).orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to build finance answer audit trail: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String normalizeReadOnlySql(String sql) {
@@ -479,7 +533,7 @@ public class AgentExecutionService {
     }
 
     private String formatFixedReportResponse(ConversationPlan plan) {
-        StringBuilder sb = new StringBuilder("根据您的问题，已命中固定报表模板");
+        StringBuilder sb = new StringBuilder("根据您的问题，已命中资产库资产");
         if (StringUtils.hasText(plan.templateCode())) {
             sb.append(" `").append(plan.templateCode()).append("`");
         }
@@ -490,7 +544,7 @@ public class AgentExecutionService {
         if (StringUtils.hasText(plan.primaryTarget())) {
             sb.append("- 数据目标：`").append(plan.primaryTarget()).append("`\n");
         }
-        sb.append("- 已切换到固定报表快路径，可直接打开报表查看结果。");
+        sb.append("- 已切换到资产库资产路径，可在资产库查看或打开结果。");
         return sb.toString();
     }
 
@@ -526,10 +580,21 @@ public class AgentExecutionService {
             ConversationPlan conversationPlan,
             String suggestedDisplay,
             CopilotChatRequestContext requestContext) {
+        writeTokenAndDone(out, text, sql, conversationPlan, suggestedDisplay, requestContext, null);
+    }
+
+    private void writeTokenAndDone(
+            OutputStream out,
+            String text,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
         try {
             String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
-            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext);
+            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, financeAuditTrail);
             out.flush();
         } catch (IOException e) {
             log.debug("SSE write failed: {}", e.getMessage());
@@ -550,6 +615,16 @@ public class AgentExecutionService {
             ConversationPlan conversationPlan,
             String suggestedDisplay,
             CopilotChatRequestContext requestContext) {
+        writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, null);
+    }
+
+    private void writeDoneEvent(
+            OutputStream out,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
         try {
             ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
@@ -592,7 +667,7 @@ public class AgentExecutionService {
                     var sourceRefs = done.putArray("sourceRefs");
                     conversationPlan.sourceRefs().forEach(sourceRefs::add);
                 }
-                CopilotChatContract.putDoneFields(done, conversationPlan, sql, requestContext);
+                CopilotChatContract.putDoneFields(done, conversationPlan, sql, requestContext, financeAuditTrail);
             }
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -656,14 +731,24 @@ public class AgentExecutionService {
             String generatedSql,
             ConversationPlan conversationPlan,
             String reasoningContent,
-            CopilotChatRequestContext requestContext
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail
     ) {
         public ChatExecutionResult(
                 String response,
                 String generatedSql,
                 ConversationPlan conversationPlan,
                 String reasoningContent) {
-            this(response, generatedSql, conversationPlan, reasoningContent, CopilotChatRequestContext.empty());
+            this(response, generatedSql, conversationPlan, reasoningContent, CopilotChatRequestContext.empty(), null);
+        }
+
+        public ChatExecutionResult(
+                String response,
+                String generatedSql,
+                ConversationPlan conversationPlan,
+                String reasoningContent,
+                CopilotChatRequestContext requestContext) {
+            this(response, generatedSql, conversationPlan, reasoningContent, requestContext, null);
         }
     }
 }

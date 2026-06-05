@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-025-flowerbiz-sales-year-query-template" author="codex">
+        <comment>Route broad yearly flowerbiz sales questions to the dbt sales summary template instead of generic LLM workflow.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority, is_active)
+VALUES
+('TPL-52', 'flowerbiz', NULL,
+ '[".*(20\\d{2}|\\d{4}年|今年|去年).*(销售|售花|卖花).*(情况|统计|汇总|金额|收入).*",".*(销售|售花|卖花).*(20\\d{2}|\\d{4}年|今年|去年).*(情况|统计|汇总|金额|收入).*"]',
+ '["查询2026年销售情况","统计2026年销售金额","今年销售情况汇总"]',
+$tpl$SELECT
+  s."业务月份",
+  s."项目",
+  ROUND(SUM(s."销售金额全口径")::numeric, 2) AS "销售金额",
+  SUM(s."销售单数") AS "销售单数",
+  SUM(s."赠送单数") AS "赠送单数",
+  ROUND(SUM(s."赠送成本全口径")::numeric, 2) AS "赠送成本"
+FROM public.xycyl_ads_flowerbiz_sale_summary s
+WHERE s."业务月份" >= to_char(DATE ':year-01-01', 'YYYY-MM')
+  AND s."业务月份" < to_char(DATE ':year-01-01' + INTERVAL '1 year', 'YYYY-MM')
+GROUP BY s."业务月份", s."项目"
+ORDER BY s."业务月份", "销售金额" DESC
+LIMIT 200$tpl$,
+ '{"year":{"type":"integer","required":true}}',
+ 'public.xycyl_ads_flowerbiz_sale_summary', '年度销售情况汇总（dbt mart）', 35, true)
+ON CONFLICT (template_code) DO UPDATE
+SET domain = EXCLUDED.domain,
+    role_hint = EXCLUDED.role_hint,
+    intent_patterns = EXCLUDED.intent_patterns,
+    question_samples = EXCLUDED.question_samples,
+    sql_template = EXCLUDED.sql_template,
+    parameters = EXCLUDED.parameters,
+    target_view = EXCLUDED.target_view,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

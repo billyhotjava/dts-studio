@@ -1,0 +1,41 @@
+{
+  "domain": "{{sceneCode}}",
+  "domainName": "{{domainName}}",
+  "owner": "{{owner}}",
+  "classification": "INTERNAL",
+  "dataLayerPolicy": {
+    "defaultRouteTier": "TIER_2_MART_TEMPLATE",
+    "weakPathTiers": ["TIER_4_GUARDRAIL_FEDERATED", "TIER_5_DIRECT_DETAIL"],
+    "martCandidateSignal": true
+  },
+  "sourceSystems": [
+    {
+      "catalog": "{{sourceCatalog}}",
+      "schema": "{{sourceSchema}}",
+      "accessMode": "READ_ONLY",
+      "notes": "必须使用读副本或受限账号；禁止业务写操作。"
+    }
+  ],
+  "warehouse": {
+    "catalog": "{{warehouseCatalog}}",
+    "schema": "{{warehouseSchema}}",
+    "dbtNamespacePrefixes": ["{{stgPrefix}}", "{{dwdPrefix}}", "{{dwsPrefix}}", "{{adsPrefix}}"]
+  },
+  "businessObjects": [
+    {
+      "objectCode": "{{sceneCode}}.example_object",
+      "name": "{{domainName}}示例对象",
+      "pagePath": "待填写 adminweb 页面路径",
+      "primaryTarget": "{{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview",
+      "keyFields": ["id", "biz_date", "status"],
+      "qualityNotes": ["脚手架占位对象，接入时必须替换为真实业务对象。"]
+    }
+  ],
+  "caliberTraps": [
+    {
+      "code": "CAL-{{sceneCodePascal}}-001",
+      "title": "待填写核心口径陷阱",
+      "rule": "说明哪些字段不能直接聚合、哪些关联键必须优先使用。"
+    }
+  ]
+}

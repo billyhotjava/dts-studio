@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.yuzhi.dts.copilot.ai.security.CopilotUserContext;
 import com.yuzhi.dts.copilot.ai.security.CopilotUserContextHolder;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.chat.RouteTelemetryService;
 import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionApprovalService;
 import com.yuzhi.dts.copilot.ai.service.copilot.OntologyActionExecutor;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 class AgentChatActionApprovalResourceTest {
 
     private final AgentChatService agentChatService = mock(AgentChatService.class);
+    private final RouteTelemetryService routeTelemetryService = mock(RouteTelemetryService.class);
     private final OntologyActionApprovalService approvalService = mock(OntologyActionApprovalService.class);
 
     @AfterEach
@@ -63,7 +65,7 @@ class AgentChatActionApprovalResourceTest {
                 List.of("flowerbiz:baddebt:draft"),
                 "ops",
                 "key-1"));
-        AgentChatResource resource = new AgentChatResource(agentChatService, approvalService);
+        AgentChatResource resource = new AgentChatResource(agentChatService, routeTelemetryService, approvalService);
 
         ResponseEntity<Map<String, Object>> response = resource.approveAction(new AgentChatResource.ApproveActionRequest(
                 "sess-1",
@@ -97,7 +99,7 @@ class AgentChatActionApprovalResourceTest {
 
     @Test
     void cancelActionReturnsChatCompatibleResponse() {
-        AgentChatResource resource = new AgentChatResource(agentChatService, approvalService);
+        AgentChatResource resource = new AgentChatResource(agentChatService, routeTelemetryService, approvalService);
 
         ResponseEntity<Map<String, Object>> response = resource.cancelAction(new AgentChatResource.CancelActionRequest(
                 "sess-1",

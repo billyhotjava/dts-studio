@@ -3,8 +3,10 @@ package com.yuzhi.dts.copilot.ai.web.rest;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.service.chat.AgentChatService;
+import com.yuzhi.dts.copilot.ai.service.chat.RouteTelemetryService;
 import com.yuzhi.dts.copilot.ai.service.copilot.CopilotChatContract;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,12 +36,22 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public class InternalAgentChatResource {
 
     private final AgentChatService agentChatService;
+    private final RouteTelemetryService routeTelemetryService;
     private final String adminSecret;
 
     public InternalAgentChatResource(
             AgentChatService agentChatService,
             @Value("${copilot.admin-secret:}") String adminSecret) {
+        this(agentChatService, null, adminSecret);
+    }
+
+    @Autowired
+    public InternalAgentChatResource(
+            AgentChatService agentChatService,
+            RouteTelemetryService routeTelemetryService,
+            @Value("${copilot.admin-secret:}") String adminSecret) {
         this.agentChatService = agentChatService;
+        this.routeTelemetryService = routeTelemetryService;
         this.adminSecret = adminSecret;
     }
 
@@ -126,6 +138,22 @@ public class InternalAgentChatResource {
                 .map(this::toSessionSummary)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/route-telemetry")
+    public ResponseEntity<?> getRouteTelemetry(
+            @RequestHeader(value = "X-Admin-Secret", required = false) String secret,
+            @RequestParam(required = false, defaultValue = "7") int days,
+            @RequestParam(required = false, defaultValue = "10") int limit) {
+        ResponseEntity<?> authError = checkAdminSecret(secret);
+        if (authError != null) {
+            return authError;
+        }
+        if (routeTelemetryService == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "Route telemetry service unavailable"));
+        }
+        return ResponseEntity.ok(routeTelemetryService.summarize(days, limit));
     }
 
     @GetMapping("/{sessionId}")

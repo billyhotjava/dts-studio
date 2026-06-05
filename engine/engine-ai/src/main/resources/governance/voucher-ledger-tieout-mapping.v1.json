@@ -1,0 +1,42 @@
+{
+  "version": "2026-07-sprint33-voucher-ledger-tieout-v1",
+  "mappings": [
+    {
+      "id": "voucher-ledger",
+      "oracleBindingId": "voucher-ledger",
+      "description": "凭证主表 f_voucher 与凭证明细 f_voucher_item 的只读 tie-out 映射，用于按业务单号、账期、科目锚定借贷金额，并校验任意凭证子集 debit=credit。",
+      "sourceTables": ["f_voucher", "f_voucher_item"],
+      "adminApiEndpoints": [
+        "GET /rs-flowers-base/finace/voucher/list",
+        "POST /rs-flowers-base/finace/voucher/listByCodes",
+        "GET /rs-flowers-base/finace/voucher/listVoucherItems",
+        "GET /rs-flowers-base/finace/voucher/getcountItems"
+      ],
+      "ledgerColumns": {
+        "voucherTable": "f_voucher",
+        "itemTable": "f_voucher_item",
+        "businessCodeColumn": "biz_code",
+        "businessTypeColumn": "biz_type",
+        "periodColumn": "account_priod",
+        "voucherPrimaryCodeColumn": "code",
+        "voucherCodeColumn": "voucher_code",
+        "subjectColumn": "subject_id",
+        "debitColumn": "debit_amount",
+        "creditColumn": "credit_amount",
+        "statusColumn": "status"
+      },
+      "joinRules": [
+        "f_voucher.code = f_voucher_item.voucher_code",
+        "f_voucher.account_priod = f_voucher_item.account_priod"
+      ],
+      "tieoutKeys": ["biz_code", "account_priod", "voucher_code", "subject_id"],
+      "adminWebEvidence": [
+        "adminweb/src/api/flower/finance/voucher.js",
+        "adminweb/src/views/flower/finance/voucher/list-voucher.vue",
+        "adminweb/src/views/flower/finance/voucher/detail-index.vue",
+        "adminweb/src/views/flower/finance/voucher/summary.vue"
+      ],
+      "notes": "业务单号来自 f_voucher.biz_code；账期在主表和明细表均有 account_priod；科目和借贷金额来自 f_voucher_item。copilot 只读该账本，不写凭证。"
+    }
+  ]
+}

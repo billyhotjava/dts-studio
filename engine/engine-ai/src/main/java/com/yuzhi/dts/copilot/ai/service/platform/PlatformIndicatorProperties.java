@@ -8,6 +8,7 @@ public record PlatformIndicatorProperties(
         String authToken,
         String serviceName,
         String serviceToken,
+        String activeDept,
         int timeoutSeconds
 ) {
     public PlatformIndicatorProperties {

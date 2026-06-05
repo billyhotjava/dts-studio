@@ -1,0 +1,53 @@
+{
+  "version": "2026-07-sprint33-finance-answer-audit-trail-v1",
+  "policies": [
+    {
+      "id": "sprint33-finance-answer-audit-trail",
+      "domains": ["finance", "flowerbiz"],
+      "requiredSections": ["sql", "caliberRules", "lineage", "oracleStatus", "routeTrace"],
+      "itScript": "worklog/v1.0.0/sprint-33-202607/it/test_f5_finance_answer_audit_trail.sh"
+    }
+  ],
+  "bindingPolicies": [
+    {
+      "oracleBindingId": "month-settlement",
+      "reportCode": "finance.month_settlement",
+      "adsModels": ["xycyl_ads_month_settlement_summary"],
+      "caliberRuleIds": ["CAL-SETTLEMENT-CHAIN", "CAL-MONTH-AMOUNT-TIER", "CAL-SALE-IN-RENT"],
+      "invariantIds": [
+        "FIN-INV-02-AMOUNT-TIER-ORDER",
+        "FIN-INV-03-PAYMENT-NOT-EXCEED-DISCOUNTED",
+        "FIN-INV-04-ADDITIVITY"
+      ],
+      "lineageRefs": [
+        "dbt:model.xy_cyl.xycyl_ads_month_settlement_summary",
+        "openmetadata:table.public.xycyl_ads_month_settlement_summary"
+      ]
+    },
+    {
+      "oracleBindingId": "sale-account",
+      "reportCode": "finance.sale_account",
+      "adsModels": ["xycyl_ads_sale_account_summary"],
+      "caliberRuleIds": ["CAL-SETTLEMENT-CHAIN", "CAL-BIZTYPE-SCOPE"],
+      "invariantIds": [
+        "FIN-INV-07-BAD-DEBT-EXCLUDED-FROM-INCOME",
+        "FIN-INV-04-ADDITIVITY"
+      ],
+      "lineageRefs": [
+        "dbt:model.xy_cyl.xycyl_ads_sale_account_summary",
+        "openmetadata:table.public.xycyl_ads_sale_account_summary"
+      ]
+    },
+    {
+      "oracleBindingId": "voucher-ledger",
+      "reportCode": "finance.voucher_ledger",
+      "adsModels": ["xycyl_ads_voucher_ledger_balance"],
+      "caliberRuleIds": ["CAL-EXTRA-COST-VS-EXPENSE"],
+      "invariantIds": ["FIN-INV-01-VOUCHER-BALANCE"],
+      "lineageRefs": [
+        "dbt:model.xy_cyl.xycyl_ads_voucher_ledger_balance",
+        "openmetadata:table.public.xycyl_ads_voucher_ledger_balance"
+      ]
+    }
+  ]
+}

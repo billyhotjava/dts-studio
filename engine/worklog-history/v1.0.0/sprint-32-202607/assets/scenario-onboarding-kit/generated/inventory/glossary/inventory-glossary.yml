@@ -1,0 +1,21 @@
+domain: inventory
+domainName: 库存
+owner: warehouse-team
+terms:
+  - code: inventory.stock_quantity
+    name: 库存数量
+    definition: 库房、SKU/good_price_id、物品和状态维度下的库存现量，来源 s_stock_info.good_number。
+    source: postgres.public.inventory_ads_overview
+    formula: SUM(good_number)
+    qualityLevel: DRAFT
+  - code: inventory.stock_cost
+    name: 库存成本金额
+    definition: 库存数量乘以库存主表 out_cost 的估算成本，需与财务成本口径区分。
+    source: postgres.public.inventory_ads_overview
+    formula: SUM(good_number * out_cost)
+    qualityLevel: DRAFT
+  - code: inventory.sku
+    name: 库存 SKU
+    definition: 库存统计优先使用 good_price_id 关联物品价格主数据，不默认用物品名称聚合。
+    source: mysql.rs_cloud_flower.s_stock_info.good_price_id
+    qualityLevel: DRAFT

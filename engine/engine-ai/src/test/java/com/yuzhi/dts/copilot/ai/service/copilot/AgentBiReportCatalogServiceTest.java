@@ -45,6 +45,19 @@ class AgentBiReportCatalogServiceTest {
     }
 
     @Test
+    void matchesFlowerbizMonthlyReportOpenQuestionToLeaseExecutionFixedReport() {
+        Optional<ReportCatalogEntry> match =
+                catalog.findBestMatch("打开报花月报，按月展示 PRS 租赁报花执行、收入、回收和异常波动。", "flowerbiz");
+
+        assertThat(match).isPresent();
+        assertThat(match.get().reportCode()).isEqualTo("prs.flowerbiz.lease_execution_monthly");
+        assertThat(match.get().responseKind()).isEqualTo("FIXED_REPORT");
+        assertThat(match.get().primaryTarget()).isEqualTo("public.xycyl_ads_flowerbiz_lease_summary");
+        assertThat(match.get().sourceRefs())
+                .contains("fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION");
+    }
+
+    @Test
     void matchesProjectBillDetailQuestionToAdminApiReadonlySurface() {
         Optional<ReportCatalogEntry> match =
                 catalog.findBestMatch("这个项目有哪些待确认账单", "project");

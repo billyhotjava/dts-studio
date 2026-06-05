@@ -346,6 +346,15 @@
     "客户维度数据存在源系统关联缺失风险。客户排行、客户经营结论需要提示'客户关联可能不完整'。",
     "变更日志依赖 t_change_info.biz_id，覆盖度一般。变更趋势可做参考，不能作为唯一审计结论。",
     "回收数据覆盖度偏低。回收/报损/回购/留用分析必须提示覆盖度风险，必要时回到明细列表核对。",
-    "金额聚合使用 ROUND(SUM(...)::numeric, 2)，单据数优先使用模型中的单据数字段或 COUNT(DISTINCT 报花单id)。"
+    "金额聚合使用 ROUND(SUM(...)::numeric, 2)，单据数优先使用模型中的单据数字段或 COUNT(DISTINCT 报花单id)。",
+    "[CAL-BIZTYPE-SCOPE] 标签: biz_type_scope; 适用: t_flower_biz_info.biz_type/t_flower_biz_item.biz_type/编号生成函数/a_invoice_item.biz_type/a_collection_item.biz_type/仓储出入库类型/a_green_accounting.source_type; 规则: 同名 biz_type 在不同表中是独立枚举,跨表 JOIN 或过滤前必须声明表字段和枚举来源,不能把主表、明细、编号、开票、收款、仓储枚举互相套用。",
+    "[CAL-SETTLEMENT-CHAIN] 标签: settlement_chain; 适用: a_month_accounting+a_green_accounting 与 a_sale_account+a_invoice_info; 规则: 租摆链不含增值税且含折扣,售赠坏链含增值税,两链不可直接混 SUM; 坏账 receivable 是损失,不能作为收入。",
+    "[CAL-MONTH-AMOUNT-TIER] 标签: month_amount_tier; 适用: a_month_accounting; 规则: 每个 period/add/cut/adjust/sale 分项都要区分 *_total_amount 名义租金、*_receivable_total_amount 应收折前、*_net_receipt_total_amount/folding_after_total_amount 折后实收和 total_amount 已回款,问句未说明金额层级时必须追问或拆分。",
+    "[CAL-SALE-IN-RENT] 标签: sale_in_rent_double_count; 适用: a_green_accounting.source_type=8 与 a_sale_account; 规则: 售花摊入租摆后同一金额同时存在销售账单和月对账 saleTotalAmount,跨链汇总必须剔除或标注 source_type=8,避免双重计数。",
+    "[CAL-RENT-HISTORY] 标签: rent_history; 适用: p_project_green/p_project_green_sett; 规则: saverentfeeandapply 会覆盖 p_project_green.rent,历史租金必须读取 p_project_green_sett 或 mart 历史快照,不能用当前 green.rent 回推历史。",
+    "[CAL-INVENTORY-COST] 标签: inventory_cost_sku; 适用: s_stock_info/b_goods_price/采购/出库; 规则: 库存成本是加权平均 out_cost,不是 FIFO,也不是 b_goods_price.cost_price 指导价; 库存、采购、出库必须按 good_price_id/SKU 关联,不能只按 good_name 聚合。",
+    "[CAL-JSON-EXPAND] 标签: json_expand_join; 适用: f_settlement.biz_ids_json/t_*.draft_item_json; 规则: JSON 文本多值列 JOIN 必须先展开再匹配,不能用报花单 id 与 JSON 字符串等值 JOIN。",
+    "[CAL-VARCHAR-AMOUNT-CAST] 标签: varchar_amount_cast; 适用: a_sale_account_rent_item.rent; 规则: rent 是 varchar 金额列,参与 SUM/AVG/比较前必须过滤空值并 CAST 为 numeric,不能直接字符串聚合或排序。",
+    "[CAL-EXTRA-COST-VS-EXPENSE] 标签: extra_cost_vs_expense_voucher; 适用: t_flower_extra_cost/f_expense_account_info/f_voucher/rs.spelrule; 规则: 额外费用是花单向客户收取或承担的附加费,费用报销是公司支出报销,两者不可合并; SpEL 开关关闭时结算可能无凭证,分析凭证缺失必须检查 rs.spelrule.enabled/autorun。"
   ]
 }

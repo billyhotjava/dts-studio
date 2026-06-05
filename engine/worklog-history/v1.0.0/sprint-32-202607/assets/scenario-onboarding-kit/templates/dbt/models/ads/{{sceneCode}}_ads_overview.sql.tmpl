@@ -1,0 +1,8 @@
+-- {{domainName}} ADS overview placeholder.
+-- This is the default Tier-2 report surface after replacing placeholder logic.
+
+select
+  business_month as "业务月份",
+  business_status as "状态",
+  row_count as "记录数"
+from {{ ref('{{dwsPrefix}}_monthly') }}

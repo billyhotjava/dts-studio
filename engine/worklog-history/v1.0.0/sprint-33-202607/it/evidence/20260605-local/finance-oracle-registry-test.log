@@ -1,0 +1,13 @@
+Command:
+mvn -q -pl dts-copilot-ai -Dtest=FinanceOracleRegistryTest test
+
+Result:
+exit code 0
+
+Relevant output:
+Loaded 3 finance oracle binding(s) from governance/finance-oracle-registry.v1.json
+
+Coverage:
+- month-settlement binds L2 adminapi/adminweb endpoints and rent-settlement source tables
+- sale-account binds L2 adminapi/adminweb endpoint and sale-gift-bad-debt source table
+- voucher-ledger binds L3 voucher endpoints and debit_amount/credit_amount ledger columns

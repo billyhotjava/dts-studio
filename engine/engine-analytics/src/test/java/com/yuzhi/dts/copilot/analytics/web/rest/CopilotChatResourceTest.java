@@ -26,6 +26,34 @@ import static org.mockito.Mockito.when;
 class CopilotChatResourceTest {
 
     @Test
+    void routeTelemetryProxiesThroughAuthenticatedAnalyticsUser() {
+        AnalyticsSessionService sessionService = mock(AnalyticsSessionService.class);
+        CopilotAgentChatClient chatClient = mock(CopilotAgentChatClient.class);
+        CopilotChatDataSourceResolver dataSourceResolver = mock(CopilotChatDataSourceResolver.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<EltWatermarkService> watermarkServiceProvider = mock(ObjectProvider.class);
+
+        AnalyticsUser user = new AnalyticsUser();
+        user.setId(1L);
+        user.setUsername("alice");
+        when(sessionService.resolveUser(any())).thenReturn(Optional.of(user));
+        when(chatClient.getRouteTelemetry(14, 5)).thenReturn(Map.of(
+                "days", 14,
+                "tierCounts", Map.of("TIER_5_DIRECT_DETAIL", 3)));
+
+        CopilotChatResource resource = new CopilotChatResource(
+                sessionService, chatClient, dataSourceResolver, watermarkServiceProvider);
+
+        var response = resource.getRouteTelemetry(14, 5, new MockHttpServletRequest());
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertThat(body).containsEntry("days", 14);
+    }
+
+    @Test
     void sendMessageStreamSkipsErrorEventWhenStreamingIsInterrupted() throws Exception {
         AnalyticsSessionService sessionService = mock(AnalyticsSessionService.class);
         CopilotAgentChatClient chatClient = mock(CopilotAgentChatClient.class);

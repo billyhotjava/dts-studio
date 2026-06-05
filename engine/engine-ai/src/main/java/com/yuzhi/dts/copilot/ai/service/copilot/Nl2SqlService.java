@@ -98,10 +98,11 @@ public class Nl2SqlService {
         // Sanitize and validate
         generatedSql = safetyChecker.sanitize(generatedSql);
 
-        if (!safetyChecker.isSafe(generatedSql)) {
+        SqlSafetyChecker.SqlSafetyValidation safety = safetyChecker.validate(null, generatedSql);
+        if (!safety.safe()) {
             log.warn("NL2SQL generated unsafe SQL, blocking: {}", generatedSql);
             throw new IllegalArgumentException(
-                    "Generated SQL contains blocked operations. Only SELECT queries are allowed.");
+                    "Generated SQL contains blocked operations. " + String.join("; ", safety.reasons()));
         }
 
         return generatedSql;
@@ -177,10 +178,11 @@ public class Nl2SqlService {
         // Sanitize and validate
         generatedSql = safetyChecker.sanitize(generatedSql);
 
-        if (!safetyChecker.isSafe(generatedSql)) {
+        SqlSafetyChecker.SqlSafetyValidation safety = safetyChecker.validate(domain, generatedSql);
+        if (!safety.safe()) {
             log.warn("NL2SQL generated unsafe SQL, blocking: {}", generatedSql);
             throw new IllegalArgumentException(
-                    "Generated SQL contains blocked operations. Only SELECT queries are allowed.");
+                    "Generated SQL contains blocked operations. " + String.join("; ", safety.reasons()));
         }
 
         return generatedSql;

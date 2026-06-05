@@ -36,11 +36,20 @@ class CopilotChatContractTest {
                 "table",
                 "cash-in",
                 List.of("platform-indicator:cash-in"),
-                new MetricCaliber("现金流入", "sum(amount)", "finance", "v3", "cash-in"));
+                new MetricCaliber("现金流入", "sum(amount)", "finance", "v3", "cash-in"),
+                List.of(new ConversationPlan.RouteStep(
+                        "TIER_1_PUBLISHED_INDICATOR",
+                        "指标优先",
+                        "HIT",
+                        "命中 dts-platform 已发布指标",
+                        "indicator:cash-in")));
         ObjectNode done = MAPPER.createObjectNode();
 
         CopilotChatContract.putDoneFields(done, plan, null);
 
+        assertThat(done.at("/trace/routeTrace/0/tier").asText()).isEqualTo("TIER_1_PUBLISHED_INDICATOR");
+        assertThat(done.at("/trace/routeTrace/0/status").asText()).isEqualTo("HIT");
+        assertThat(done.at("/trace/routeTrace/0/target").asText()).isEqualTo("indicator:cash-in");
         assertThat(done.at("/trace/metricCaliber/name").asText()).isEqualTo("现金流入");
         assertThat(done.at("/trace/metricCaliber/formula").asText()).isEqualTo("sum(amount)");
         assertThat(done.at("/trace/metricCaliber/version").asText()).isEqualTo("v3");

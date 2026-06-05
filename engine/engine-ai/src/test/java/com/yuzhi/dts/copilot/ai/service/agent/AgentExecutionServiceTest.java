@@ -19,11 +19,14 @@ import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.PlanMode;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ResponseKind;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailService;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceChatAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +61,9 @@ class AgentExecutionServiceTest {
 
     @Mock
     private LlmProviderClient llmProviderClient;
+
+    @Mock
+    private FinanceChatAuditTrailService financeChatAuditTrailService;
 
     private AgentExecutionService service;
 
@@ -146,7 +152,9 @@ class AgentExecutionServiceTest {
                 "sess-1", "alice", "打开PRS租赁经营总览大屏", Collections.emptyList(), 7L, Map.of());
 
         assertThat(result.response()).contains("PRS-FLOWERBIZ-OVERVIEW");
-        assertThat(result.response()).contains("固定报表");
+        assertThat(result.response()).contains("资产库资产");
+        assertThat(result.response()).contains("资产库查看");
+        assertThat(result.response()).doesNotContain("打开报表查看结果");
         assertThat(result.generatedSql()).isNull();
         verify(reActEngine, never()).execute(any(), anyString(), anyList(), any(ToolContext.class), anyDouble(), anyInt());
     }
@@ -253,8 +261,53 @@ class AgentExecutionServiceTest {
                 .contains("标准 Markdown 表格")
                 .contains("| 指标 | 结果 | 说明 |")
                 .contains("不要只输出指标说明表，必须包含 ```sql 代码块")
+                .contains("不要把资产库已有模板当成新报表草稿返回")
                 .contains("先对目标 dbt 模型调用 schema_lookup")
                 .contains("只能使用 schema_lookup 返回字段");
+    }
+
+    @Test
+    void executeChatStreamFinanceReportAddsAuditTrailToDoneMetadata() {
+        String question = "月对账折后实收是多少";
+        ConversationPlan plan = financeMonthSettlementPlan();
+        FinanceAnswerAuditTrailService.AuditTrailReport auditTrail = financeAuditReport();
+        service = new AgentExecutionService(
+                reActEngine,
+                ragService,
+                providerConfigRepository,
+                conversationPlannerService,
+                clientFactory,
+                dataSourceRepository,
+                financeChatAuditTrailService);
+
+        when(ragService.retrieve(anyString(), anyInt())).thenReturn(List.of());
+        when(conversationPlannerService.plan(question, Map.of())).thenReturn(plan);
+        when(providerConfigRepository.findByIsDefaultTrue()).thenReturn(Optional.of(buildProvider()));
+        when(clientFactory.create(any())).thenReturn(llmProviderClient);
+        when(reActEngine.executeStreaming(eq(llmProviderClient), eq("qwen-plus"), anyList(), any(ToolContext.class),
+                eq(0.2), eq(4096), any()))
+                .thenReturn("""
+                        ```sql
+                        select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary
+                        ```
+                        """);
+        when(financeChatAuditTrailService.buildAuditTrail(
+                eq(plan),
+                eq("select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary")))
+                .thenReturn(Optional.of(auditTrail));
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        AgentExecutionService.ChatExecutionResult result = service.executeChatStream(
+                "sess-1", "alice", question, Collections.emptyList(), 7L, Map.of(), output);
+
+        String sse = output.toString();
+        assertThat(result.financeAuditTrail()).isEqualTo(auditTrail);
+        assertThat(sse)
+                .contains("\"trace\"")
+                .contains("\"financeAudit\"")
+                .contains("\"sanitizedSql\"")
+                .contains("CAL-MONTH-AMOUNT-TIER")
+                .contains("\"healthStatus\":\"PASS\"");
     }
 
     @Test
@@ -428,5 +481,68 @@ class AgentExecutionServiceTest {
         provider.setEnabled(true);
         provider.setIsDefault(true);
         return provider;
+    }
+
+    private static ConversationPlan financeMonthSettlementPlan() {
+        return new ConversationPlan(
+                PlanMode.AGENT_WORKFLOW,
+                ResponseKind.REPORT_DRAFT,
+                null,
+                "finance",
+                "xycyl_ads_month_settlement_summary",
+                List.of(),
+                null,
+                null,
+                "MART",
+                "xycyl_ads_month_settlement_summary",
+                "月对账折后实收",
+                "L3_ADS",
+                "HIGH",
+                List.of("财务回答必须附审计溯源"),
+                "table",
+                "finance.month_settlement",
+                List.of("dbt-model:xycyl_ads_month_settlement_summary"),
+                null,
+                List.of(new ConversationPlan.RouteStep(
+                        "TIER_2_MART_TEMPLATE",
+                        "ADS 模型",
+                        "HIT",
+                        "命中月对账 ADS",
+                        "xycyl_ads_month_settlement_summary")));
+    }
+
+    private static FinanceAnswerAuditTrailService.AuditTrailReport financeAuditReport() {
+        return new FinanceAnswerAuditTrailService.AuditTrailReport(
+                true,
+                "",
+                List.of("sql", "caliberRules", "lineage", "oracleStatus", "routeTrace"),
+                "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+                List.of(new FinanceAnswerAuditTrailService.AppliedCaliberRule(
+                        "CAL-MONTH-AMOUNT-TIER",
+                        "月对账金额必须区分四层。",
+                        "P0",
+                        "折后实收列必须使用 folding_after_total_amount。",
+                        List.of("month-settlement"))),
+                List.of(),
+                List.of(new FinanceAnswerAuditTrailService.LineageNode(
+                        "ADS_MODEL",
+                        "xycyl_ads_month_settlement_summary",
+                        "auditable-result-model",
+                        List.of("dbt:model.xy_cyl.xycyl_ads_month_settlement_summary"))),
+                new FinanceAnswerAuditTrailService.OracleAuditStatus(
+                        "month-settlement",
+                        "月对账",
+                        "L2",
+                        "rent-settlement",
+                        true,
+                        "PASS",
+                        BigDecimal.ZERO,
+                        ""),
+                List.of(new FinanceAnswerAuditTrailService.RouteTraceStep(
+                        "TIER_2_MART_TEMPLATE",
+                        "ADS 模型",
+                        "HIT",
+                        "命中月对账 ADS",
+                        "xycyl_ads_month_settlement_summary")));
     }
 }

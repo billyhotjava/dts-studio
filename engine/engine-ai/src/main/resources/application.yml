@@ -29,6 +29,7 @@ management:
         include: health,info,metrics
   endpoint:
     health:
+      show-components: always
       show-details: when-authorized
 
 dts:
@@ -54,6 +55,16 @@ copilot:
     planner:
       mode: ${COPILOT_CHAT_PLANNER_MODE:asset}
   admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}
+  finance:
+    reconciliation:
+      oracle-base-url: ${FINANCE_RECONCILIATION_ORACLE_BASE_URL:}
+      analytics-base-url: ${FINANCE_RECONCILIATION_ANALYTICS_BASE_URL:}
+      authorization: ${FINANCE_RECONCILIATION_AUTHORIZATION:}
+      cookie: ${FINANCE_RECONCILIATION_COOKIE:}
+      oracle-authorization: ${FINANCE_RECONCILIATION_ORACLE_AUTHORIZATION:${FINANCE_RECONCILIATION_AUTHORIZATION:}}
+      oracle-cookie: ${FINANCE_RECONCILIATION_ORACLE_COOKIE:${FINANCE_RECONCILIATION_COOKIE:}}
+      analytics-authorization: ${FINANCE_RECONCILIATION_ANALYTICS_AUTHORIZATION:${FINANCE_RECONCILIATION_AUTHORIZATION:}}
+      analytics-cookie: ${FINANCE_RECONCILIATION_ANALYTICS_COOKIE:${FINANCE_RECONCILIATION_COOKIE:}}
   platform:
     indicator:
       base-url: ${DTS_PLATFORM_BASE_URL:}
@@ -63,6 +74,7 @@ copilot:
       auth-token: ${DTS_PLATFORM_AUTH_TOKEN:}
       service-name: ${DTS_PLATFORM_SERVICE_NAME:dts-copilot}
       service-token: ${DTS_PLATFORM_SERVICE_TOKEN:${DTS_INBOUND_FROM_COPILOT:${DTS_INBOUND_FROM_ANALYTICS:${DTS_ADMIN_SERVICE_TOKEN:}}}}
+      active-dept: ${DTS_PLATFORM_ACTIVE_DEPT:}
       timeout-seconds: ${DTS_PLATFORM_TIMEOUT_SECONDS:10}
       sync:
         enabled: ${PLATFORM_INDICATOR_SYNC_ENABLED:true}

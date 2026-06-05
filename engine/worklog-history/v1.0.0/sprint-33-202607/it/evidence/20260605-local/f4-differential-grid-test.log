@@ -1,0 +1,44 @@
+# Sprint-33 F4-T01 differential grid local evidence
+
+Date: 2026-06-05
+Scope: F4-T01 代表性过滤网格差分测试
+Environment: local Maven test, dts-copilot-ai
+
+## RED
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceDifferentialGridServiceTest test
+```
+
+Result:
+
+- Failed at test compilation because `FinanceDifferentialGridService` / `FinanceDifferentialGridRegistry` did not exist.
+- This proved F4-T01 differential grid contract was not already implemented.
+
+## GREEN
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceDifferentialGridServiceTest test
+```
+
+Result:
+
+- PASS
+
+Covered checks:
+
+- `finance-differential-grid-cases.v1.json` loads representative rent-settlement and sale/gift/bad-debt grid cases.
+- Each grid case binds to an existing F2 summary reconciliation case, preventing chain/metric/dimension drift.
+- Grid rows compare copilot and oracle amounts by `sliceId + projectId + accountPeriod` to cents.
+- Empty result slices are represented as `empty matched` only when both sides return no rows.
+- Wrong chain/metric, unknown slice, missing oracle/copilot side, amount mismatch, and duplicate grid cells fail with locatable messages.
+- Boundary tags cover month boundary, cross year, discount=1, cross month, and empty result groups.
+
+## Pending live proof
+
+- This is a local contract grid; live oracle endpoint parameters and real sample projects still need wiring.
+- Real `/api/dataset` copilot results vs adminapi/oracle endpoint calls must be run before F4-T01 can be marked DONE.

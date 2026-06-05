@@ -1,0 +1,7 @@
+# {{domainName}} Trino catalog template
+# Copy to dts-stack Trino catalog directory only after replacing secrets with env-driven values.
+connector.name=mysql
+connection-url=jdbc:mysql://${ENV:{{sceneCodePascal}}_MYSQL_HOST}:${ENV:{{sceneCodePascal}}_MYSQL_PORT}/{{sourceSchema}}
+connection-user=${ENV:{{sceneCodePascal}}_MYSQL_USER}
+connection-password=${ENV:{{sceneCodePascal}}_MYSQL_PASSWORD}
+case-insensitive-name-matching=true

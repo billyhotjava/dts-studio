@@ -7,6 +7,7 @@
 - 资产库「看板」tab 的普通 dashboard 数据来自 `analytics_dashboard`;当前运行库只有 `Sprint27 IT08 看板...`,所以用户看不到 PRS 花卉租赁大屏。
 - PRS 花卉租赁大屏实际沉淀在 `analytics_report_template`,例如 `PRS-FLOWERBIZ-PROJECT-CUSTOMER`。
 - 原快捷入口只拉 `limit=12`,且未按 `assetGroup` 折叠,会被 `DBT_SPLIT` 子报表挤占;链接还指向 `/dashboards/new?fixedReportTemplate=...`,不是运行固定报表。
+- 后续运行验证确认 `/agent-bi?fixedReport=...` 仍是 Agent 文本/表格链路,PRS 大屏资产最终应打开 `/screens/{screenId}/preview`。
 
 ## 数据库核对
 
@@ -77,5 +78,5 @@ note: vite 仍提示既有 chunk size warning,本次修复未新增构建错误�
 
 - `DashboardsPage` 固定报表目录请求 `limit=100`。
 - `PRS 项目客户经营看板` 在资产库看板页以主资产出现。
-- 入口 href 为 `/agent-bi?fixedReport=PRS-FLOWERBIZ-PROJECT-CUSTOMER`。
+- 入口 href 最终为 `/screens/290006/preview`。
 - `PRS 项目经营 TOP` 等 `DBT_SPLIT` 子报表不作为一级大屏快捷入口。

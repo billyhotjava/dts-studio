@@ -136,6 +136,18 @@ public class CopilotChatResource {
         return proxy(() -> copilotAgentChatClient.getSession(resolveCopilotUserId(user), sessionId));
     }
 
+    @GetMapping(path = "/route-telemetry", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getRouteTelemetry(
+            @RequestParam(required = false, defaultValue = "7") int days,
+            @RequestParam(required = false, defaultValue = "10") int limit,
+            HttpServletRequest request) {
+        AnalyticsUser user = resolveUser(request);
+        if (user == null) {
+            return unauthenticated();
+        }
+        return proxy(() -> copilotAgentChatClient.getRouteTelemetry(days, limit));
+    }
+
     @DeleteMapping(path = "/{sessionId}")
     public ResponseEntity<?> deleteSession(@PathVariable String sessionId, HttpServletRequest request) {
         AnalyticsUser user = resolveUser(request);

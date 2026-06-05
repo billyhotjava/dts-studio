@@ -1,0 +1,33 @@
+[0m04:13:00  Running with dbt=1.11.3
+[0m04:13:01  Registered adapter: postgres=1.10.0
+[0m04:13:01  [[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
+There are 1 unused configuration paths:
+- seeds.dts
+[0m04:13:01  Found 16 models, 1 operation, 17 data tests, 9 sources, 470 macros
+[0m04:13:01
+[0m04:13:01  Concurrency: 4 threads (target='dev')
+[0m04:13:01
+Compiled node 'xycyl_ads_finance_month_settlement' is:
+
+
+-- source_type = '8' 是销售摊入租摆风险标记: ADS 保留销售摊入金额,同时给出剔除销售摊入后的折后实收。
+
+SELECT
+  NULLIF(split_part(business_month, '-', 1), '')::int AS 年份,
+  business_month AS 业务月份,
+  project_id AS 项目id,
+  project_name AS 项目,
+  customer_name AS 客户,
+  month_accounting_count AS 月对账单数,
+  ROUND(nominal_rent_amount::numeric, 2) AS 名义租金,
+  ROUND(receivable_before_discount_amount::numeric, 2) AS 应收折前,
+  ROUND(folding_after_receivable_amount::numeric, 2) AS 折后实收,
+  ROUND(folding_after_without_sale_in_rent_amount::numeric, 2) AS 剔除销售摊入折后实收,
+  ROUND(collected_amount::numeric, 2) AS 已回款,
+  ROUND(uncollected_amount::numeric, 2) AS 未回款,
+  ROUND((collection_progress_rate * 100)::numeric, 2) AS 回款进度,
+  ROUND(sale_in_rent_amount::numeric, 2) AS 销售摊入金额,
+  contains_sale_in_rent AS 含销售摊入风险,
+  green_accounting_rows AS 月账明细行数,
+  etl_time
+FROM "biadmin"."public"."xycyl_dws_finance_month_settlement"

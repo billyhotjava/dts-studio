@@ -367,11 +367,75 @@
 | F3-指标优先路由(后端) | 3 | P0 | P2 | DONE |
 | F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | DONE |
 | F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | DONE |
-| F6-PRS固定报表资产库收口(前端) | 1 | P0 | P1b | DONE |
+| F6-PRS固定报表资产库收口(前端+数据面) | 3 | P0 | P1b/P1c | DONE |
 
-**统计**: READY=0, IN_PROGRESS=0, DONE=20, BLOCKED=0
+**统计**: READY=0, IN_PROGRESS=0, DONE=22, BLOCKED=0
 
-> Code DONE / Live Auth DONE / PRS Asset F6 DONE / Platform Business Metric Sample BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;PRS 固定报表资产库入口已收口;平台真实已发布指标样本仍等待平台侧补齐。
+> Code DONE / Live Auth DONE / PRS Asset F6 DONE / Platform Business Metric Sample BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;PRS 固定报表资产库入口、旧模板死链降级、12 个 v1 大屏原型落成 `analytics_screen` 均已收口;平台真实已发布指标样本仍等待平台侧补齐。
+
+## Sprint-30: 业务域数据面补全地基（风险清除·血缘补全·口径固化·财务回款开票垂直切片） (202606)
+
+> 把 2026-06-01 业务域全景勘探(`docs/business/xycyl-operational-domain-map.md`)落成工程:先清安全红线、补 ODS 血缘断点、把口径铁律固化为机器可检护栏,再以财务回款/开票链走完整垂直切片建模,沉淀空白域复用范式。前缀 DF。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-安全红线清除与配置治理 | 3 | P0 | DONE |
+| F2-ODS血缘断点补全 | 4 | P0 | DONE |
+| F3-口径铁律固化为护栏与回归 | 3 | P1 | DONE |
+| F4-财务回款开票链垂直切片建模 | 5 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=17(F1/F2/F3/F4/F5), BLOCKED=0 (5 Feature / 17 Task)
+
+> 依赖链:F1(安全)→F2(ODS血缘)/F3(口径护栏)→F4(财务垂直切片)→F5(范式+IT)。本 sprint 不一次性建模全部空白域,库存/督导/薪资顺延复用范式。F1 代码侧已清除 Airflow DAG 明文密码,生产侧轮换按资产台账跟进。
+
+## Sprint-31: 语义口径单一事实源收口（治理债先还） (202606)
+
+> 北极星:让 agent 在多场景下可靠 NL2SQL 拿到口径正确的业务数据、新场景可复制。本 sprint 是地基——先消除 pack/dbt/glossary 三源口径漂移,确立治理层为口径 SoT,建 pack⇄治理 sync 与本体草稿晋升闭环,9 条口径铁律机器规则化。前缀 SG。先收 finance/procurement 两域。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-口径事实源对账与定源 | 4 | P0 | IN_PROGRESS |
+| F2-pack与治理层sync管线 | 3 | P0 | DONE |
+| F3-本体指标草稿晋升闭环 | 3 | P1 | DONE |
+| F4-跨源口径回归网 | 2 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | READY |
+
+**统计**: READY=5, IN_PROGRESS=0, DONE=9, BLOCKED=0 (5 Feature / 14 Task)
+
+> 依赖链:F1(对账定源)→F2(sync下发)/F3(草稿晋升)→F4(回归网)→F5(范式+IT)。不抽 dts-platform modeling 微服务(架构判断 ROI 差)。
+
+## Sprint-32: Agent 数据访问路由阶梯与多场景接入套件 (202607)
+
+> 承接 Sprint-31:解决"怎么取数(路由)"与"怎么复制到新场景(套件)"。把取数固化为口径安全强度从强到弱的 5 层阶梯(指标→mart→对象图→guardrail联邦→直连)、治理 Trino 联邦层、把场景接入范式产品化为可复制套件并用一个空白域端到端验证。前缀 RK。依赖 Sprint-31 完成。子 task 已在各 Feature README「Task 明细」给出,转 IN_PROGRESS 时拆独立任务文件。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-五层路由阶梯与telemetry | 3 | P0 | DONE |
+| F2-Trino联邦层访问治理 | 3 | P0 | DONE |
+| F3-场景接入套件产品化 | 3 | P1 | DONE |
+| F4-新场景端到端验证 | 2 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=13, BLOCKED=0 (5 Feature / 13 Task)
+
+> 依赖链:Sprint-31(口径SoT)→F1(路由阶梯)+F2(Trino治理)→F3(接入套件)→F4(新场景验证)→F5(范式+IT)。多场景硬隔离走 deploy-per-scenario,不做多租户行隔离改造。
+
+## Sprint-33: 财务可证明正确性（对账保证） (202607)
+
+> 财务是口径最敏感、错一分都不行的域。回答两个硬要求:①应用系统里查的数 copilot 必须一致;②copilot 汇总/各种自定义查询条件数据如何**证明**正确。手段=保证阶梯 L0-L4:oracle 注册(原始表<报表端点<复式凭证)、明细级对账、复式凭证 tie-out(借=贷)、口径不变量/形变测试(对任意过滤条件成立)、差分抽样+持续对账记分卡、可审计溯源+财务签字。前缀 FA。依赖 Sprint-31 口径 SoT;复用 Sprint-30 财务对账(基准 L1→L2/L3)、Sprint-32 路由 telemetry。先收 月对账/售账/凭证 三张核心表。
+
+| Feature | Task 数 | 优先级 | 状态 | 阶梯/解决 |
+|---------|---------|--------|------|-----------|
+| F1-Oracle注册与明细级一致性 | 3 | P0 | IN_PROGRESS | L0+L1 / req#1 一致性 |
+| F2-复式凭证tie-out与汇总双路对账 | 3 | P0 | IN_PROGRESS | L2+L3 / req#2 汇总 |
+| F3-财务口径不变量形变测试网 | 3 | P0 | DONE | L3 / req#2 自定义条件 |
+| F4-差分抽样与持续对账记分卡 | 3 | P1 | IN_PROGRESS | L4 / 持续可证明 |
+| F5-可审计溯源与财务签字基线 | 2 | P1 | IN_PROGRESS | L4 / 业务可信 |
+
+**统计**: READY=0, IN_PROGRESS=8, DONE=6, BLOCKED=0 (5 Feature / 14 Task)
+
+> 依赖链:Sprint-31(口径SoT/不变量)→F1(明细对账)+F2(凭证tie-out)→F3(不变量网)→F4(差分+记分卡)→F5(溯源+签字)。不改 adminapi 财务逻辑(应用系统是 oracle,只读对账)。核心灵魂=F3 口径不变量:对任意过滤条件成立 → 证明自定义条件正确性而非穷举抽查。
 
 ## Backlog
 

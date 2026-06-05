@@ -1,0 +1,15 @@
+domain: {{sceneCode}}
+domainName: {{domainName}}
+owner: {{owner}}
+terms:
+  - code: {{sceneCode}}.example_metric
+    name: 示例指标
+    definition: 接入时替换为业务可读定义。
+    source: {{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview
+    formula: COUNT(*)
+    qualityLevel: DRAFT
+  - code: {{sceneCode}}.example_dimension
+    name: 示例维度
+    definition: 接入时替换为业务维度定义。
+    source: {{warehouseCatalog}}.{{warehouseSchema}}.{{adsPrefix}}_overview
+    qualityLevel: DRAFT

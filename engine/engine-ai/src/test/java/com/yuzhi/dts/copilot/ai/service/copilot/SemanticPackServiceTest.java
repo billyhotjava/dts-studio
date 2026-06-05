@@ -63,4 +63,23 @@ class SemanticPackServiceTest {
                 .doesNotContain("DATEDIFF")
                 .doesNotContain("CURDATE");
     }
+
+    @Test
+    void shouldLoadWarehouseInventorySemanticPack() {
+        SemanticPackService service = new SemanticPackService(new ObjectMapper());
+
+        service.init();
+
+        String context = service.getContextForDomain("warehouse");
+        assertThat(service.getDomains()).contains("warehouse");
+        assertThat(context)
+                .contains("mysql.rs_cloud_flower.s_stock_info")
+                .contains("库存现量")
+                .contains("低库存预警")
+                .contains("good_price_id")
+                .contains("三段式");
+        assertThat(service.getSynonyms("warehouse"))
+                .containsEntry("库存", "good_number")
+                .containsEntry("SKU", "good_price_id");
+    }
 }

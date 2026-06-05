@@ -67,4 +67,10 @@
     <include file="config/liquibase/changelog/0060_prs_flowerbiz_dbt_agent_datasource.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0061_prs_flowerbiz_fixed_report_primary_models.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/0062_prs_flowerbiz_unified_report_assets.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0063_prs_flowerbiz_v1_screen_assets.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0064_prs_flowerbiz_copilot_screen_records.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0065_prs_flowerbiz_screen_logical_datasource.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0066_trino_federated_query_database.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0067_trino_federated_agent_datasource.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/0068_prs_flowerbiz_split_mart_and_federated_aliases.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

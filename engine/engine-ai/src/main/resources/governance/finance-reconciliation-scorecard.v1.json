@@ -1,0 +1,45 @@
+{
+  "version": "2026-07-sprint33-finance-reconciliation-scorecard-v1",
+  "policies": [
+    {
+      "id": "sprint33-finance-daily-scorecard",
+      "runMode": "manual-or-scheduled",
+      "maxAllowedDifference": 0.00,
+      "failOnNewDrift": true,
+      "categories": [
+        {
+          "id": "f1-detail",
+          "name": "明细级对账",
+          "sourceFeature": "F1",
+          "required": true
+        },
+        {
+          "id": "f2-summary-voucher",
+          "name": "汇总双路与凭证 tie-out",
+          "sourceFeature": "F2",
+          "required": true
+        },
+        {
+          "id": "f3-invariants",
+          "name": "财务口径不变量",
+          "sourceFeature": "F3",
+          "required": true
+        },
+        {
+          "id": "f4-differential-grid",
+          "name": "代表性过滤网格差分",
+          "sourceFeature": "F4",
+          "required": true
+        }
+      ],
+      "itScript": "worklog/v1.0.0/sprint-33-202607/it/test_sprint33_reconciliation_scorecard.sh",
+      "evidenceSources": [
+        "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f1-detail-reconciliation-live-sample-sql-test.log",
+        "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f2-summary-dual-reconciliation-test.log",
+        "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f2-voucher-subject-tieout-test.log",
+        "worklog/v1.0.0/sprint-33-202607/it/evidence/20260605-local/f4-differential-grid-test.log"
+      ],
+      "notes": "F4-T02 本地 contract 记分卡策略；最新快照 store/source/publisher/schedule provider 骨架已接线，缺 required live evidence 时不落库；真实证据 provider 和真实基线待接线。"
+    }
+  ]
+}

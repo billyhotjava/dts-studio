@@ -1,0 +1,104 @@
+{
+  "version": "2026-07-sprint33-finance-differential-grid-cases-v1",
+  "cases": [
+    {
+      "id": "month-settlement-representative-grid",
+      "summaryCaseId": "month-settlement-discounted-receivable",
+      "oracleBindingId": "month-settlement",
+      "chain": "rent-settlement",
+      "metricId": "discounted-receivable",
+      "metricName": "月对账折后实收代表性过滤网格",
+      "dimensionKeys": ["projectId", "accountPeriod"],
+      "slices": [
+        {
+          "id": "all-project-202606-month-boundary",
+          "filters": {
+            "projectId": "ALL",
+            "accountPeriod": "202606",
+            "dateStart": "2026-06-01",
+            "dateEndExclusive": "2026-07-01"
+          },
+          "boundary": "month-boundary",
+          "notes": "覆盖月初到下月初闭开区间。"
+        },
+        {
+          "id": "single-project-cross-year",
+          "filters": {
+            "projectId": "1001",
+            "accountPeriodStart": "202512",
+            "accountPeriodEnd": "202601"
+          },
+          "boundary": "cross-year",
+          "notes": "覆盖跨年账期过滤。"
+        },
+        {
+          "id": "discount-one-sample",
+          "filters": {
+            "projectId": "1001",
+            "accountPeriod": "202606",
+            "discountRate": "1"
+          },
+          "boundary": "discount-one",
+          "notes": "覆盖折扣为 1 时折前/折后金额不应漂移。"
+        },
+        {
+          "id": "empty-project-period",
+          "filters": {
+            "projectId": "NO_DATA",
+            "accountPeriod": "209912"
+          },
+          "boundary": "empty-result",
+          "notes": "覆盖 oracle 与 copilot 都返回空结果集的代表组。"
+        }
+      ],
+      "copilotQuestion": "按代表性过滤网格对比月对账折后实收金额",
+      "oracleEndpoint": "GET /rs-flowers-base/finance/monthAccounting/listData",
+      "notes": "F4-T01 本地 contract 网格；live 端点参数和真实样本项目需接线确认。"
+    },
+    {
+      "id": "sale-account-representative-grid",
+      "summaryCaseId": "sale-account-receivable",
+      "oracleBindingId": "sale-account",
+      "chain": "sale-gift-bad-debt",
+      "metricId": "sale-receivable",
+      "metricName": "售账应收代表性过滤网格",
+      "dimensionKeys": ["projectId", "accountPeriod"],
+      "slices": [
+        {
+          "id": "sale-single-month",
+          "filters": {
+            "projectId": "1001",
+            "accountPeriod": "202606",
+            "bizTypes": "5,6,7"
+          },
+          "boundary": "single-month",
+          "notes": "覆盖售/赠/坏链路单月应收。"
+        },
+        {
+          "id": "sale-cross-month",
+          "filters": {
+            "projectId": "1001",
+            "dateStart": "2026-06-15",
+            "dateEndExclusive": "2026-08-01",
+            "bizTypes": "5,6,7"
+          },
+          "boundary": "cross-month",
+          "notes": "覆盖跨月日期区间。"
+        },
+        {
+          "id": "sale-empty-project-period",
+          "filters": {
+            "projectId": "NO_DATA",
+            "accountPeriod": "209912",
+            "bizTypes": "5,6,7"
+          },
+          "boundary": "empty-result",
+          "notes": "覆盖售赠坏链空结果组。"
+        }
+      ],
+      "copilotQuestion": "按代表性过滤网格对比售账应收金额",
+      "oracleEndpoint": "GET /rs-flowers-base/finance/saleAccount/list",
+      "notes": "售赠坏链必须与租摆结算链分离；live 端点签字 SQL 待接。"
+    }
+  ]
+}

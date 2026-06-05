@@ -1,0 +1,19 @@
+22:36:37.444 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:37.536 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:37.561 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:37.575 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:37.590 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:37.614 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build what is described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (/home/billy/.m2/repository/net/bytebuddy/byte-buddy-agent/1.15.11/byte-buddy-agent-1.15.11.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+22:36:38.369 [main] WARN com.yuzhi.dts.copilot.ai.service.copilot.Nl2SqlService -- NL2SQL generated unsafe SQL, blocking: SELECT SUM(m.receivable_total_amount) + SUM(s.receivable) AS amount
+FROM a_month_accounting m
+JOIN a_sale_account s ON s.project_id = m.project_id
+22:36:38.381 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:38.389 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:38.398 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:38.406 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+22:36:38.414 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json

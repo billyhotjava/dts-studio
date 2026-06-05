@@ -451,8 +451,7 @@ public class TemplateMatcherService {
     private static boolean isActiveFixedReportIntent(FixedReportIntent intent) {
         return intent != null
                 && intent.templateCode() != null
-                && (intent.templateCode().startsWith("PRS-FLOWERBIZ-")
-                    || intent.templateCode().startsWith("WH-"));
+                && intent.templateCode().startsWith("PRS-FLOWERBIZ-");
     }
 
     private String normalizeFixedReportDomain(String domain) {
@@ -484,6 +483,7 @@ public class TemplateMatcherService {
 
             switch (paramName) {
                 case "month" -> value = extractMonth(question, defJson);
+                case "year" -> value = extractYear(question, defJson);
                 case "project_name" -> value = extractNameBeforeKeyword(question, "项目");
                 case "customer_name" -> value = extractNameBeforeKeyword(question, "客户");
                 case "curing_user", "curing_user_name" -> value = extractPersonName(
@@ -536,6 +536,35 @@ public class TemplateMatcherService {
         }
         if ("LAST_MONTH".equals(defaultVal)) {
             return today.minusMonths(1).format(MONTH_FORMATTER);
+        }
+        return defaultVal;
+    }
+
+    private String extractYear(String question, String defJson) {
+        LocalDate today = LocalDate.now();
+        if (question.contains("今年")) {
+            return String.valueOf(today.getYear());
+        }
+        if (question.contains("去年")) {
+            return String.valueOf(today.minusYears(1).getYear());
+        }
+
+        Matcher zhYear = Pattern.compile("(20\\d{2})年").matcher(question);
+        if (zhYear.find()) {
+            return zhYear.group(1);
+        }
+
+        Matcher year = Pattern.compile("\\b(20\\d{2})\\b").matcher(question);
+        if (year.find()) {
+            return year.group(1);
+        }
+
+        String defaultVal = extractDefaultFromDef(defJson);
+        if ("CURRENT_YEAR".equals(defaultVal)) {
+            return String.valueOf(today.getYear());
+        }
+        if ("LAST_YEAR".equals(defaultVal)) {
+            return String.valueOf(today.minusYears(1).getYear());
         }
         return defaultVal;
     }

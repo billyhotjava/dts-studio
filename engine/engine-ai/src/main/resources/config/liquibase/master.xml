@@ -27,4 +27,10 @@
     <include file="config/liquibase/changelog/v1_0_0_021__project_dbt_query_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_022__project_adminweb_query_templates.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_023__chat_message_copilot_contract.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_024__procurement_federated_query_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_025__flowerbiz_sales_year_query_template.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_026__trino_compatible_flowerbiz_sales_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_027__warehouse_inventory_federated_query_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_028__flowerbiz_business_object_query_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_029__finance_reconciliation_scorecard_snapshot.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

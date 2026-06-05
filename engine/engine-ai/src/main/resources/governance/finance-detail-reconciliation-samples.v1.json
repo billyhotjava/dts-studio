@@ -1,0 +1,52 @@
+{
+  "version": "2026-07-sprint33-finance-detail-reconciliation-samples-v1",
+  "samples": [
+    {
+      "id": "month-settlement-js2026060008",
+      "oracleBindingId": "month-settlement",
+      "chain": "rent-settlement",
+      "oracleEndpoint": "POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData",
+      "businessKey": "结算2026060008",
+      "projectId": "1001",
+      "accountPeriod": "202606",
+      "copilotQuestion": "查询 202606 账期 1001 项目 结算2026060008 的月对账三级金额明细",
+      "amountFields": ["receivableTotalAmount", "netReceiptTotalAmount", "foldingAfterTotalAmount", "totalAmount"],
+      "oracleRequest": {
+        "projectId": "1001",
+        "yearAndMonth": "202606",
+        "businessKey": "结算2026060008"
+      },
+      "copilotRequest": {
+        "domain": "finance",
+        "chain": "rent-settlement",
+        "database": "prs.flowerbiz.federated",
+        "context": "finance-detail-reconciliation",
+        "maxResults": "20",
+        "nativeSql": "SELECT '结算2026060008' AS \"businessKey\", CAST(m.project_id AS VARCHAR) AS \"projectId\", REPLACE(COALESCE(m.year_and_month, CONCAT(CAST(m.settlement_year AS VARCHAR), LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0'))), '-', '') AS \"accountPeriod\", CAST(NULLIF(CAST(m.receivable_total_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"receivableTotalAmount\", CAST(NULLIF(CAST(m.net_receipt_total_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"netReceiptTotalAmount\", CAST(NULLIF(CAST(m.folding_after_total_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"foldingAfterTotalAmount\", CAST(NULLIF(CAST(m.total_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"totalAmount\" FROM public.ods_ptr_mysql_a_month_accounting m WHERE CAST(m.project_id AS VARCHAR) = '1001' AND REPLACE(COALESCE(m.year_and_month, CONCAT(CAST(m.settlement_year AS VARCHAR), LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0'))), '-', '') = '202606' ORDER BY m.id DESC LIMIT 1"
+      }
+    },
+    {
+      "id": "sale-account-bx202606030968",
+      "oracleBindingId": "sale-account",
+      "chain": "sale-gift-bad-debt",
+      "oracleEndpoint": "GET /rs-flowers-base/operate/saleAccount/listSaleAccountPage",
+      "businessKey": "BX202606030968",
+      "projectId": "1001",
+      "accountPeriod": "202606",
+      "copilotQuestion": "查询 202606 账期 1001 项目 BX202606030968 的售账应收实收明细",
+      "amountFields": ["receivableAmount", "netReceiptsAmount", "bizAmount"],
+      "oracleRequest": {
+        "projectId": "1001",
+        "bizCode": "BX202606030968"
+      },
+      "copilotRequest": {
+        "domain": "finance",
+        "chain": "sale-gift-bad-debt",
+        "database": "prs.flowerbiz.federated",
+        "context": "finance-detail-reconciliation",
+        "maxResults": "20",
+        "nativeSql": "SELECT b.code AS \"businessKey\", CAST(b.project_id AS VARCHAR) AS \"projectId\", '202606' AS \"accountPeriod\", CAST(NULLIF(CAST(a.receivable_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"receivableAmount\", CAST(NULLIF(CAST(a.net_receipts_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"netReceiptsAmount\", CAST(NULLIF(CAST(a.biz_amount AS VARCHAR), '') AS DECIMAL(18,4)) AS \"bizAmount\" FROM public.ods_ptr_mysql_a_sale_account a JOIN public.ods_ptr_mysql_t_flower_biz_info b ON CAST(a.biz_id AS VARCHAR) = CAST(b.id AS VARCHAR) WHERE b.code = 'BX202606030968' AND CAST(b.project_id AS VARCHAR) = '1001' LIMIT 1"
+      }
+    }
+  ]
+}

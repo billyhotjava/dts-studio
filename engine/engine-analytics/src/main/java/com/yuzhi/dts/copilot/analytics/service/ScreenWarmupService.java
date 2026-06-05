@@ -24,16 +24,19 @@ public class ScreenWarmupService {
     private final DatasetQueryService datasetQueryService;
     private final QueryCacheService queryCacheService;
     private final QueryPermissionService queryPermissionService;
+    private final AnalyticsDatabaseAliasResolver databaseAliasResolver;
 
     public ScreenWarmupService(
             ObjectMapper objectMapper,
             DatasetQueryService datasetQueryService,
             QueryCacheService queryCacheService,
-            QueryPermissionService queryPermissionService) {
+            QueryPermissionService queryPermissionService,
+            AnalyticsDatabaseAliasResolver databaseAliasResolver) {
         this.objectMapper = objectMapper;
         this.datasetQueryService = datasetQueryService;
         this.queryCacheService = queryCacheService;
         this.queryPermissionService = queryPermissionService;
+        this.databaseAliasResolver = databaseAliasResolver;
     }
 
     public WarmupSummary warmupForPublishedScreen(AnalyticsScreen screen, Long userId) {
@@ -76,7 +79,19 @@ public class ScreenWarmupService {
             String componentName = component.path("name").asText(component.path("id").asText("component-" + i));
             JsonNode dbConfig = resolveSqlConfig(dataSource);
 
-            long databaseId = parseDatabaseId(dbConfig);
+            long databaseId;
+            try {
+                databaseId = parseDatabaseId(dbConfig);
+            } catch (IllegalArgumentException e) {
+                skipped++;
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("component", componentName);
+                item.put("databaseId", 0L);
+                item.put("status", "skipped");
+                item.put("reason", e.getMessage());
+                items.add(item);
+                continue;
+            }
             String query = trimToNull(dbConfig.path("query").asText(null));
 
             Map<String, Object> item = new LinkedHashMap<>();
@@ -172,27 +187,21 @@ public class ScreenWarmupService {
         return new WarmupSummary(total, warmed, skipped, failed, items);
     }
 
-    private static long parseDatabaseId(JsonNode dbConfig) {
+    private long parseDatabaseId(JsonNode dbConfig) {
         if (dbConfig == null || dbConfig.isMissingNode()) {
             return 0L;
         }
 
-        long dbId = dbConfig.path("databaseId").asLong(0);
+        long dbId = databaseAliasResolver.resolveDatabaseId(dbConfig.path("databaseAlias"));
         if (dbId > 0) {
             return dbId;
         }
 
-        String connectionId = trimToNull(dbConfig.path("connectionId").asText(null));
-        if (connectionId == null) {
-            return 0L;
+        dbId = databaseAliasResolver.resolveDatabaseId(dbConfig.path("databaseId"));
+        if (dbId > 0) {
+            return dbId;
         }
-
-        try {
-            long parsed = Long.parseLong(connectionId);
-            return Math.max(parsed, 0L);
-        } catch (NumberFormatException ignore) {
-            return 0L;
-        }
+        return databaseAliasResolver.resolveDatabaseId(dbConfig.path("connectionId"));
     }
 
     private static String resolveSourceType(JsonNode dataSource) {

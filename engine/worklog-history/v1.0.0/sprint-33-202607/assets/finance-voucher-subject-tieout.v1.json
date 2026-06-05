@@ -1,0 +1,59 @@
+{
+  "version": "2026-07-sprint33-finance-voucher-subject-tieout-v1",
+  "mappings": [
+    {
+      "id": "settlement-discounted-receivable",
+      "oracleBindingId": "voucher-ledger",
+      "chain": "rent-settlement",
+      "metricId": "discounted-receivable",
+      "metricName": "租摆结算折后实收",
+      "voucherBusinessType": 1,
+      "voucherSide": "debit",
+      "subjectGroup": "settlement-receivable-subjects",
+      "subjectIds": [100101, 112201],
+      "dimensionKeys": ["businessCode", "accountPeriod"],
+      "adminApiEndpoint": "GET /rs-flowers-base/finace/voucher/getcountItems",
+      "adminWebEvidence": [
+        "adminweb/src/views/flower/finance/voucher/summary.vue",
+        "adminweb/src/api/flower/finance/voucher.js"
+      ],
+      "notes": "结算凭证由 saveSettlementVoucher 生成，SettledItems.settleType=1 写借方、settleType=2 写贷方；subjectIds 为本地可替换样本科目组，live 财务签字时需用真实科目树确认。"
+    },
+    {
+      "id": "sale-receivable",
+      "oracleBindingId": "voucher-ledger",
+      "chain": "sale-gift-bad-debt",
+      "metricId": "sale-receivable",
+      "metricName": "售账应收",
+      "voucherBusinessType": 1,
+      "voucherSide": "debit",
+      "subjectGroup": "sale-receivable-subjects",
+      "subjectIds": [112201],
+      "dimensionKeys": ["businessCode", "accountPeriod"],
+      "adminApiEndpoint": "GET /rs-flowers-base/finace/voucher/getcountItems",
+      "adminWebEvidence": [
+        "adminweb/src/views/flower/finance/voucher/summary.vue",
+        "adminweb/src/api/flower/finance/voucher.js"
+      ],
+      "notes": "售/赠/坏链的应收类汇总必须与租摆结算链分离；subjectIds 为样本科目组，待 live 科目树签字确认。"
+    },
+    {
+      "id": "bad-debt-loss",
+      "oracleBindingId": "voucher-ledger",
+      "chain": "sale-gift-bad-debt",
+      "metricId": "bad-debt-loss",
+      "metricName": "坏账损失",
+      "voucherBusinessType": 1,
+      "voucherSide": "debit",
+      "subjectGroup": "bad-debt-loss-subjects",
+      "subjectIds": [660201],
+      "dimensionKeys": ["businessCode", "accountPeriod"],
+      "adminApiEndpoint": "GET /rs-flowers-base/finace/voucher/getcountItems",
+      "adminWebEvidence": [
+        "adminweb/src/views/flower/finance/voucher/summary.vue",
+        "adminweb/src/api/flower/finance/voucher.js"
+      ],
+      "notes": "坏账不计入收入，应锚到损失类科目或差异登记，防止 sale-receivable 与 bad-debt-loss 混算。"
+    }
+  ]
+}

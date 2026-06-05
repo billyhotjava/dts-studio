@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-028-flowerbiz-business-object-query-templates" author="dts-copilot-sprint32">
+        <comment>Seed Trino-compatible flowerbiz business-object detail templates.</comment>
+        <sql splitStatements="false"><![CDATA[
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority, is_active)
+VALUES
+('TPL-55', 'flowerbiz', NULL,
+ '[".*(\\d{4}年\\d{1,2}月|\\d{4}-\\d{2}).*(报花单据|报花单|报花业务单).*(查|查询|看|查看|列表|明细|清单)?.*",".*(报花单据|报花单|报花业务单).*(\\d{4}年\\d{1,2}月|\\d{4}-\\d{2}).*(查|查询|看|查看|列表|明细|清单)?.*"]',
+ '["2026年3月的报花单据查下","查询2026-03报花单据"]',
+ $tpl$
+SELECT
+  CAST(f.id AS VARCHAR) AS "报花单ID",
+  f.code AS "报花单号",
+  f.title AS "标题",
+  f.biz_type AS "业务类型code",
+  CASE f.biz_type
+    WHEN 1 THEN '换花'
+    WHEN 2 THEN '加花'
+    WHEN 3 THEN '减花'
+    WHEN 4 THEN '调花'
+    WHEN 5 THEN '售花'
+    WHEN 6 THEN '赠花'
+    WHEN 7 THEN '坏账'
+    WHEN 8 THEN '内购'
+    WHEN 11 THEN '加盆架'
+    WHEN 12 THEN '减盆架'
+    ELSE CAST(f.biz_type AS VARCHAR)
+  END AS "业务类型",
+  f.project_name AS "项目点",
+  f.customer_name AS "客户",
+  f.curing_user_name AS "养护人",
+  f.project_manage_name AS "项目经理",
+  f.apply_use_name AS "发起人",
+  f.apply_time AS "申请时间",
+  f.create_time AS "创建时间",
+  f.finish_time AS "完成时间",
+  f.status AS "状态code",
+  CASE f.status
+    WHEN -1 THEN '作废'
+    WHEN 1 THEN '待发起'
+    WHEN 2 THEN '待审批'
+    WHEN 3 THEN '待鉴定'
+    WHEN 4 THEN '待分配'
+    WHEN 5 THEN '待采购'
+    WHEN 6 THEN '待配送'
+    WHEN 7 THEN '待提花'
+    WHEN 8 THEN '已完成'
+    WHEN 20 THEN '草稿'
+    WHEN 21 THEN '驳回'
+    ELSE CAST(f.status AS VARCHAR)
+  END AS "状态",
+  f.print_status AS "打印状态"
+FROM mysql.rs_cloud_flower.t_flower_biz_info f
+WHERE (f.del_flag IS NULL OR f.del_flag = '0')
+  AND f.create_time >= CAST(:month || '-01 00:00:00' AS TIMESTAMP)
+  AND f.create_time < CAST(:month || '-01 00:00:00' AS TIMESTAMP) + INTERVAL '1' MONTH
+ORDER BY f.create_time DESC
+LIMIT 100
+$tpl$,
+ '{"month":{"type":"string","required":true}}',
+ 'mysql.rs_cloud_flower.t_flower_biz_info', '某月报花单据明细（业务对象）', 55, true)
+ON CONFLICT (template_code) DO UPDATE
+SET domain = EXCLUDED.domain,
+    role_hint = EXCLUDED.role_hint,
+    intent_patterns = EXCLUDED.intent_patterns,
+    question_samples = EXCLUDED.question_samples,
+    sql_template = EXCLUDED.sql_template,
+    parameters = EXCLUDED.parameters,
+    target_view = EXCLUDED.target_view,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -38,7 +38,8 @@ public class AgentBiReportCatalogService {
 	                    "MEDIUM",
 	                    List.of("默认时间窗口为 2025-05-01 至当前日期。", "客户关联存在缺口时，客户维度结果需要人工核验。"),
 	                    "table",
-	                    List.of("租赁收入", "租赁", "收入", "趋势", "按月", "月度", "每月", "加摆", "撤摆", "2025年5月", "2025-05"),
+	                    List.of("报花月报", "报花执行", "租赁报花", "执行看板", "月报",
+	                            "租赁收入", "租赁", "收入", "趋势", "按月", "月度", "每月", "加摆", "撤摆", "2025年5月", "2025-05"),
 	                    List.of("fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION", "dbt-model:public.xycyl_ads_flowerbiz_lease_summary", "semantic-pack:flowerbiz"),
 	                    true),
             new ReportCatalogEntry(

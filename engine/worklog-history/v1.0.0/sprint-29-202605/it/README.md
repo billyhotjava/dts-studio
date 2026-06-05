@@ -22,7 +22,9 @@
 | IT08 | drilldown 下钻 / 口径 version 变更提醒 | F5 | P3 | DONE | `evidence/20260531-local/f1-f5-indicator-routing-drilldown.md` |
 | IT09 | `pnpm typecheck` + `pnpm test` + `pnpm build`(前端)+ 后端单测全绿 | 全部 | 全程 | DONE | `evidence/20260531-local/f1-f5-indicator-routing-drilldown.md` |
 | IT10 | 确认 dts-platform 指标业务零改动,仅服务认证只读白名单/配置变更 | F1 | P1 | DONE | `evidence/20260531-local/f1-f5-indicator-routing-drilldown.md` |
-| IT11 | 资产库看板 tab 展示 PRS 固定报表/大屏资产组,入口跳转 Agent BI 固定报表链路 | F6 | P1b | DONE | `evidence/20260601-local/f6-prs-fixed-report-assets.md` |
+| IT11 | 资产库看板 tab 展示 PRS 固定报表/大屏资产组,入口跳转 Copilot 大屏预览链路 | F6 | P1b | DONE | `evidence/20260601-local/f6-prs-fixed-report-assets.md`; `evidence/20260601-local/f6-v1-screen-assets-runtime-sync.md` |
+| IT12 | 旧 WH/FIN/PROC 固定报表归档模板不再生成死链,旧 URL 降级为 Agent 分析 | F6 | P1b | DONE | `evidence/20260601-local/f6-legacy-fixed-report-deadlinks.md` |
+| IT13 | PRS v1 screen 原型落成 `analytics_screen`,预览 API 可返回组件和变量 | F6 | P1c | DONE | `evidence/20260601-local/f6-v1-screen-assets-runtime-sync.md` |
 
 ## 验证环境
 

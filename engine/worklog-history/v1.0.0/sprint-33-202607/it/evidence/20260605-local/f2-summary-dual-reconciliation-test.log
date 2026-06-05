@@ -1,0 +1,27 @@
+Date: 2026-06-05 local
+Scope: Sprint-33 F2-T02 summary dual reconciliation
+
+RED:
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceSummaryDualReconciliationServiceTest test
+- Result: FAILED before implementation.
+- Expected failure: FinanceSummaryDualReconciliationService / FinanceSummaryDualReconciliationRegistry did not exist.
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceSummaryDualReconciliationServiceTest test
+- Result: FAILED after first GREEN because sale summary sample used DATE_FORMAT instead of Trino-compatible date_format(CAST(... AS timestamp), '%Y%m').
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceSummaryDualReconciliationServiceTest test
+- Result: FAILED during review hardening because missing oracle cells reported copilot=0.00/difference=0.00 instead of the visible copilot amount.
+
+GREEN:
+- Command: mvn -q -pl dts-copilot-ai -Dtest=FinanceSummaryDualReconciliationServiceTest test
+- Result: PASS.
+
+Covered:
+- Summary comparator FULL JOINs copilot/oracle cells by metric and project/accountPeriod dimensions.
+- Non-zero amount difference, missing oracle cell, chain mismatch, metric mismatch, and duplicate cells fail with replayable messages.
+- Missing summary cells keep the visible-side amount in the failure message, so the first diff remains explainable.
+- Summary cases are bound to FinanceOracleRegistry oracle bindings and remain separated by chain.
+- Governance resource and sprint-33 asset define month-settlement-discounted-receivable and sale-account-receivable cases.
+- Sale summary SQL uses Trino-compatible date_format(CAST(... AS timestamp), '%Y%m') and rejects MySQL DATE_FORMAT in the case contract.
+
+Pending:
+- Live L2 adminapi or finance-signed golden SQL has not been executed in this evidence.
+- Copilot /api/dataset double fetch is not yet wired for summary cases.

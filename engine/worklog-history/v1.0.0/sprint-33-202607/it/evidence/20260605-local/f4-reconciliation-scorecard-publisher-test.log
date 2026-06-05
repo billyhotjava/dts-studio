@@ -1,0 +1,57 @@
+# Sprint-33 F4/F5 scorecard publisher and schedule local evidence
+
+Date: 2026-06-05
+Scope: F4-T02 scorecard publisher/schedule, F5-T01 audit source handoff
+Environment: local Maven test, dts-copilot-ai
+
+## RED
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardPublisherServiceTest test
+mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardScheduledPublisherServiceTest test
+```
+
+Result:
+
+- Failed at test compilation because `FinanceReconciliationScorecardPublisherService` did not exist.
+- This proved the scorecard snapshot store/source existed, but no publishing coordinator enforced complete F1/F2/F3/F4 evidence before writing a latest snapshot.
+
+## GREEN
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardPublisherServiceTest test
+```
+
+Result:
+
+- PASS
+
+Covered checks:
+
+- A complete four-lane evidence bundle publishes `sprint33-finance-daily-scorecard` as the latest snapshot for `month-settlement`.
+- Missing required live evidence returns `PENDING_LIVE_EVIDENCE`, lists the missing lane, and does not call snapshot persistence.
+- Unknown scorecard policy returns `POLICY_MISSING` and does not overwrite the audit source.
+- Scheduled publisher skips cleanly when no evidence provider is registered.
+- Scheduled publisher delegates each registered provider to the publisher service and does not generate scorecard reports itself.
+
+## IT rerun
+
+Commands:
+
+```bash
+bash worklog/v1.0.0/sprint-33-202607/it/test_sprint33_reconciliation_scorecard.sh
+bash worklog/v1.0.0/sprint-33-202607/it/test_f5_finance_answer_audit_trail.sh
+```
+
+Result:
+
+- PASS
+
+## Pending live proof
+
+- This closes the local publisher contract only.
+- Live F1/F2/F3/F4 evidence provider implementations and signed finance baseline adoption are still pending.
