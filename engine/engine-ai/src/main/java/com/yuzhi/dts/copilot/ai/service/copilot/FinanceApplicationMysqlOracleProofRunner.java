@@ -61,9 +61,13 @@ public class FinanceApplicationMysqlOracleProofRunner {
                     if (!executorsConfigured()) {
                         return disabled(requestedCaseId);
                     }
-                    return result(
-                            requestedCaseId,
-                            List.of(proofService.prove(oracleCase, copilotExecutor, applicationMysqlExecutor)));
+                    try {
+                        return result(
+                                requestedCaseId,
+                                List.of(proofService.prove(oracleCase, copilotExecutor, applicationMysqlExecutor)));
+                    } catch (RuntimeException ex) {
+                        return failed(requestedCaseId, ex);
+                    }
                 })
                 .orElseGet(() -> new RunResult(
                         requestedCaseId,
@@ -84,6 +88,14 @@ public class FinanceApplicationMysqlOracleProofRunner {
                 List.of());
     }
 
+    private static RunResult failed(String caseId, RuntimeException ex) {
+        return new RunResult(
+                caseId,
+                RunStatus.FAILED,
+                "Finance application MySQL oracle proof failed: " + safeMessage(ex),
+                List.of());
+    }
+
     private static RunResult result(
             String caseId,
             List<FinanceApplicationMysqlOracleProofService.ProofReport> reports) {
@@ -95,6 +107,17 @@ public class FinanceApplicationMysqlOracleProofRunner {
                 .findFirst()
                 .orElse("Finance application MySQL oracle proof failed");
         return new RunResult(caseId, passed ? RunStatus.PASSED : RunStatus.FAILED, message, reports);
+    }
+
+    private static String safeMessage(RuntimeException ex) {
+        String message = ex.getMessage();
+        if (!StringUtils.hasText(message) && ex.getCause() != null) {
+            message = ex.getCause().getMessage();
+        }
+        if (!StringUtils.hasText(message)) {
+            return ex.getClass().getSimpleName();
+        }
+        return message.replaceAll("(?i)(password|pwd)=([^&;\\s]+)", "$1=***");
     }
 
     public enum RunStatus {

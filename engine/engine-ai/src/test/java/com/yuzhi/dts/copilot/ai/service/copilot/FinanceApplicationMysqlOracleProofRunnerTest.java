@@ -78,6 +78,23 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
     }
 
     @Test
+    void shouldReturnFailedWhenRuntimeExecutorThrows() {
+        FinanceApplicationMysqlOracleProofRunner runner = new FinanceApplicationMysqlOracleProofRunner(
+                registry(),
+                new FinanceApplicationMysqlOracleProofService(new FinanceSummaryDualReconciliationService()),
+                new FailingQueryExecutor("Access denied for user using password: NO"),
+                new RecordingQueryExecutor(List.of()));
+
+        FinanceApplicationMysqlOracleProofRunner.RunResult result =
+                runner.prove("voucher-year-2026-count");
+
+        assertThat(result.status()).isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.FAILED);
+        assertThat(result.message()).contains("Finance application MySQL oracle proof failed");
+        assertThat(result.message()).contains("Access denied");
+        assertThat(result.reports()).isEmpty();
+    }
+
+    @Test
     void shouldRunAllCasesAndFailFastForMissingCaseId() {
         FinanceApplicationMysqlOracleProofRunner runner = new FinanceApplicationMysqlOracleProofRunner(
                 registry(),
@@ -129,6 +146,19 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
 
         List<String> calls() {
             return calls;
+        }
+    }
+
+    private static final class FailingQueryExecutor implements FinanceApplicationMysqlOracleProofService.QueryExecutor {
+        private final String message;
+
+        private FailingQueryExecutor(String message) {
+            this.message = message;
+        }
+
+        @Override
+        public List<Map<String, Object>> query(String database, String nativeSql) {
+            throw new IllegalStateException(message);
         }
     }
 }

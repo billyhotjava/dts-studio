@@ -96,13 +96,21 @@ PROVE_RESPONSE="$(curl -sS -w '\n%{http_code}' \
 PROVE_STATUS="$(printf '%s' "$PROVE_RESPONSE" | tail -n1)"
 PROVE_JSON="$(printf '%s' "$PROVE_RESPONSE" | sed '$d')"
 RUN_STATUS="$(printf '%s' "$PROVE_JSON" | jq -r '.data.status // empty')"
-REPORT_COUNT="$(printf '%s' "$PROVE_JSON" | jq -r '.data.reports | length')"
+RUN_MESSAGE="$(printf '%s' "$PROVE_JSON" | jq -r '.data.message // empty')"
+REPORT_COUNT="$(printf '%s' "$PROVE_JSON" | jq -r '(.data.reports // []) | length')"
+FIRST_FAILURE="$(printf '%s' "$PROVE_JSON" | jq -r '.data.reports[0].failureMessage // empty')"
 
 if [ "$REQUIRE_LIVE_PROOF" = "true" ]; then
   if [ "$PROVE_STATUS" != "200" ] || [ "$RUN_STATUS" != "PASSED" ] || [ "$REPORT_COUNT" -lt 1 ]; then
     echo "prove_http_status=${PROVE_STATUS}" >&2
     echo "prove_run_status=${RUN_STATUS}" >&2
     echo "prove_report_count=${REPORT_COUNT}" >&2
+    if [ -n "$RUN_MESSAGE" ]; then
+      echo "prove_message=${RUN_MESSAGE}" >&2
+    fi
+    if [ -n "$FIRST_FAILURE" ]; then
+      echo "prove_failure=${FIRST_FAILURE}" >&2
+    fi
     exit 10
   fi
 else
@@ -119,3 +127,9 @@ echo "case_count=${CASE_COUNT}"
 echo "prove_http_status=${PROVE_STATUS}"
 echo "prove_run_status=${RUN_STATUS}"
 echo "prove_report_count=${REPORT_COUNT}"
+if [ -n "$RUN_MESSAGE" ]; then
+  echo "prove_message=${RUN_MESSAGE}"
+fi
+if [ -n "$FIRST_FAILURE" ]; then
+  echo "prove_failure=${FIRST_FAILURE}"
+fi
