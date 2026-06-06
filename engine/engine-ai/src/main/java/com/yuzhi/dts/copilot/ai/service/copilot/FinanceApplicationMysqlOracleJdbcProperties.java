@@ -11,6 +11,11 @@ public class FinanceApplicationMysqlOracleJdbcProperties {
     private String username = "";
     private String password = "";
     private String database = "rs_cloud_flower";
+    private String copilotJdbcUrl = "";
+    private String copilotDriverClassName = "org.postgresql.Driver";
+    private String copilotUsername = "";
+    private String copilotPassword = "";
+    private String copilotDatabase = "prs.flowerbiz.federated";
 
     public boolean isEnabled() {
         return enabled;
@@ -58,6 +63,46 @@ public class FinanceApplicationMysqlOracleJdbcProperties {
 
     public void setDatabase(String database) {
         this.database = textOrEmpty(database);
+    }
+
+    public String getCopilotJdbcUrl() {
+        return copilotJdbcUrl;
+    }
+
+    public void setCopilotJdbcUrl(String copilotJdbcUrl) {
+        this.copilotJdbcUrl = textOrEmpty(copilotJdbcUrl);
+    }
+
+    public String getCopilotDriverClassName() {
+        return copilotDriverClassName;
+    }
+
+    public void setCopilotDriverClassName(String copilotDriverClassName) {
+        this.copilotDriverClassName = textOrEmpty(copilotDriverClassName);
+    }
+
+    public String getCopilotUsername() {
+        return copilotUsername;
+    }
+
+    public void setCopilotUsername(String copilotUsername) {
+        this.copilotUsername = textOrEmpty(copilotUsername);
+    }
+
+    public String getCopilotPassword() {
+        return copilotPassword;
+    }
+
+    public void setCopilotPassword(String copilotPassword) {
+        this.copilotPassword = textOrEmpty(copilotPassword);
+    }
+
+    public String getCopilotDatabase() {
+        return copilotDatabase;
+    }
+
+    public void setCopilotDatabase(String copilotDatabase) {
+        this.copilotDatabase = textOrEmpty(copilotDatabase);
     }
 
     private static String textOrEmpty(String value) {

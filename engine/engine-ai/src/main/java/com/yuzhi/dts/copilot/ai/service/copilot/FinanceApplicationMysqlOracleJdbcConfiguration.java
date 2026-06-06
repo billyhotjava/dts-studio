@@ -2,6 +2,7 @@ package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -41,5 +42,31 @@ public class FinanceApplicationMysqlOracleJdbcConfiguration {
         return new FinanceApplicationMysqlOracleJdbcQueryExecutor(
                 new JdbcTemplate(dataSource),
                 properties.getDatabase());
+    }
+
+    @Bean("financeApplicationMysqlOracleCopilotJdbcDataSource")
+    @ConditionalOnExpression("'${copilot.finance.application-mysql-oracle.enabled:false}' == 'true' "
+            + "&& '${copilot.finance.application-mysql-oracle.copilot-jdbc-url:}' != ''")
+    public DataSource financeApplicationMysqlOracleCopilotJdbcDataSource(
+            FinanceApplicationMysqlOracleJdbcProperties properties) {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setUrl(properties.getCopilotJdbcUrl());
+        if (StringUtils.hasText(properties.getCopilotDriverClassName())) {
+            dataSource.setDriverClassName(properties.getCopilotDriverClassName());
+        }
+        dataSource.setUsername(properties.getCopilotUsername());
+        dataSource.setPassword(properties.getCopilotPassword());
+        return dataSource;
+    }
+
+    @Bean("financeApplicationMysqlOracleCopilotJdbcQueryExecutor")
+    @ConditionalOnExpression("'${copilot.finance.application-mysql-oracle.enabled:false}' == 'true' "
+            + "&& '${copilot.finance.application-mysql-oracle.copilot-jdbc-url:}' != ''")
+    public FinanceApplicationMysqlOracleProofService.QueryExecutor financeApplicationMysqlOracleCopilotJdbcQueryExecutor(
+            @Qualifier("financeApplicationMysqlOracleCopilotJdbcDataSource") DataSource dataSource,
+            FinanceApplicationMysqlOracleJdbcProperties properties) {
+        return new FinanceApplicationMysqlOracleJdbcQueryExecutor(
+                new JdbcTemplate(dataSource),
+                properties.getCopilotDatabase());
     }
 }
