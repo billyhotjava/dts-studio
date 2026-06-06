@@ -212,7 +212,10 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
     }
 
     private Optional<ConversationPlan> tryPublishedIndicatorRoute(RouteEvaluationContext context) {
-        if (!context.skipIndicatorRoute() && shouldUsePublishedIndicator(context.indicatorMatch())) {
+        boolean templateOutranksProfileIndicator = shouldPreferExecutableTemplateOverProfileIndicator(context);
+        if (!context.skipIndicatorRoute()
+                && shouldUsePublishedIndicator(context.indicatorMatch())
+                && !templateOutranksProfileIndicator) {
             return Optional.of(buildPublishedIndicatorPlan(context.indicatorMatch(), context.metricOverride())
                     .withRouteTrace(context.routeTrace().hit(
                             RouteTier.TIER_1_PUBLISHED_INDICATOR,
@@ -223,8 +226,37 @@ public class AssetBackedPlannerPolicy implements PlannerPolicy {
         }
         context.routeTrace().miss(
                 RouteTier.TIER_1_PUBLISHED_INDICATOR,
-                context.skipIndicatorRoute() ? "用户选择生成 SQL，跳过已发布指标" : "未命中高可信已发布指标");
+                publishedIndicatorMissReason(context, templateOutranksProfileIndicator));
         return Optional.empty();
+    }
+
+    private static String publishedIndicatorMissReason(
+            RouteEvaluationContext context,
+            boolean templateOutranksProfileIndicator) {
+        if (context.skipIndicatorRoute()) {
+            return "用户选择生成 SQL，跳过已发布指标";
+        }
+        if (templateOutranksProfileIndicator) {
+            return "命中可执行模板 SQL，跳过 L0 business-object profile 指标";
+        }
+        return "未命中高可信已发布指标";
+    }
+
+    private boolean shouldPreferExecutableTemplateOverProfileIndicator(RouteEvaluationContext context) {
+        TemplateMatchResult templateMatch = context.templateMatch();
+        if (!(templateMatch.matched() && StringUtils.hasText(templateMatch.resolvedSql()))) {
+            return false;
+        }
+        IndicatorMatchResult indicatorMatch = context.indicatorMatch();
+        if (indicatorMatch == null || indicatorMatch.candidates().isEmpty()) {
+            return false;
+        }
+        IndicatorMatch selected = selectIndicatorMatch(indicatorMatch, context.metricOverride());
+        return isBusinessObjectProfileIndicator(selected);
+    }
+
+    private static boolean isBusinessObjectProfileIndicator(IndicatorMatch match) {
+        return match != null && StringUtils.hasText(match.code()) && match.code().endsWith(".profile");
     }
 
     private Optional<ConversationPlan> tryDirectResponseRoute(RouteEvaluationContext context) {

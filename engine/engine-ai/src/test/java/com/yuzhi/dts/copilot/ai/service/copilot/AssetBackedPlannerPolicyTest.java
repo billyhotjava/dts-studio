@@ -212,6 +212,54 @@ class AssetBackedPlannerPolicyTest {
     }
 
     @Test
+    void executableFinanceAdsTemplateOutranksL0BusinessObjectProfileIndicator() {
+        String question = "2026年凭证的数据统计下";
+        when(indicatorMatcherService.match(question))
+                .thenReturn(new IndicatorMatcherService.IndicatorMatchResult(
+                        List.of(indicatorMatch("prs.finance.voucher.profile", "凭证画像", "finance", "v1", 0.94d)),
+                        IndicatorMatcherService.Confidence.HIGH));
+        when(templateMatcherService.match(question))
+                .thenReturn(new TemplateMatchResult(
+                        true,
+                        buildTemplate("TPL-57", "finance", "public.xycyl_ads_finance_voucher_monthly"),
+                        Map.of("year", "2026"),
+                        "SELECT v.\"会计月份\", SUM(v.\"凭证数\") AS \"凭证数\" "
+                                + "FROM public.xycyl_ads_finance_voucher_monthly v"));
+        when(intentRouterService.routeWithDataLayer(question, Map.of()))
+                .thenReturn(new ExtendedRoutingResult(
+                        new RoutingResult(
+                                "finance",
+                                "public.xycyl_ads_finance_voucher_monthly",
+                                List.of(),
+                                0.94,
+                                false),
+                        DataLayer.MART,
+                        "public.xycyl_ads_finance_voucher_monthly",
+                        false,
+                        null));
+        when(directResponseCatalogService.findMatch(question)).thenReturn(Optional.empty());
+        when(semanticPackService.getContextForDomain("finance")).thenReturn("finance semantic pack");
+
+        ConversationPlan plan = policy.plan(question, Map.of());
+
+        assertThat(plan.mode()).isEqualTo(PlanMode.TEMPLATE_FAST_PATH);
+        assertThat(plan.responseKind()).isEqualTo(ResponseKind.TEMPLATE_SQL);
+        assertThat(plan.templateCode()).isEqualTo("TPL-57");
+        assertThat(plan.primaryTarget()).isEqualTo("public.xycyl_ads_finance_voucher_monthly");
+        assertThat(plan.reportCode()).isNull();
+        assertThat(plan.dataLayer()).isEqualTo("MART");
+        assertThat(plan.promptContext()).contains("public.xycyl_ads_finance_voucher_monthly");
+        assertThat(plan.routeTrace())
+                .extracting(
+                        ConversationPlan.RouteStep::tier,
+                        ConversationPlan.RouteStep::status)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("TIER_1_PUBLISHED_INDICATOR", "MISS"),
+                        org.assertj.core.groups.Tuple.tuple("TIER_2_MART_TEMPLATE", "HIT"));
+        assertThat(plan.routeTrace().getFirst().reason()).contains("跳过 L0 business-object profile 指标");
+    }
+
+    @Test
     void metricFallbackOverrideSkipsPublishedIndicatorBranch() {
         String question = "本月现金流入是多少";
         when(indicatorMatcherService.match(question))

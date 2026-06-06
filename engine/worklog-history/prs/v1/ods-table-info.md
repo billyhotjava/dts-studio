@@ -10,6 +10,8 @@ Finance ADS tables are built by dbt in `dts-stack`. The application MySQL schema
 | --- | --- | --- | --- | --- |
 | `rs_cloud_flower` | `a_month_accounting` | `public` | `ods_ptr_mysql_a_month_accounting` | `source('xycyl_finance_ods', 'month_accounting')` |
 | `rs_cloud_flower` | `a_collection_record` | `public` | `ods_ptr_mysql_a_collection_record` | `source('xycyl_finance_ods', 'collection_record')` |
+| `rs_cloud_flower` | `a_sale_account` | `public` | `ods_ptr_mysql_a_sale_account` | `source('xycyl_finance_ods', 'sale_account')` |
+| `rs_cloud_flower` | `t_flower_biz_info` | `public` | `ods_ptr_mysql_t_flower_biz_info` | `source('xycyl_finance_ods', 'flower_biz_info')` |
 | `rs_cloud_flower` | `f_voucher` | `public` | `ods_ptr_mysql_f_voucher` | `source('xycyl_finance_ods', 'voucher')` |
 | `rs_cloud_flower` | `f_voucher_item` | `public` | `ods_ptr_mysql_f_voucher_item` | `source('xycyl_finance_ods', 'voucher_item')` |
 
@@ -95,6 +97,46 @@ Status: -1已作废/1草稿/2已确认.
 | `remark` | varchar | 备注 | DWD fact field |
 | `tenant_id` | bigint | 租户 ID | DWD fact field |
 
+## `ods_ptr_mysql_a_sale_account`
+
+Grain: one row per sale/gift/bad-debt account.
+
+Status: 1待结算/2开票中/3已回款.
+
+| Column | Type | Business meaning | dbt usage |
+| --- | --- | --- | --- |
+| `id` | bigint | 销售账单 ID | STG/DWD primary key |
+| `biz_id` | bigint | 关联报花业务单 ID | Join to `t_flower_biz_info.id` |
+| `settlement_type` | int | 结算类型 | DWD fact field |
+| `status` | int | 销售账单状态 | ADS `已回款金额` 判断 |
+| `finish_time` | datetime | 完成时间 | fallback business month derivation |
+| `update_time` | datetime | 更新时间 | STG fact field |
+| `receivable_amount` | decimal | 应收金额 | ADS `应收金额` |
+| `biz_amount` | decimal | 业务金额 | ADS `业务金额` |
+| `net_receipts_amount` | decimal | 实收/净收金额 | ADS `净收金额` |
+| `total_cost` | decimal | 总成本 | ADS `总成本` |
+| `invoice_status` | int | 开票状态 | ADS `已开票金额` 判断 |
+| `invoice_no` | varchar | 发票号 | DWD fact field |
+| `invoice_time` | datetime | 开票时间 | DWD fact field |
+
+## `ods_ptr_mysql_t_flower_biz_info`
+
+Grain: one row per flower business order.
+
+For the sale account ADS, this table supplies project dimensions and the business month. The month caliber follows `SaleMonthlyReportMapper`: use `SUBSTRING(code, 2, 6)` and format it as `YYYY-MM`; `finish_time/apply_time` are only fallbacks when the code is unusable.
+
+| Column | Type | Business meaning | dbt usage |
+| --- | --- | --- | --- |
+| `id` | bigint | 报花业务单 ID | Join key to `a_sale_account.biz_id` |
+| `project_id` | bigint | 项目 ID | ADS `projectId` and application proof dimension |
+| `project_name` | varchar | 项目名称 | ADS display |
+| `code` | varchar | 单据编号 | primary business month derivation |
+| `biz_type` | int | 业务类型: 5售花/6赠花/7坏账 | sale/gift/bad-debt scope filter |
+| `apply_time` | datetime | 申请时间 | fallback business month derivation |
+| `finish_time` | datetime | 完成时间 | fallback business month derivation |
+| `status` | int | 报花业务状态 | DWD fact field |
+| `del_flag` | varchar | 删除标记 | reserved fact field |
+
 ## `ods_ptr_mysql_f_voucher`
 
 Grain: one row per accounting voucher header.
@@ -155,6 +197,8 @@ The v1 DDL has been executed in the local dts-stack warehouse:
 
 - `public.ods_ptr_mysql_a_month_accounting`: created
 - `public.ods_ptr_mysql_a_collection_record`: created
+- `public.ods_ptr_mysql_a_sale_account`: create-if-missing DDL included in this v1 package
+- `public.ods_ptr_mysql_t_flower_biz_info`: create-if-missing DDL included in this v1 package
 - `public.ods_ptr_mysql_f_voucher`: created and loaded by `ptr_mysql_flow`
 - `public.ods_ptr_mysql_f_voucher_item`: created and loaded by `ptr_mysql_flow`
 
@@ -166,13 +210,18 @@ Before running a meaningful dbt build in UI, run or configure the ingestion task
 | --- | --- |
 | STG | `xycyl_stg_finance_month_accounting` |
 | STG | `xycyl_stg_finance_collection_record` |
+| STG | `xycyl_stg_finance_sale_account` |
+| STG | `xycyl_stg_finance_flower_biz_info` |
 | STG | `xycyl_stg_finance_voucher` |
 | STG | `xycyl_stg_finance_voucher_item` |
 | DWD | `xycyl_dwd_finance_month_settlement` |
 | DWD | `xycyl_dwd_finance_collection` |
+| DWD | `xycyl_dwd_finance_sale_account` |
 | DWD | `xycyl_dwd_finance_voucher_ledger` |
 | DWS | `xycyl_dws_finance_monthly_summary` |
+| DWS | `xycyl_dws_finance_sale_account_summary` |
 | DWS | `xycyl_dws_finance_voucher_monthly` |
 | ADS | `xycyl_ads_finance_month_settlement` |
 | ADS | `xycyl_ads_finance_collection` |
+| ADS | `xycyl_ads_sale_account_summary` |
 | ADS | `xycyl_ads_finance_voucher_monthly` |

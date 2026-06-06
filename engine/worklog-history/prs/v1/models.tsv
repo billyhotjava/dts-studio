@@ -1,11 +1,16 @@
 name	layer	sql_path	source_data_source_id	alias	schema_name	materialized	tags	status	enabled	owner_dept	description	csv_path
 xycyl_stg_finance_month_accounting	STG	services/dts-dbt/models/stg/xycyl_finance/xycyl_stg_finance_month_accounting.sql			public	view	xycyl,finance,stg,month-accounting	DRAFT	true	PRS	月度结算原始账单 STG，来源 a_month_accounting ODS	-
 xycyl_stg_finance_collection_record	STG	services/dts-dbt/models/stg/xycyl_finance/xycyl_stg_finance_collection_record.sql			public	view	xycyl,finance,stg,collection-record	DRAFT	true	PRS	收款记录 STG，来源 a_collection_record ODS	-
+xycyl_stg_finance_sale_account	STG	services/dts-dbt/models/stg/xycyl_finance/xycyl_stg_finance_sale_account.sql			public	view	xycyl,finance,stg,sale-account	DRAFT	true	PRS	售账 STG，来源 a_sale_account ODS	-
+xycyl_stg_finance_flower_biz_info	STG	services/dts-dbt/models/stg/xycyl_finance/xycyl_stg_finance_flower_biz_info.sql			public	view	xycyl,finance,stg,flower-biz-info	DRAFT	true	PRS	售账报花 STG，来源 t_flower_biz_info ODS	-
 xycyl_dwd_finance_month_settlement	DWD	services/dts-dbt/models/dwd/xycyl_finance/xycyl_dwd_finance_month_settlement.sql			public	table	xycyl,finance,dwd,month-settlement	DRAFT	true	PRS	月度结算事实层，沉淀应收、折后实收、净收和本期/加摆/撤摆/调整金额	-
 xycyl_dwd_finance_collection	DWD	services/dts-dbt/models/dwd/xycyl_finance/xycyl_dwd_finance_collection.sql			public	table	xycyl,finance,dwd,collection	DRAFT	true	PRS	收款记录事实层，沉淀项目、收款日期、收款金额和单据状态	-
+xycyl_dwd_finance_sale_account	DWD	services/dts-dbt/models/dwd/xycyl_finance/xycyl_dwd_finance_sale_account.sql			public	table	xycyl,finance,dwd,sale-account	DRAFT	true	PRS	售账事实层，按单据编号年月沉淀项目、应收、开票和回款状态	-
 xycyl_dws_finance_monthly_summary	DWS	services/dts-dbt/models/dws/xycyl_finance/xycyl_dws_finance_monthly_summary.sql			public	table	xycyl,finance,dws,monthly-summary	DRAFT	true	PRS	项目月度财务汇总，汇总结算、回款、未回款和回款进度	-
+xycyl_dws_finance_sale_account_summary	DWS	services/dts-dbt/models/dws/xycyl_finance/xycyl_dws_finance_sale_account_summary.sql			public	table	xycyl,finance,dws,sale-account-summary	DRAFT	true	PRS	售账月度汇总，按月份和项目汇总应收、开票、回款和成本	-
 xycyl_ads_finance_month_settlement	ADS	services/dts-dbt/models/ads/xycyl_finance/xycyl_ads_finance_month_settlement.sql			public	table	xycyl,finance,ads,month-settlement	DRAFT	true	PRS	2026 财务结算统计查询入口，按月份和项目输出应收、实收、回款及进度	-
 xycyl_ads_finance_collection	ADS	services/dts-dbt/models/ads/xycyl_finance/xycyl_ads_finance_collection.sql			public	table	xycyl,finance,ads,collection	DRAFT	true	PRS	2026 财务收款统计查询入口，按月份和项目输出收款金额、单数和回款进度	-
+xycyl_ads_sale_account_summary	ADS	services/dts-dbt/models/ads/xycyl_finance/xycyl_ads_sale_account_summary.sql			public	table	xycyl,finance,ads,sale-account-summary	DRAFT	true	PRS	2026 售账统计查询入口，按月份和项目输出应收、开票、回款和成本	-
 xycyl_stg_finance_voucher	STG	services/dts-dbt/models/stg/xycyl_finance/xycyl_stg_finance_voucher.sql			public	view	xycyl,finance,stg,voucher	DRAFT	true	PRS	凭证主表 STG，来源 f_voucher ODS，规范会计期间和凭证状态	-
 xycyl_stg_finance_voucher_item	STG	services/dts-dbt/models/stg/xycyl_finance/xycyl_stg_finance_voucher_item.sql			public	view	xycyl,finance,stg,voucher-item	DRAFT	true	PRS	凭证明细 STG，来源 f_voucher_item ODS，规范会计期间和借贷金额	-
 xycyl_dwd_finance_voucher_ledger	DWD	services/dts-dbt/models/dwd/xycyl_finance/xycyl_dwd_finance_voucher_ledger.sql			public	table	xycyl,finance,dwd,voucher-ledger	DRAFT	true	PRS	凭证明细事实层，按 voucher_id 关联主表和分录，沉淀业务类型、状态、借贷金额	-

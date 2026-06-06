@@ -72,6 +72,7 @@ Sprint-31(口径 SoT/不变量) ──> F1(明细对账)+F2(凭证 tie-out) ─�
 - [ ] 财务 oracle 注册表成文：每张核心报表↔权威端点/账本明确绑定
 - [ ] 明细级对账 harness：真实业务单 copilot 结果与 L2 报表端点逐额（到分）相等，三级金额列各自对齐
 - [ ] 汇总锚到复式凭证：核心收入/应收/回款聚合能 tie-out 到 `debit=credit` 凭证，差异为 0 或登记
+- [x] 月对账、售账、2026 凭证三核心统计已建立 ADS/NL2SQL vs 应用 MySQL 原表只读 SQL 证明链路，清单禁止使用 ODS、Trino MySQL catalog、JDBC URL 或密码绕过架构；dbt 包仅保存在 `dts-copilot/worklog/prs/v1`
 - [x] 8 条财务口径不变量机器可检，对代表性过滤条件断言（接 Sprint-31 F4 回归网；live oracle/differential 归 F1/F4）
 - [x] 两链不混 SUM / 坏账排除 / source_type=8 去重在生成 SQL 层与 analytics 执行前 gate 被静态 guardrail 拦截
 - [ ] 差分抽样：代表性过滤网格 vs oracle 端点全绿；持续对账记分卡每日可跑、漂移告警

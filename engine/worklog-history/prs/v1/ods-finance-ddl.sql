@@ -87,6 +87,54 @@ CREATE TABLE IF NOT EXISTS public.ods_ptr_mysql_a_collection_record (
   _dts_task_id varchar(64)
 );
 
+CREATE TABLE IF NOT EXISTS public.ods_ptr_mysql_a_sale_account (
+  id bigint,
+  biz_id bigint,
+  settlement_type integer,
+  status integer,
+  finish_time timestamp without time zone,
+  update_time timestamp without time zone,
+  receivable_amount numeric(15,4),
+  biz_amount numeric(15,4),
+  net_receipts_amount numeric(15,4),
+  total_cost numeric(15,4),
+  invoice_status integer,
+  invoice_no varchar(32),
+  invoice_time timestamp without time zone,
+  _dts_source_system varchar(200),
+  _dts_source_table varchar(300),
+  _dts_import_time timestamp without time zone,
+  _dts_batch_id varchar(128),
+  _dts_execution_id varchar(128),
+  _dts_task_id varchar(64)
+);
+
+CREATE TABLE IF NOT EXISTS public.ods_ptr_mysql_t_flower_biz_info (
+  id bigint,
+  project_id bigint,
+  project_name varchar(255),
+  code varchar(64),
+  title varchar(512),
+  biz_type integer,
+  apply_use_id bigint,
+  apply_use_name varchar(255),
+  apply_time timestamp without time zone,
+  status integer,
+  finish_time timestamp without time zone,
+  create_time timestamp without time zone,
+  update_time timestamp without time zone,
+  del_flag varchar(4),
+  customer_name varchar(255),
+  tax_rate numeric(12,4),
+  total_amount numeric(15,4),
+  _dts_source_system varchar(200),
+  _dts_source_table varchar(300),
+  _dts_import_time timestamp without time zone,
+  _dts_batch_id varchar(128),
+  _dts_execution_id varchar(128),
+  _dts_task_id varchar(64)
+);
+
 CREATE TABLE IF NOT EXISTS public.ods_ptr_mysql_f_voucher (
   id bigint,
   code varchar(100),
@@ -141,5 +189,7 @@ CREATE TABLE IF NOT EXISTS public.ods_ptr_mysql_f_voucher_item (
 
 COMMENT ON TABLE public.ods_ptr_mysql_a_month_accounting IS 'ODS mirror of rs_cloud_flower.a_month_accounting for xycyl finance settlement dbt models.';
 COMMENT ON TABLE public.ods_ptr_mysql_a_collection_record IS 'ODS mirror of rs_cloud_flower.a_collection_record for xycyl finance collection dbt models.';
+COMMENT ON TABLE public.ods_ptr_mysql_a_sale_account IS 'ODS mirror of rs_cloud_flower.a_sale_account for xycyl finance sale account dbt models.';
+COMMENT ON TABLE public.ods_ptr_mysql_t_flower_biz_info IS 'ODS mirror of rs_cloud_flower.t_flower_biz_info for xycyl finance sale account dbt models.';
 COMMENT ON TABLE public.ods_ptr_mysql_f_voucher IS 'ODS mirror of rs_cloud_flower.f_voucher for xycyl finance voucher dbt models.';
 COMMENT ON TABLE public.ods_ptr_mysql_f_voucher_item IS 'ODS mirror of rs_cloud_flower.f_voucher_item for xycyl finance voucher item dbt models.';

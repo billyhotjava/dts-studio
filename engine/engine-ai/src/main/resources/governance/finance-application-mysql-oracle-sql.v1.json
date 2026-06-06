@@ -1,0 +1,65 @@
+{
+  "version": "2026-07-sprint33-application-mysql-oracle-sql-v1",
+  "cases": [
+    {
+      "id": "month-settlement-discounted-receivable",
+      "oracleBindingId": "month-settlement",
+      "chain": "rent-settlement",
+      "metricId": "discounted-receivable",
+      "metricName": "月对账折后实收汇总",
+      "dimensionKeys": ["projectId", "accountPeriod"],
+      "copilotQuestion": "按项目和账期汇总月对账折后实收金额",
+      "copilotQuery": {
+        "kind": "warehouse-ads-sql",
+        "database": "prs.flowerbiz.federated",
+        "nativeSql": "SELECT CAST(v.\"projectId\" AS VARCHAR) AS \"projectId\", v.\"业务月份\" AS \"accountPeriod\", 'rent-settlement' AS \"chain\", 'discounted-receivable' AS \"metricId\", SUM(v.\"折后实收\") AS \"amount\" FROM public.xycyl_ads_finance_month_settlement v WHERE v.\"业务月份\" LIKE '2026-%' GROUP BY CAST(v.\"projectId\" AS VARCHAR), v.\"业务月份\" ORDER BY 1, 2"
+      },
+      "applicationMysqlQuery": {
+        "kind": "application-mysql-sql",
+        "database": "rs_cloud_flower",
+        "nativeSql": "SELECT CAST(m.project_id AS CHAR) AS projectId, CASE WHEN m.settlement_year IS NOT NULL AND m.settlement_month IS NOT NULL THEN CONCAT(CAST(m.settlement_year AS CHAR), '-', LPAD(CAST(m.settlement_month AS CHAR), 2, '0')) WHEN m.year_and_month REGEXP '^[0-9]{6}$' THEN CONCAT(SUBSTRING(m.year_and_month, 1, 4), '-', SUBSTRING(m.year_and_month, 5, 2)) ELSE m.year_and_month END AS accountPeriod, 'rent-settlement' AS chain, 'discounted-receivable' AS metricId, ROUND(SUM(CAST(NULLIF(CAST(m.folding_after_total_amount AS CHAR), '') AS DECIMAL(18,4))), 2) AS amount FROM a_month_accounting m WHERE m.status > 1 AND CASE WHEN m.settlement_year IS NOT NULL AND m.settlement_month IS NOT NULL THEN CONCAT(CAST(m.settlement_year AS CHAR), '-', LPAD(CAST(m.settlement_month AS CHAR), 2, '0')) WHEN m.year_and_month REGEXP '^[0-9]{6}$' THEN CONCAT(SUBSTRING(m.year_and_month, 1, 4), '-', SUBSTRING(m.year_and_month, 5, 2)) ELSE m.year_and_month END LIKE '2026-%' GROUP BY CAST(m.project_id AS CHAR), CASE WHEN m.settlement_year IS NOT NULL AND m.settlement_month IS NOT NULL THEN CONCAT(CAST(m.settlement_year AS CHAR), '-', LPAD(CAST(m.settlement_month AS CHAR), 2, '0')) WHEN m.year_and_month REGEXP '^[0-9]{6}$' THEN CONCAT(SUBSTRING(m.year_and_month, 1, 4), '-', SUBSTRING(m.year_and_month, 5, 2)) ELSE m.year_and_month END ORDER BY projectId, accountPeriod"
+      },
+      "notes": "F2 proof case: ADS month-settlement discounted receivable must tie out to direct application MySQL a_month_accounting by project and accounting period."
+    },
+    {
+      "id": "sale-account-receivable",
+      "oracleBindingId": "sale-account",
+      "chain": "sale-gift-bad-debt",
+      "metricId": "sale-receivable",
+      "metricName": "售账应收汇总",
+      "dimensionKeys": ["projectId", "accountPeriod"],
+      "copilotQuestion": "按项目和账期汇总售账应收金额",
+      "copilotQuery": {
+        "kind": "warehouse-ads-sql",
+        "database": "prs.flowerbiz.federated",
+        "nativeSql": "SELECT CAST(v.\"projectId\" AS VARCHAR) AS \"projectId\", v.\"业务月份\" AS \"accountPeriod\", 'sale-gift-bad-debt' AS \"chain\", 'sale-receivable' AS \"metricId\", SUM(v.\"应收金额\") AS \"amount\" FROM public.xycyl_ads_sale_account_summary v WHERE v.\"业务月份\" LIKE '2026-%' GROUP BY CAST(v.\"projectId\" AS VARCHAR), v.\"业务月份\" ORDER BY 1, 2"
+      },
+      "applicationMysqlQuery": {
+        "kind": "application-mysql-sql",
+        "database": "rs_cloud_flower",
+        "nativeSql": "SELECT CAST(b.project_id AS CHAR) AS projectId, CONCAT(SUBSTRING(b.code, 2, 4), '-', SUBSTRING(b.code, 6, 2)) AS accountPeriod, 'sale-gift-bad-debt' AS chain, 'sale-receivable' AS metricId, ROUND(SUM(CAST(NULLIF(CAST(a.receivable_amount AS CHAR), '') AS DECIMAL(18,4))), 2) AS amount FROM a_sale_account a JOIN t_flower_biz_info b ON a.biz_id = b.id WHERE b.code IS NOT NULL AND LENGTH(b.code) >= 7 AND SUBSTRING(b.code, 2, 6) REGEXP '^[0-9]{6}$' AND SUBSTRING(b.code, 2, 4) = '2026' AND b.biz_type IN (5, 6, 7) GROUP BY CAST(b.project_id AS CHAR), CONCAT(SUBSTRING(b.code, 2, 4), '-', SUBSTRING(b.code, 6, 2)) ORDER BY projectId, accountPeriod"
+      },
+      "notes": "F2 proof case: ADS sale-account receivable must tie out to direct application MySQL a_sale_account joined to t_flower_biz_info. Account period follows SaleMonthlyReportMapper code-month caliber."
+    },
+    {
+      "id": "voucher-year-2026-count",
+      "oracleBindingId": "voucher-ledger",
+      "chain": "voucher-ledger",
+      "metricId": "voucher-count",
+      "metricName": "2026 会计凭证月度凭证数",
+      "dimensionKeys": ["accountPeriod"],
+      "copilotQuestion": "2026年凭证的数据统计下",
+      "copilotQuery": {
+        "kind": "warehouse-ads-sql",
+        "database": "prs.flowerbiz.federated",
+        "nativeSql": "SELECT v.\"会计月份\" AS \"accountPeriod\", 'voucher-ledger' AS \"chain\", 'voucher-count' AS \"metricId\", SUM(v.\"凭证数\") AS \"amount\" FROM public.xycyl_ads_finance_voucher_monthly v WHERE v.\"会计月份\" LIKE '2026-%' GROUP BY v.\"会计月份\" ORDER BY v.\"会计月份\""
+      },
+      "applicationMysqlQuery": {
+        "kind": "application-mysql-sql",
+        "database": "rs_cloud_flower",
+        "nativeSql": "SELECT v.account_priod AS accountPeriod, 'voucher-ledger' AS chain, 'voucher-count' AS metricId, COUNT(DISTINCT v.id) AS amount FROM f_voucher v JOIN f_voucher_item i ON i.voucher_id = v.id WHERE v.account_priod LIKE '2026-%' AND COALESCE(i.status, 0) > 0 GROUP BY v.account_priod ORDER BY v.account_priod"
+      },
+      "notes": "F2/F4 proof case: NL2SQL ADS voucher count must tie out to direct application MySQL voucher header count by account period. SQL intentionally uses application table names, not ODS or Trino catalog names."
+    }
+  ]
+}

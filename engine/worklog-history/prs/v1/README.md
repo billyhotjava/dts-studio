@@ -5,12 +5,14 @@
 This delivery package contains the dbt model chain for xycyl finance yearly/monthly and voucher statistics:
 
 - ODS source declarations for `a_month_accounting`, `a_collection_record`, `f_voucher`, and `f_voucher_item`
+- ODS source declarations for `a_sale_account` and `t_flower_biz_info`, used by the sale-account ADS chain
 - STG cleanup models
 - DWD finance fact models
 - DWS monthly finance and voucher summaries
 - ADS query surfaces:
   - `xycyl_ads_finance_month_settlement`
   - `xycyl_ads_finance_collection`
+  - `xycyl_ads_sale_account_summary`
   - `xycyl_ads_finance_voucher_monthly`
 
 The package follows the warehouse boundary: application MySQL tables are only ODS ingestion sources. dbt models read from dts-stack warehouse ODS tables and produce DWS/ADS.
@@ -20,7 +22,7 @@ The package follows the warehouse boundary: application MySQL tables are only OD
 Use this selector when triggering dbt from the UI:
 
 ```text
-+xycyl_ads_finance_month_settlement +xycyl_ads_finance_collection +xycyl_ads_finance_voucher_monthly
++xycyl_ads_finance_month_settlement +xycyl_ads_finance_collection +xycyl_ads_sale_account_summary +xycyl_ads_finance_voucher_monthly
 ```
 
 The leading `+` includes upstream STG/DWD/DWS dependencies.
@@ -31,6 +33,8 @@ Before clicking build, these ODS tables must exist in `public`:
 
 - `public.ods_ptr_mysql_a_month_accounting`
 - `public.ods_ptr_mysql_a_collection_record`
+- `public.ods_ptr_mysql_a_sale_account`
+- `public.ods_ptr_mysql_t_flower_biz_info`
 - `public.ods_ptr_mysql_f_voucher`
 - `public.ods_ptr_mysql_f_voucher_item`
 
@@ -53,7 +57,7 @@ Validated locally with:
 bash tests/test_xycyl_finance_dbt_model_contract.sh
 docker exec -i dts-stack-dts-pg-1 psql -U biadmin -d biadmin -v ON_ERROR_STOP=1 < worklog/prs/v1/ods-finance-ddl.sql
 docker exec dts-dbt sh -lc 'dbt parse --profiles-dir /opt/dbt/profiles --project-dir /opt/dbt'
-docker exec dts-dbt sh -lc 'dbt compile --profiles-dir /opt/dbt/profiles --project-dir /opt/dbt --select +xycyl_ads_finance_month_settlement +xycyl_ads_finance_collection +xycyl_ads_finance_voucher_monthly'
+docker exec dts-dbt sh -lc 'dbt compile --profiles-dir /opt/dbt/profiles --project-dir /opt/dbt --select +xycyl_ads_finance_month_settlement +xycyl_ads_finance_collection +xycyl_ads_sale_account_summary +xycyl_ads_finance_voucher_monthly'
 ```
 
 Note: `dbt_project.yml` still emits an existing `log-path` deprecation warning; it is not introduced by this finance package.
