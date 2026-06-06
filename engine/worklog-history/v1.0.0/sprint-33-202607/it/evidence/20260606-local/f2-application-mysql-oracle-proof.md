@@ -1,6 +1,6 @@
 # F2 Application MySQL Oracle Proof Evidence
 
-**Date**: 2026-06-06 / last rerun 2026-06-07 00:33 Asia/Shanghai
+**Date**: 2026-06-06 / last rerun 2026-06-07 00:40 Asia/Shanghai
 **Scope**: Sprint-33 F2, application MySQL oracle proof for month settlement, sale account, and voucher statistics
 **Status**: PASS
 
@@ -16,6 +16,7 @@
 - REST entrypoints are exposed for in-app proof checks: `GET /api/ai/finance/application-mysql-oracle/cases` and `POST /api/ai/finance/application-mysql-oracle/prove`.
 - Conditional configuration creates the application MySQL executor only when `copilot.finance.application-mysql-oracle.enabled=true`, and creates the copilot ADS executor only when `copilot-jdbc-url` is also configured.
 - Runtime container smoke verifies API-key protection and endpoint availability: unauthenticated `/cases` returns 401; authenticated `/cases` returns the three proof cases; authenticated `/prove` currently returns `DISABLED` because this local container has no direct application MySQL JDBC configured.
+- `docker-compose.yml` exposes the `COPILOT_FINANCE_APPLICATION_MYSQL_ORACLE_*` environment variables needed to enable direct application MySQL and copilot ADS JDBC executors without editing model artifacts.
 - Planner routes "2026年凭证的数据统计下" to TPL-57 ADS SQL even when platform has a high-confidence `prs.finance.voucher.profile` candidate.
 
 ## Commands
@@ -33,13 +34,18 @@ mvn -pl dts-copilot-ai test
 mvn -pl dts-copilot-ai -DskipTests package
 docker compose build copilot-ai
 docker compose up -d copilot-ai
+docker compose config
+worklog/v1.0.0/sprint-33-202607/it/test_f2_application_mysql_oracle_runtime_http.sh
+REQUIRE_LIVE_APPLICATION_MYSQL_PROOF=true worklog/v1.0.0/sprint-33-202607/it/test_f2_application_mysql_oracle_runtime_http.sh
 git diff --check
 ```
 
 ## Results
 
 - New F2 application MySQL oracle proof IT: PASS, including three application MySQL oracle cases, in-app runner/resource tests, JDBC executor/config tests, and planner guard against `*.profile` route capture.
-- Runtime container smoke: PASS for service startup, API-key protection, `/cases` availability, and explicit `DISABLED` proof status when direct application MySQL/ADS executors are not configured.
+- Runtime container smoke: PASS for service startup, API-key protection, `/cases` availability, and explicit `DISABLED` proof status when direct application MySQL/ADS executors are not configured. The same script can enforce real direct MySQL proof by setting `REQUIRE_LIVE_APPLICATION_MYSQL_PROOF=true`.
+- Runtime live-required guard: PASS; with `REQUIRE_LIVE_APPLICATION_MYSQL_PROOF=true`, the script fails on local `DISABLED` status instead of treating it as a successful proof.
+- Compose rendered-config check: PASS; `copilot-ai` now receives the `COPILOT_FINANCE_APPLICATION_MYSQL_ORACLE_*` configuration surface needed to enable direct application MySQL proof in a runtime deployment.
 - dbt zip contract: PASS, including sale-account model chain and `models.tsv` manifest.
 - Isolated dbt package parse: PASS in `dts-dbt` container; existing `log-path` deprecation and unused legacy config-path warnings only.
 - Isolated dbt package compile: PASS, 17 models / 1 operation / 59 data tests / 6 sources found; sale-account ADS compiled.
@@ -57,3 +63,4 @@ git diff --check
 - `dts-stack` is not used to store these dbt model files.
 - Live L2 endpoint/sign-off SQL wiring remains IN_PROGRESS.
 - Local runtime direct application MySQL proof remains `DISABLED` until `copilot.finance.application-mysql-oracle.*` JDBC settings point to a reachable application MySQL and copilot ADS database.
+- No secrets are stored in the dbt package or Sprint-33 proof scripts; runtime credentials must be supplied by environment variables.
