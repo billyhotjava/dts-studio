@@ -16,6 +16,7 @@ PROOF_PG_DATABASE="${COPILOT_FINANCE_PROOF_PG_DATABASE:-biadmin}"
 PROOF_PG_USER="${COPILOT_FINANCE_PROOF_PG_USER:-biadmin}"
 CASE_IDS_RAW="${COPILOT_FINANCE_PROOF_CASE_IDS:-${COPILOT_FINANCE_PROOF_CASE_ID:-voucher-year-2026-count}}"
 ALL_CASE_IDS="month-settlement-discounted-receivable sale-account-receivable voucher-year-2026-count"
+PG_FIELD_SEPARATOR=$'\037'
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -70,7 +71,7 @@ pg_rows() {
     -U "$PROOF_PG_USER" \
     -d "$PROOF_PG_DATABASE" \
     -At \
-    -F $'\t' \
+    -F "$PG_FIELD_SEPARATOR" \
     -v ON_ERROR_STOP=1 \
     -c "$1"
 }
@@ -175,8 +176,8 @@ SEED_SQL="/tmp/codex-f2-application-mysql-proof-seed.sql"
   echo "USE \`$MYSQL_DATABASE\`;"
   if [ -n "$MONTH_ROWS" ]; then
     echo "CREATE TABLE a_month_accounting (id BIGINT PRIMARY KEY AUTO_INCREMENT, project_id VARCHAR(64) NOT NULL, settlement_year INT, settlement_month INT, year_and_month VARCHAR(16), status INT NOT NULL, folding_after_total_amount DECIMAL(18,4) NOT NULL);"
-    while IFS=$'\t' read -r project_id account_period amount; do
-      if [ -z "$project_id" ] || [ -z "$account_period" ] || [ -z "$amount" ]; then
+    while IFS="$PG_FIELD_SEPARATOR" read -r project_id account_period amount; do
+      if [ -z "$account_period" ] || [ -z "$amount" ]; then
         continue
       fi
       year="$(account_year "$account_period")"
@@ -189,8 +190,8 @@ SEED_SQL="/tmp/codex-f2-application-mysql-proof-seed.sql"
     echo "CREATE TABLE t_flower_biz_info (id BIGINT PRIMARY KEY, project_id VARCHAR(64) NOT NULL, code VARCHAR(64) NOT NULL, biz_type INT NOT NULL);"
     echo "CREATE TABLE a_sale_account (id BIGINT PRIMARY KEY AUTO_INCREMENT, biz_id BIGINT NOT NULL, receivable_amount DECIMAL(18,4) NOT NULL);"
     biz_id=1
-    while IFS=$'\t' read -r project_id account_period amount; do
-      if [ -z "$project_id" ] || [ -z "$account_period" ] || [ -z "$amount" ]; then
+    while IFS="$PG_FIELD_SEPARATOR" read -r project_id account_period amount; do
+      if [ -z "$account_period" ] || [ -z "$amount" ]; then
         continue
       fi
       year="$(account_year "$account_period")"
@@ -203,15 +204,16 @@ SEED_SQL="/tmp/codex-f2-application-mysql-proof-seed.sql"
     done <<< "$SALE_ROWS"
   fi
   if [ -n "$VOUCHER_ROWS" ]; then
-    echo "CREATE TABLE f_voucher (id BIGINT PRIMARY KEY, account_priod VARCHAR(16) NOT NULL);"
+    echo "CREATE TABLE f_voucher (id BIGINT PRIMARY KEY, account_priod VARCHAR(16) NOT NULL, code VARCHAR(64));"
     echo "CREATE TABLE f_voucher_item (id BIGINT PRIMARY KEY AUTO_INCREMENT, voucher_id BIGINT NOT NULL, status INT NOT NULL);"
     voucher_id=1
-    while IFS=$'\t' read -r account_period voucher_count; do
+    while IFS="$PG_FIELD_SEPARATOR" read -r account_period voucher_count; do
       if [ -z "$account_period" ] || [ -z "$voucher_count" ]; then
         continue
       fi
       for _ in $(seq 1 "$voucher_count"); do
-        echo "INSERT INTO f_voucher (id, account_priod) VALUES ($voucher_id, $(sql_string "$account_period"));"
+        voucher_code="V$(printf '%08d' "$voucher_id")"
+        echo "INSERT INTO f_voucher (id, account_priod, code) VALUES ($voucher_id, $(sql_string "$account_period"), $(sql_string "$voucher_code"));"
         echo "INSERT INTO f_voucher_item (voucher_id, status) VALUES ($voucher_id, 1);"
         voucher_id=$((voucher_id + 1))
       done
@@ -242,7 +244,7 @@ fi
 if [ -n "$VOUCHER_ROWS" ]; then
   TOTAL_VOUCHERS="$(docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "$MYSQL_CONTAINER" mysql \
     -h127.0.0.1 -P3306 -uroot -N -B "$MYSQL_DATABASE" \
-    -e "SELECT COUNT(DISTINCT v.id) FROM f_voucher v JOIN f_voucher_item i ON i.voucher_id = v.id WHERE v.account_priod LIKE '2026-%' AND COALESCE(i.status, 0) > 0;")"
+    -e "SELECT COUNT(DISTINCT v.id) FROM f_voucher v WHERE v.account_priod LIKE '2026-%' AND v.code IS NOT NULL;")"
   if [ "${TOTAL_VOUCHERS:-0}" -le 0 ]; then
     echo "temporary MySQL voucher seed is empty" >&2
     exit 5

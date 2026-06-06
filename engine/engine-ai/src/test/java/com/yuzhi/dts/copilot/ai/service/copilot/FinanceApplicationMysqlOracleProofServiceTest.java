@@ -42,6 +42,10 @@ class FinanceApplicationMysqlOracleProofServiceTest {
         assertThat(settlement.applicationMysqlQuery().nativeSql())
                 .contains("FROM a_month_accounting")
                 .doesNotContain("public.ods_", "mysql.rs_cloud_flower", "jdbc:mysql", "password");
+        assertThat(settlement.applicationMysqlQuery().nativeSql())
+                .contains("m.settlement_year = 2026")
+                .contains("CAST(SUBSTRING(m.year_and_month, 1, 4) AS UNSIGNED) = 2026")
+                .doesNotContain("END LIKE '2026-%'");
         assertThat(settlement.copilotQuery().nativeSql())
                 .contains("public.xycyl_ads_finance_month_settlement")
                 .doesNotContain("mysql.rs_cloud_flower");
