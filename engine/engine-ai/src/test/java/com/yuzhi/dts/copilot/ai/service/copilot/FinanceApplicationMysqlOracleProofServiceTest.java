@@ -62,7 +62,13 @@ class FinanceApplicationMysqlOracleProofServiceTest {
         assertThat(voucher.applicationMysqlQuery().kind()).isEqualTo("application-mysql-sql");
         assertThat(voucher.applicationMysqlQuery().database()).isEqualTo("rs_cloud_flower");
         assertThat(voucher.applicationMysqlQuery().nativeSql())
-                .contains("FROM f_voucher", "JOIN f_voucher_item")
+                .contains("FROM f_voucher")
+                .contains("v.account_priod REGEXP '^[0-9]{6}$'")
+                .contains("CONCAT(SUBSTRING(v.account_priod, 1, 4), '-', SUBSTRING(v.account_priod, 5, 2))")
+                .contains("v.code IS NOT NULL")
+                .contains("LIKE '2026-%'")
+                .doesNotContain("v.account_priod LIKE '2026-%'")
+                .doesNotContain("JOIN f_voucher_item")
                 .doesNotContain("public.ods_", "mysql.rs_cloud_flower", "jdbc:mysql", "password");
         assertThat(voucher.copilotQuery().nativeSql())
                 .contains("public.xycyl_ads_finance_voucher_monthly")

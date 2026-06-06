@@ -9,6 +9,11 @@ CASE_ID="${COPILOT_FINANCE_PROOF_CASE_ID:-voucher-year-2026-count}"
 COPILOT_DB_CONTAINER="${COPILOT_FINANCE_PROOF_COPILOT_DB_CONTAINER:-dts-copilot-postgres}"
 COPILOT_DB_USER="${COPILOT_FINANCE_PROOF_COPILOT_DB_USER:-copilot}"
 COPILOT_DB_NAME="${COPILOT_FINANCE_PROOF_COPILOT_DB_NAME:-copilot}"
+PLATFORM_DB_CONTAINER="${COPILOT_FINANCE_PROOF_PLATFORM_DB_CONTAINER:-dts-stack-dts-pg-1}"
+PLATFORM_DB_USER="${COPILOT_FINANCE_PROOF_PLATFORM_DB_USER:-postgres}"
+PLATFORM_DB_NAME="${COPILOT_FINANCE_PROOF_PLATFORM_DB_NAME:-dts_platform}"
+PLATFORM_INGESTION_TASK="${COPILOT_FINANCE_PROOF_PLATFORM_INGESTION_TASK:-ptr_mysql_flow}"
+AIRFLOW_CONTAINER="${COPILOT_FINANCE_PROOF_AIRFLOW_CONTAINER:-dts-airflow-scheduler}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -44,6 +49,68 @@ psql_copilot() {
     -c "$1"
 }
 
+psql_platform() {
+  docker exec "$PLATFORM_DB_CONTAINER" psql \
+    -U "$PLATFORM_DB_USER" \
+    -d "$PLATFORM_DB_NAME" \
+    -At \
+    -F $'\t' \
+    -v ON_ERROR_STOP=1 \
+    -c "$1"
+}
+
+airflow_variable() {
+  docker exec "$AIRFLOW_CONTAINER" airflow variables get "$1" 2>/dev/null || true
+}
+
+resolve_platform_source_if_needed() {
+  if [ -n "${APP_PASSWORD:-}" ]; then
+    return 0
+  fi
+
+  local platform_row
+  platform_row="$(psql_platform "
+SELECT t.id, ds.jdbc_url, COALESCE(ds.username, '')
+FROM public.ingestion_task t
+JOIN public.infra_data_source ds ON ds.id = t.source_data_source_id
+WHERE t.name = $(sql_literal "$PLATFORM_INGESTION_TASK")
+   OR ds.name = $(sql_literal "$APP_DATA_SOURCE")
+   OR ds.id::text = $(sql_literal "$APP_DATA_SOURCE")
+ORDER BY CASE
+  WHEN t.name = $(sql_literal "$PLATFORM_INGESTION_TASK") THEN 0
+  WHEN ds.name = $(sql_literal "$APP_DATA_SOURCE") THEN 1
+  ELSE 2
+END
+LIMIT 1;
+" || true)"
+  if [ -z "$platform_row" ]; then
+    return 0
+  fi
+
+  local platform_task_id platform_jdbc_url platform_username
+  IFS=$'\t' read -r platform_task_id platform_jdbc_url platform_username <<< "$platform_row"
+  if [ -z "$platform_jdbc_url" ]; then
+    return 0
+  fi
+
+  local platform_password
+  platform_password="$(airflow_variable "DTS_ADDAX_READER_PASSWORD_TASK_${platform_task_id}")"
+  if [ -z "$platform_password" ]; then
+    platform_password="$(airflow_variable "DTS_PTR_MYSQL_PASSWORD")"
+  fi
+  if [ -z "$platform_password" ]; then
+    platform_password="$(airflow_variable "DTS_ADDAX_READER_PASSWORD")"
+  fi
+  if [ -z "$platform_password" ]; then
+    return 0
+  fi
+
+  APP_JDBC_URL="$platform_jdbc_url"
+  APP_USERNAME="$platform_username"
+  APP_PASSWORD="$platform_password"
+  APP_DATA_SOURCE_RESOLUTION="dts_platform:${PLATFORM_INGESTION_TASK}"
+}
+
 restore_runtime() {
   cd "$REPO_ROOT"
   docker compose up -d copilot-ai >/dev/null 2>&1 || true
@@ -64,17 +131,21 @@ WHERE db_type = 'mysql'
 ORDER BY CASE WHEN id::text = $(sql_literal "$APP_DATA_SOURCE") THEN 0 ELSE 1 END
 LIMIT 1;
 ")"
-if [ -z "$DATA_SOURCE_ROW" ]; then
-  echo "active MySQL data source not found in copilot_ai.data_source: ${APP_DATA_SOURCE}" >&2
-  exit 3
+APP_DATA_SOURCE_RESOLUTION="copilot_ai.data_source:${APP_DATA_SOURCE}"
+if [ -n "$DATA_SOURCE_ROW" ]; then
+  IFS=$'\t' read -r APP_JDBC_URL APP_USERNAME APP_PASSWORD <<< "$DATA_SOURCE_ROW"
+else
+  APP_JDBC_URL=""
+  APP_USERNAME=""
+  APP_PASSWORD=""
 fi
-IFS=$'\t' read -r APP_JDBC_URL APP_USERNAME APP_PASSWORD <<< "$DATA_SOURCE_ROW"
+resolve_platform_source_if_needed
 if [ -z "$APP_JDBC_URL" ]; then
   echo "registered MySQL data source has empty jdbc_url: ${APP_DATA_SOURCE}" >&2
   exit 3
 fi
 if [ -z "$APP_PASSWORD" ]; then
-  echo "registered MySQL data source has empty password: ${APP_DATA_SOURCE}" >&2
+  echo "registered MySQL data source has empty password and platform fallback is unavailable: ${APP_DATA_SOURCE}" >&2
   exit 3
 fi
 
@@ -106,4 +177,5 @@ REQUIRE_LIVE_APPLICATION_MYSQL_PROOF=true \
 bash worklog/v1.0.0/sprint-33-202607/it/test_f2_application_mysql_oracle_runtime_http.sh
 
 echo "registered_app_datasource=${APP_DATA_SOURCE}"
+echo "registered_app_datasource_resolution=${APP_DATA_SOURCE_RESOLUTION}"
 echo "proved_case_id=${CASE_ID}"

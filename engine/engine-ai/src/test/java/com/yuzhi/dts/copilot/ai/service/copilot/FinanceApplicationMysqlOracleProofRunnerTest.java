@@ -74,7 +74,9 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
         assertThat(copilotExecutor.calls()).hasSize(1);
         assertThat(copilotExecutor.calls().getFirst()).contains("public.xycyl_ads_finance_voucher_monthly");
         assertThat(mysqlExecutor.calls()).hasSize(1);
-        assertThat(mysqlExecutor.calls().getFirst()).contains("FROM f_voucher", "JOIN f_voucher_item");
+        assertThat(mysqlExecutor.calls().getFirst())
+                .contains("FROM f_voucher", "v.code IS NOT NULL")
+                .doesNotContain("JOIN f_voucher_item");
     }
 
     @Test

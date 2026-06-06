@@ -57,7 +57,7 @@
       "applicationMysqlQuery": {
         "kind": "application-mysql-sql",
         "database": "rs_cloud_flower",
-        "nativeSql": "SELECT v.account_priod AS accountPeriod, 'voucher-ledger' AS chain, 'voucher-count' AS metricId, COUNT(DISTINCT v.id) AS amount FROM f_voucher v JOIN f_voucher_item i ON i.voucher_id = v.id WHERE v.account_priod LIKE '2026-%' AND COALESCE(i.status, 0) > 0 GROUP BY v.account_priod ORDER BY v.account_priod"
+        "nativeSql": "SELECT CASE WHEN v.account_priod REGEXP '^[0-9]{4}-[0-9]{2}$' THEN v.account_priod WHEN v.account_priod REGEXP '^[0-9]{6}$' THEN CONCAT(SUBSTRING(v.account_priod, 1, 4), '-', SUBSTRING(v.account_priod, 5, 2)) ELSE v.account_priod END AS accountPeriod, 'voucher-ledger' AS chain, 'voucher-count' AS metricId, COUNT(DISTINCT v.id) AS amount FROM f_voucher v WHERE CASE WHEN v.account_priod REGEXP '^[0-9]{4}-[0-9]{2}$' THEN v.account_priod WHEN v.account_priod REGEXP '^[0-9]{6}$' THEN CONCAT(SUBSTRING(v.account_priod, 1, 4), '-', SUBSTRING(v.account_priod, 5, 2)) ELSE v.account_priod END LIKE '2026-%' AND v.code IS NOT NULL GROUP BY CASE WHEN v.account_priod REGEXP '^[0-9]{4}-[0-9]{2}$' THEN v.account_priod WHEN v.account_priod REGEXP '^[0-9]{6}$' THEN CONCAT(SUBSTRING(v.account_priod, 1, 4), '-', SUBSTRING(v.account_priod, 5, 2)) ELSE v.account_priod END ORDER BY accountPeriod"
       },
       "notes": "F2/F4 proof case: NL2SQL ADS voucher count must tie out to direct application MySQL voucher header count by account period. SQL intentionally uses application table names, not ODS or Trino catalog names."
     }
