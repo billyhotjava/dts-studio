@@ -36,4 +36,5 @@
     <include file="config/liquibase/changelog/v1_0_0_030__finance_year_summary_query_template.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_031__finance_year_summary_query_template_runtime_fix.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_032__finance_year_summary_query_template_dataset_fix.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_0_0_033__finance_ads_query_templates.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

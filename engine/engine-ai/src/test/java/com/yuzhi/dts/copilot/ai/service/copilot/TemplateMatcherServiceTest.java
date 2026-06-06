@@ -270,7 +270,7 @@ class TemplateMatcherServiceTest {
     }
 
     @Test
-    @DisplayName("财务域: 年度财务数据统计命中可执行 MySQL 财务源表模板")
+    @DisplayName("财务域: 年度财务数据统计命中 dbt ADS 财务模板")
     void matchFinanceDataOverviewByYear() {
         TemplateMatchResult result = matcherService.match("2026年财务数据统计下");
 
@@ -278,23 +278,35 @@ class TemplateMatcherServiceTest {
         assertThat(result.template().getTemplateCode()).isEqualTo("TPL-56");
         assertThat(result.extractedParams()).containsEntry("year", "2026");
         assertThat(result.template().getDomain()).isEqualTo("finance");
-        assertThat(result.template().getTargetView()).isEqualTo("mysql.rs_cloud_flower.a_month_accounting");
+        assertThat(result.template().getTargetView()).isEqualTo("public.xycyl_ads_finance_month_settlement");
         assertThat(result.resolvedSql())
-                .contains("WITH months AS")
-                .contains("FROM (VALUES")
-                .contains("mysql.rs_cloud_flower.a_month_accounting")
-                .contains("mysql.rs_cloud_flower.a_collection_record")
-                .contains("m.settlement_year = 2026")
-                .contains("TIMESTAMP '2026-01-01 00:00:00'")
-                .contains("LEFT JOIN settlement")
-                .contains("LEFT JOIN collection")
-                .doesNotContain("::numeric")
-                .doesNotContain("to_char")
-                .doesNotContain("UNNEST")
-                .doesNotContain("FULL OUTER JOIN")
-                .doesNotContain("public.xycyl_ads_finance_month_settlement")
-                .doesNotContain("public.xycyl_ads_finance_collection")
-                .doesNotContain("public.xycyl_ads_finance_summary");
+                .contains("public.xycyl_ads_finance_month_settlement")
+                .contains("public.xycyl_ads_finance_collection")
+                .contains("s.\"业务月份\" LIKE CAST(2026 AS VARCHAR) || '-%'")
+                .contains("\"应收折前\"")
+                .contains("\"收款金额\"")
+                .doesNotContain("mysql.rs_cloud_flower.a_month_accounting")
+                .doesNotContain("mysql.rs_cloud_flower.a_collection_record");
+    }
+
+    @Test
+    @DisplayName("财务域: 年度凭证数据统计命中 dbt ADS 凭证模板")
+    void matchFinanceVoucherOverviewByYear() {
+        TemplateMatchResult result = matcherService.match("2026年凭证的数据统计下");
+
+        assertThat(result.matched()).isTrue();
+        assertThat(result.template().getTemplateCode()).isEqualTo("TPL-57");
+        assertThat(result.extractedParams()).containsEntry("year", "2026");
+        assertThat(result.template().getDomain()).isEqualTo("finance");
+        assertThat(result.template().getTargetView()).isEqualTo("public.xycyl_ads_finance_voucher_monthly");
+        assertThat(result.resolvedSql())
+                .contains("public.xycyl_ads_finance_voucher_monthly")
+                .contains("v.\"会计月份\" LIKE CAST(2026 AS VARCHAR) || '-%'")
+                .contains("\"凭证数\"")
+                .contains("\"分录数\"")
+                .contains("\"借贷差额\"")
+                .doesNotContain("mysql.rs_cloud_flower.f_voucher")
+                .doesNotContain("mysql.rs_cloud_flower.f_voucher_item");
     }
 
     @Test
@@ -623,13 +635,21 @@ class TemplateMatcherServiceTest {
                 "{\"year\":{\"type\":\"integer\",\"required\":true}}",
                 "public.xycyl_ads_flowerbiz_sale_summary", "年度销售情况汇总", 35));
 
-        // TPL-56: 年度财务数据统计（Trino 联邦 MySQL 弱路径）
+        // TPL-56: 年度财务数据统计（dbt finance ADS）
         templates.add(buildTemplate(56L, "TPL-56", "finance", null,
                 "[\".*(20\\\\d{2}|\\\\d{4}年|今年|去年).*(财务|收款|回款|应收|实收).*(数据|情况|统计|汇总|总览).*\",\".*(财务|收款|回款|应收|实收).*(20\\\\d{2}|\\\\d{4}年|今年|去年).*(数据|情况|统计|汇总|总览).*\"]",
                 "[\"2026年财务数据统计下\"]",
-                "WITH months AS (SELECT month_key FROM (VALUES (':year-01'), (':year-02'), (':year-03'), (':year-04'), (':year-05'), (':year-06'), (':year-07'), (':year-08'), (':year-09'), (':year-10'), (':year-11'), (':year-12')) AS v(month_key)), settlement AS (SELECT CONCAT(CAST(m.settlement_year AS VARCHAR), '-', LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0')) AS month_key, COUNT(DISTINCT m.project_id) AS settlement_project_count, ROUND(SUM(COALESCE(m.receivable_total_amount, DECIMAL '0.00')), 2) AS receivable_before_discount, ROUND(SUM(COALESCE(m.folding_after_total_amount, DECIMAL '0.00')), 2) AS discounted_receivable, ROUND(SUM(COALESCE(m.total_amount, DECIMAL '0.00')), 2) AS paid_amount, ROUND(SUM(COALESCE(m.folding_after_total_amount, DECIMAL '0.00') - COALESCE(m.total_amount, DECIMAL '0.00')), 2) AS unpaid_amount, ROUND(CASE WHEN SUM(COALESCE(m.folding_after_total_amount, DECIMAL '0.00')) = DECIMAL '0.00' THEN DECIMAL '0.0000' ELSE SUM(COALESCE(m.total_amount, DECIMAL '0.00')) / SUM(COALESCE(m.folding_after_total_amount, DECIMAL '0.00')) END, 4) AS payment_progress FROM mysql.rs_cloud_flower.a_month_accounting m WHERE m.settlement_year = :year GROUP BY m.settlement_year, m.settlement_month), collection AS (SELECT DATE_FORMAT(c.pay_time, '%Y-%m') AS month_key, ROUND(SUM(COALESCE(c.pay_amoney, DECIMAL '0.00')), 2) AS collection_amount, COUNT(*) AS collection_record_count, COUNT(DISTINCT c.project_id) AS collection_project_count FROM mysql.rs_cloud_flower.a_collection_record c WHERE c.pay_time >= TIMESTAMP ':year-01-01 00:00:00' AND c.pay_time < TIMESTAMP ':year-01-01 00:00:00' + INTERVAL '1' YEAR GROUP BY DATE_FORMAT(c.pay_time, '%Y-%m')) SELECT months.month_key AS \"财务月份\", COALESCE(s.settlement_project_count, 0) AS \"结算项目数\", COALESCE(s.receivable_before_discount, DECIMAL '0.00') AS \"应收折前\", COALESCE(s.discounted_receivable, DECIMAL '0.00') AS \"折后实收\", COALESCE(s.paid_amount, DECIMAL '0.00') AS \"已回款\", COALESCE(s.unpaid_amount, DECIMAL '0.00') AS \"未回款\", COALESCE(s.payment_progress, DECIMAL '0.0000') AS \"回款进度\", COALESCE(c.collection_amount, DECIMAL '0.00') AS \"收款金额\", COALESCE(c.collection_record_count, 0) AS \"收款单数\", COALESCE(c.collection_project_count, 0) AS \"收款项目数\" FROM months LEFT JOIN settlement s ON months.month_key = s.month_key LEFT JOIN collection c ON months.month_key = c.month_key ORDER BY months.month_key",
+                "WITH settlement AS (SELECT s.\"业务月份\" AS finance_month, COUNT(DISTINCT s.\"项目\") AS settlement_project_count, SUM(s.\"结算单数\") AS settlement_record_count, ROUND(SUM(s.\"应收折前\"), 2) AS receivable_before_discount, ROUND(SUM(s.\"折后实收\"), 2) AS discounted_receivable, ROUND(SUM(s.\"已回款\"), 2) AS paid_amount, ROUND(SUM(s.\"未回款\"), 2) AS unpaid_amount FROM public.xycyl_ads_finance_month_settlement s WHERE s.\"业务月份\" LIKE CAST(:year AS VARCHAR) || '-%' GROUP BY s.\"业务月份\"), collection AS (SELECT c.\"收款月份\" AS finance_month, ROUND(SUM(c.\"收款金额\"), 2) AS collection_amount, SUM(c.\"收款单数\") AS collection_record_count, COUNT(DISTINCT c.\"项目\") AS collection_project_count FROM public.xycyl_ads_finance_collection c WHERE c.\"收款月份\" LIKE CAST(:year AS VARCHAR) || '-%' GROUP BY c.\"收款月份\") SELECT COALESCE(s.finance_month, c.finance_month) AS \"财务月份\", COALESCE(s.settlement_project_count, 0) AS \"结算项目数\", COALESCE(s.receivable_before_discount, 0) AS \"应收折前\", COALESCE(c.collection_amount, 0) AS \"收款金额\" FROM settlement s FULL OUTER JOIN collection c ON s.finance_month = c.finance_month ORDER BY \"财务月份\"",
                 "{\"year\":{\"type\":\"integer\",\"required\":true}}",
-                "mysql.rs_cloud_flower.a_month_accounting", "年度财务数据统计", 40));
+                "public.xycyl_ads_finance_month_settlement", "年度财务数据统计", 42));
+
+        // TPL-57: 年度凭证数据统计（dbt finance voucher ADS）
+        templates.add(buildTemplate(57L, "TPL-57", "finance", null,
+                "[\".*(20\\\\d{2}|\\\\d{4}年|今年|去年).*(凭证|会计凭证).*(数据|情况|统计|汇总|总览|数量|金额).*\",\".*(凭证|会计凭证).*(20\\\\d{2}|\\\\d{4}年|今年|去年).*(数据|情况|统计|汇总|总览|数量|金额).*\"]",
+                "[\"2026年凭证的数据统计下\"]",
+                "SELECT v.\"会计月份\", v.\"业务类型\", v.\"凭证状态\", SUM(v.\"凭证数\") AS \"凭证数\", SUM(v.\"分录数\") AS \"分录数\", ROUND(SUM(v.\"借方金额\"), 2) AS \"借方金额\", ROUND(SUM(v.\"贷方金额\"), 2) AS \"贷方金额\", ROUND(SUM(v.\"借贷差额\"), 2) AS \"借贷差额\" FROM public.xycyl_ads_finance_voucher_monthly v WHERE v.\"会计月份\" LIKE CAST(:year AS VARCHAR) || '-%' GROUP BY v.\"会计月份\", v.\"业务类型\", v.\"凭证状态\" ORDER BY v.\"会计月份\", v.\"业务类型\", v.\"凭证状态\"",
+                "{\"year\":{\"type\":\"integer\",\"required\":true}}",
+                "public.xycyl_ads_finance_voucher_monthly", "年度凭证数据统计", 45));
 
         // TPL-53: 库存现量（Trino 联邦 MySQL 弱路径）
         templates.add(buildTemplate(53L, "TPL-53", "warehouse", null,
