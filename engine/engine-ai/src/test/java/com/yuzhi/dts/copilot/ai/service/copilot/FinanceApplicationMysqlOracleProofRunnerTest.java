@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class FinanceApplicationMysqlOracleProofRunnerTest {
 
@@ -28,6 +29,25 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
         assertThat(result.status()).isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.DISABLED);
         assertThat(result.message()).contains("not configured");
         assertThat(result.reports()).isEmpty();
+    }
+
+    @Test
+    void shouldStartAsSpringBeanWithOptionalRuntimeExecutors() {
+        new ApplicationContextRunner()
+                .withBean(FinanceApplicationMysqlOracleRegistry.class, this::registry)
+                .withBean(
+                        FinanceApplicationMysqlOracleProofService.class,
+                        () -> new FinanceApplicationMysqlOracleProofService(
+                                new FinanceSummaryDualReconciliationService()))
+                .withBean(FinanceApplicationMysqlOracleProofRunner.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    FinanceApplicationMysqlOracleProofRunner runner =
+                            context.getBean(FinanceApplicationMysqlOracleProofRunner.class);
+
+                    assertThat(runner.prove("voucher-year-2026-count").status())
+                            .isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.DISABLED);
+                });
     }
 
     @Test

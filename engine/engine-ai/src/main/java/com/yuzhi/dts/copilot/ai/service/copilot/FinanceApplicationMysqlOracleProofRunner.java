@@ -2,6 +2,7 @@ package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -14,6 +15,7 @@ public class FinanceApplicationMysqlOracleProofRunner {
     private final FinanceApplicationMysqlOracleProofService.QueryExecutor copilotExecutor;
     private final FinanceApplicationMysqlOracleProofService.QueryExecutor applicationMysqlExecutor;
 
+    @Autowired
     public FinanceApplicationMysqlOracleProofRunner(
             FinanceApplicationMysqlOracleRegistry registry,
             FinanceApplicationMysqlOracleProofService proofService,
