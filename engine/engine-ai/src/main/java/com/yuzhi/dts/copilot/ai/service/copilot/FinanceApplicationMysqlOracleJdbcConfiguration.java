@@ -1,7 +1,5 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
-import javax.sql.DataSource;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,56 +15,48 @@ public class FinanceApplicationMysqlOracleJdbcConfiguration {
 
     private static final String PREFIX = "copilot.finance.application-mysql-oracle";
 
-    @Bean("financeApplicationMysqlOracleJdbcDataSource")
+    @Bean("financeApplicationMysqlOracleJdbcQueryExecutor")
     @ConditionalOnProperty(prefix = PREFIX, name = "enabled", havingValue = "true")
-    public DataSource financeApplicationMysqlOracleJdbcDataSource(
+    public FinanceApplicationMysqlOracleProofService.QueryExecutor financeApplicationMysqlOracleJdbcQueryExecutor(
             FinanceApplicationMysqlOracleJdbcProperties properties) {
         if (!StringUtils.hasText(properties.getJdbcUrl())) {
             throw new IllegalStateException(PREFIX + ".jdbc-url is required when application MySQL oracle is enabled");
         }
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setUrl(properties.getJdbcUrl());
-        if (StringUtils.hasText(properties.getDriverClassName())) {
-            dataSource.setDriverClassName(properties.getDriverClassName());
-        }
-        dataSource.setUsername(properties.getUsername());
-        dataSource.setPassword(properties.getPassword());
-        return dataSource;
-    }
-
-    @Bean("financeApplicationMysqlOracleJdbcQueryExecutor")
-    @ConditionalOnProperty(prefix = PREFIX, name = "enabled", havingValue = "true")
-    public FinanceApplicationMysqlOracleProofService.QueryExecutor financeApplicationMysqlOracleJdbcQueryExecutor(
-            @Qualifier("financeApplicationMysqlOracleJdbcDataSource") DataSource dataSource,
-            FinanceApplicationMysqlOracleJdbcProperties properties) {
         return new FinanceApplicationMysqlOracleJdbcQueryExecutor(
-                new JdbcTemplate(dataSource),
+                new JdbcTemplate(dataSource(
+                        properties.getJdbcUrl(),
+                        properties.getDriverClassName(),
+                        properties.getUsername(),
+                        properties.getPassword())),
                 properties.getDatabase());
-    }
-
-    @Bean("financeApplicationMysqlOracleCopilotJdbcDataSource")
-    @ConditionalOnExpression("'${copilot.finance.application-mysql-oracle.enabled:false}' == 'true' "
-            + "&& '${copilot.finance.application-mysql-oracle.copilot-jdbc-url:}' != ''")
-    public DataSource financeApplicationMysqlOracleCopilotJdbcDataSource(
-            FinanceApplicationMysqlOracleJdbcProperties properties) {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setUrl(properties.getCopilotJdbcUrl());
-        if (StringUtils.hasText(properties.getCopilotDriverClassName())) {
-            dataSource.setDriverClassName(properties.getCopilotDriverClassName());
-        }
-        dataSource.setUsername(properties.getCopilotUsername());
-        dataSource.setPassword(properties.getCopilotPassword());
-        return dataSource;
     }
 
     @Bean("financeApplicationMysqlOracleCopilotJdbcQueryExecutor")
     @ConditionalOnExpression("'${copilot.finance.application-mysql-oracle.enabled:false}' == 'true' "
             + "&& '${copilot.finance.application-mysql-oracle.copilot-jdbc-url:}' != ''")
     public FinanceApplicationMysqlOracleProofService.QueryExecutor financeApplicationMysqlOracleCopilotJdbcQueryExecutor(
-            @Qualifier("financeApplicationMysqlOracleCopilotJdbcDataSource") DataSource dataSource,
             FinanceApplicationMysqlOracleJdbcProperties properties) {
         return new FinanceApplicationMysqlOracleJdbcQueryExecutor(
-                new JdbcTemplate(dataSource),
+                new JdbcTemplate(dataSource(
+                        properties.getCopilotJdbcUrl(),
+                        properties.getCopilotDriverClassName(),
+                        properties.getCopilotUsername(),
+                        properties.getCopilotPassword())),
                 properties.getCopilotDatabase());
+    }
+
+    private DriverManagerDataSource dataSource(
+            String jdbcUrl,
+            String driverClassName,
+            String username,
+            String password) {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setUrl(jdbcUrl);
+        if (StringUtils.hasText(driverClassName)) {
+            dataSource.setDriverClassName(driverClassName);
+        }
+        dataSource.setUsername(username);
+        dataSource.setPassword(password);
+        return dataSource;
     }
 }
