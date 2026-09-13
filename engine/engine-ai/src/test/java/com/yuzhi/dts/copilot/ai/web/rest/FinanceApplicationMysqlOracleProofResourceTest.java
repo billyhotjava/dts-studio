@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.service.copilot.FinanceApplicationMysqlOracleProofRunner;
 import com.yuzhi.dts.copilot.ai.service.copilot.FinanceApplicationMysqlOracleProofService;
-import com.yuzhi.dts.copilot.ai.service.copilot.FinanceApplicationMysqlOracleRegistry;
-import com.yuzhi.dts.copilot.ai.service.copilot.FinanceOracleRegistry;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceApplicationMysqlAuthorityRegistry;
+import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAuthorityRegistry;
 import com.yuzhi.dts.copilot.ai.service.copilot.FinanceSummaryDualReconciliationService;
 import com.yuzhi.dts.copilot.ai.web.rest.dto.ApiResponse;
 import java.math.BigDecimal;
@@ -22,29 +22,31 @@ import org.springframework.web.bind.annotation.RequestMapping;
 class FinanceApplicationMysqlOracleProofResourceTest {
 
     @Test
-    void shouldExposeFinanceApplicationMysqlOracleProofEndpoints() throws Exception {
-        RequestMapping mapping = FinanceApplicationMysqlOracleProofResource.class.getAnnotation(RequestMapping.class);
+    void shouldExposeFinanceApplicationMysqlAuthorityProofEndpointsWithLegacyOracleAlias() throws Exception {
+        RequestMapping mapping = FinanceApplicationMysqlAuthorityProofResource.class.getAnnotation(RequestMapping.class);
         assertThat(mapping).isNotNull();
-        assertThat(mapping.value()).containsExactly("/api/ai/finance/application-mysql-oracle");
-        assertThat(FinanceApplicationMysqlOracleProofResource.class.getDeclaredMethod("cases")
+        assertThat(mapping.value()).containsExactly(
+                "/api/ai/finance/application-mysql-authority",
+                "/api/ai/finance/application-mysql-oracle");
+        assertThat(FinanceApplicationMysqlAuthorityProofResource.class.getDeclaredMethod("cases")
                 .getAnnotation(GetMapping.class).value()).containsExactly("/cases");
-        assertThat(FinanceApplicationMysqlOracleProofResource.class.getDeclaredMethod(
+        assertThat(FinanceApplicationMysqlAuthorityProofResource.class.getDeclaredMethod(
                         "prove",
-                        FinanceApplicationMysqlOracleProofResource.ProofRequest.class)
+                        FinanceApplicationMysqlAuthorityProofResource.ProofRequest.class)
                 .getAnnotation(PostMapping.class).value()).containsExactly("/prove");
     }
 
     @Test
     void shouldListProofCasesWithoutExecutingSql() {
-        FinanceApplicationMysqlOracleProofResource resource = resource(false);
+        FinanceApplicationMysqlAuthorityProofResource resource = resource(false);
 
-        ResponseEntity<ApiResponse<List<FinanceApplicationMysqlOracleProofResource.CaseSummary>>> response =
+        ResponseEntity<ApiResponse<List<FinanceApplicationMysqlAuthorityProofResource.CaseSummary>>> response =
                 resource.cases();
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().data())
-                .extracting(FinanceApplicationMysqlOracleProofResource.CaseSummary::id)
+                .extracting(FinanceApplicationMysqlAuthorityProofResource.CaseSummary::id)
                 .containsExactly(
                         "month-settlement-discounted-receivable",
                         "sale-account-receivable",
@@ -52,11 +54,27 @@ class FinanceApplicationMysqlOracleProofResourceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void shouldExposeAuthorityBindingIdInCaseSummariesWithLegacyOracleBindingAlias() {
+        FinanceApplicationMysqlAuthorityProofResource resource = resource(false);
+
+        ResponseEntity<ApiResponse<List<FinanceApplicationMysqlAuthorityProofResource.CaseSummary>>> response =
+                resource.cases();
+
+        assertThat(response.getBody()).isNotNull();
+        Map<String, Object> firstCase = new ObjectMapper()
+                .convertValue(response.getBody().data().getFirst(), Map.class);
+        assertThat(firstCase)
+                .containsEntry("authorityBindingId", "month-settlement")
+                .containsEntry("oracleBindingId", "month-settlement");
+    }
+
+    @Test
     void shouldReturnConflictWhenProofExecutorsAreNotConfigured() {
-        FinanceApplicationMysqlOracleProofResource resource = resource(false);
+        FinanceApplicationMysqlAuthorityProofResource resource = resource(false);
 
         ResponseEntity<ApiResponse<FinanceApplicationMysqlOracleProofRunner.RunResult>> response =
-                resource.prove(new FinanceApplicationMysqlOracleProofResource.ProofRequest("voucher-year-2026-count"));
+                resource.prove(new FinanceApplicationMysqlAuthorityProofResource.ProofRequest("voucher-year-2026-count"));
 
         assertThat(response.getStatusCode().value()).isEqualTo(409);
         assertThat(response.getBody()).isNotNull();
@@ -66,10 +84,10 @@ class FinanceApplicationMysqlOracleProofResourceTest {
 
     @Test
     void shouldReturnNotFoundForUnknownProofCase() {
-        FinanceApplicationMysqlOracleProofResource resource = resource(true);
+        FinanceApplicationMysqlAuthorityProofResource resource = resource(true);
 
         ResponseEntity<ApiResponse<FinanceApplicationMysqlOracleProofRunner.RunResult>> response =
-                resource.prove(new FinanceApplicationMysqlOracleProofResource.ProofRequest("missing-case"));
+                resource.prove(new FinanceApplicationMysqlAuthorityProofResource.ProofRequest("missing-case"));
 
         assertThat(response.getStatusCode().value()).isEqualTo(404);
         assertThat(response.getBody()).isNotNull();
@@ -79,10 +97,10 @@ class FinanceApplicationMysqlOracleProofResourceTest {
 
     @Test
     void shouldRunProofCaseWhenExecutorsAreConfigured() {
-        FinanceApplicationMysqlOracleProofResource resource = resource(true);
+        FinanceApplicationMysqlAuthorityProofResource resource = resource(true);
 
         ResponseEntity<ApiResponse<FinanceApplicationMysqlOracleProofRunner.RunResult>> response =
-                resource.prove(new FinanceApplicationMysqlOracleProofResource.ProofRequest("voucher-year-2026-count"));
+                resource.prove(new FinanceApplicationMysqlAuthorityProofResource.ProofRequest("voucher-year-2026-count"));
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
@@ -90,19 +108,19 @@ class FinanceApplicationMysqlOracleProofResourceTest {
                 .isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.PASSED);
     }
 
-    private FinanceApplicationMysqlOracleProofResource resource(boolean configured) {
+    private FinanceApplicationMysqlAuthorityProofResource resource(boolean configured) {
         ObjectMapper objectMapper = new ObjectMapper();
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
-        FinanceApplicationMysqlOracleRegistry registry =
-                new FinanceApplicationMysqlOracleRegistry(objectMapper, oracleRegistry);
+        FinanceApplicationMysqlAuthorityRegistry registry =
+                new FinanceApplicationMysqlAuthorityRegistry(objectMapper, oracleRegistry);
         registry.init();
         FinanceApplicationMysqlOracleProofService service =
                 new FinanceApplicationMysqlOracleProofService(new FinanceSummaryDualReconciliationService());
         FinanceApplicationMysqlOracleProofService.QueryExecutor executor = configured
                 ? (database, nativeSql) -> List.of(row())
                 : null;
-        return new FinanceApplicationMysqlOracleProofResource(
+        return new FinanceApplicationMysqlAuthorityProofResource(
                 registry,
                 new FinanceApplicationMysqlOracleProofRunner(registry, service, executor, executor));
     }

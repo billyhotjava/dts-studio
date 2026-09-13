@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -19,12 +20,12 @@ public class VoucherLedgerTieoutRegistry {
     private static final String REGISTRY_RESOURCE = "governance/voucher-ledger-tieout-mapping.v1.json";
 
     private final ObjectMapper objectMapper;
-    private final FinanceOracleRegistry financeOracleRegistry;
+    private final FinanceAuthorityRegistry financeAuthorityRegistry;
     private Map<String, TieoutMapping> mappings = Map.of();
 
-    public VoucherLedgerTieoutRegistry(ObjectMapper objectMapper, FinanceOracleRegistry financeOracleRegistry) {
+    public VoucherLedgerTieoutRegistry(ObjectMapper objectMapper, FinanceAuthorityRegistry financeAuthorityRegistry) {
         this.objectMapper = objectMapper;
-        this.financeOracleRegistry = financeOracleRegistry;
+        this.financeAuthorityRegistry = financeAuthorityRegistry;
     }
 
     @PostConstruct
@@ -58,23 +59,24 @@ public class VoucherLedgerTieoutRegistry {
     }
 
     private void assertAlignedWithOracleRegistry(TieoutMapping mapping) {
-        FinanceOracleRegistry.OracleBinding binding = financeOracleRegistry.binding(mapping.oracleBindingId())
+        FinanceAuthorityRegistry.AuthorityBinding binding = financeAuthorityRegistry.binding(mapping.authorityBindingId())
                 .orElseGet(() -> {
-                    financeOracleRegistry.init();
-                    return financeOracleRegistry.binding(mapping.oracleBindingId()).orElseThrow(
-                            () -> new IllegalStateException("Missing finance oracle binding: " + mapping.oracleBindingId()));
+                    financeAuthorityRegistry.init();
+                    return financeAuthorityRegistry.binding(mapping.authorityBindingId()).orElseThrow(
+                            () -> new IllegalStateException("Missing finance authority binding: "
+                                    + mapping.authorityBindingId()));
                 });
 
         if (!mapping.sourceTables().containsAll(binding.sourceTables())) {
-            throw new IllegalStateException("Voucher tie-out source tables are not aligned with oracle binding");
+            throw new IllegalStateException("Voucher tie-out source tables are not aligned with authority binding");
         }
         List<String> oracleEndpoints = binding.endpoints().stream()
-                .map(FinanceOracleRegistry.OracleEndpoint::signature)
+                .map(FinanceAuthorityRegistry.AuthorityEndpoint::signature)
                 .toList();
         if (!mapping.adminApiEndpoints().containsAll(oracleEndpoints)) {
-            throw new IllegalStateException("Voucher tie-out endpoints are not aligned with oracle binding");
+            throw new IllegalStateException("Voucher tie-out endpoints are not aligned with authority binding");
         }
-        FinanceOracleRegistry.Ledger oracleLedger = binding.ledger();
+        FinanceAuthorityRegistry.Ledger oracleLedger = binding.ledger();
         LedgerColumns columns = mapping.ledgerColumns();
         if (!columns.voucherTable().equals(oracleLedger.voucherTable())
                 || !columns.itemTable().equals(oracleLedger.itemTable())
@@ -82,7 +84,7 @@ public class VoucherLedgerTieoutRegistry {
                 || !columns.subjectColumn().equals(oracleLedger.subjectColumn())
                 || !columns.debitColumn().equals(oracleLedger.debitColumn())
                 || !columns.creditColumn().equals(oracleLedger.creditColumn())) {
-            throw new IllegalStateException("Voucher tie-out ledger columns are not aligned with oracle binding");
+            throw new IllegalStateException("Voucher tie-out ledger columns are not aligned with authority binding");
         }
     }
 
@@ -102,6 +104,7 @@ public class VoucherLedgerTieoutRegistry {
 
     public record TieoutMapping(
             String id,
+            @JsonAlias("authorityBindingId")
             String oracleBindingId,
             String description,
             List<String> sourceTables,
@@ -123,6 +126,10 @@ public class VoucherLedgerTieoutRegistry {
             tieoutKeys = copyOrEmpty(tieoutKeys);
             adminWebEvidence = copyOrEmpty(adminWebEvidence);
             notes = textOrEmpty(notes);
+        }
+
+        public String authorityBindingId() {
+            return oracleBindingId;
         }
     }
 

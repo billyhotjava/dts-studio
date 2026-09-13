@@ -23,7 +23,7 @@ public class FinanceDifferentialGridService {
 
         String contractFailure = firstContractMismatch(safeSpec, safeCopilotRows, "copilot");
         if (contractFailure.isEmpty()) {
-            contractFailure = firstContractMismatch(safeSpec, safeOracleRows, "oracle");
+            contractFailure = firstContractMismatch(safeSpec, safeOracleRows, "authority");
         }
         if (!contractFailure.isEmpty()) {
             return new GridReport(false, List.of(), contractFailure);
@@ -31,7 +31,7 @@ public class FinanceDifferentialGridService {
 
         String duplicateFailure = firstDuplicateFailure(safeSpec, safeCopilotRows, "copilot");
         if (duplicateFailure.isEmpty()) {
-            duplicateFailure = firstDuplicateFailure(safeSpec, safeOracleRows, "oracle");
+            duplicateFailure = firstDuplicateFailure(safeSpec, safeOracleRows, "authority");
         }
         if (!duplicateFailure.isEmpty()) {
             return new GridReport(false, List.of(), duplicateFailure);
@@ -75,7 +75,7 @@ public class FinanceDifferentialGridService {
         }
         if (oracleRow == null) {
             BigDecimal copilotAmount = copilotRow.amount();
-            return new GridDiff(key, "missing oracle cell", copilotAmount, ZERO_CENTS, copilotAmount);
+            return new GridDiff(key, "missing authority cell", copilotAmount, ZERO_CENTS, copilotAmount);
         }
         BigDecimal difference = cents(copilotRow.amount().subtract(oracleRow.amount())).abs();
         String status = difference.compareTo(ZERO_CENTS) == 0 ? "matched" : "amount mismatch";
@@ -143,7 +143,7 @@ public class FinanceDifferentialGridService {
                 + ", dimensions=" + diff.key().dimensionsText()
                 + ", status=" + diff.status()
                 + ", copilot=" + amountText(diff.copilotAmount())
-                + ", oracle=" + amountText(diff.oracleAmount())
+                + ", authority=" + amountText(diff.oracleAmount())
                 + ", difference=" + amountText(diff.difference());
     }
 

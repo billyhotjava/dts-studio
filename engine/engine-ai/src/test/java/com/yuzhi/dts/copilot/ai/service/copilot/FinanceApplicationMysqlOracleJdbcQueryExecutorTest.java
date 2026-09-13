@@ -50,10 +50,12 @@ class FinanceApplicationMysqlOracleJdbcQueryExecutorTest {
 
         assertThatThrownBy(() -> executor.query("warehouse", "SELECT 1 AS amount"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Unexpected application MySQL oracle database");
+                .hasMessageContaining("Unexpected application MySQL authority database")
+                .hasMessageNotContaining("oracle database");
         assertThatThrownBy(() -> executor.query("rs_cloud_flower", "UPDATE f_voucher SET id = 1"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("read-only");
+                .hasMessageContaining("Application MySQL authority SQL must be read-only")
+                .hasMessageNotContaining("oracle SQL");
     }
 
     private static JdbcTemplate mysqlModeJdbcTemplate() {

@@ -26,7 +26,7 @@ public class FinanceSummaryDualReconciliationService {
 
         String contractFailure = firstContractMismatch(safeSpec, safeCopilotRows, "copilot");
         if (contractFailure.isEmpty()) {
-            contractFailure = firstContractMismatch(safeSpec, safeOracleRows, "oracle");
+            contractFailure = firstContractMismatch(safeSpec, safeOracleRows, "authority");
         }
         if (!contractFailure.isEmpty()) {
             return new SummaryReconciliationReport(false, List.of(), contractFailure);
@@ -34,7 +34,7 @@ public class FinanceSummaryDualReconciliationService {
 
         String duplicateFailure = firstDuplicateFailure(safeSpec, safeCopilotRows, "copilot");
         if (duplicateFailure.isEmpty()) {
-            duplicateFailure = firstDuplicateFailure(safeSpec, safeOracleRows, "oracle");
+            duplicateFailure = firstDuplicateFailure(safeSpec, safeOracleRows, "authority");
         }
         if (!duplicateFailure.isEmpty()) {
             return new SummaryReconciliationReport(false, List.of(), duplicateFailure);
@@ -126,7 +126,7 @@ public class FinanceSummaryDualReconciliationService {
                 + ", dimensions=" + diff.key().dimensionsText()
                 + ", status=" + diff.status()
                 + ", copilot=" + amountText(diff.copilotAmount())
-                + ", oracle=" + amountText(diff.oracleAmount())
+                + ", authority=" + amountText(diff.oracleAmount())
                 + ", difference=" + amountText(diff.difference());
     }
 
@@ -207,7 +207,7 @@ public class FinanceSummaryDualReconciliationService {
         }
 
         static SummaryDiff missingOracle(SummaryKey key, BigDecimal copilotAmount) {
-            return new SummaryDiff(key, "missing oracle cell", copilotAmount, ZERO_CENTS, cents(copilotAmount));
+            return new SummaryDiff(key, "missing authority cell", copilotAmount, ZERO_CENTS, cents(copilotAmount));
         }
     }
 

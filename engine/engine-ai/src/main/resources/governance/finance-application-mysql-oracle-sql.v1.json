@@ -1,9 +1,9 @@
 {
-  "version": "2026-07-sprint33-application-mysql-oracle-sql-v1",
+  "version": "2026-07-sprint33-application-mysql-authority-sql-v1",
   "cases": [
     {
       "id": "month-settlement-discounted-receivable",
-      "oracleBindingId": "month-settlement",
+      "authorityBindingId": "month-settlement",
       "chain": "rent-settlement",
       "metricId": "discounted-receivable",
       "metricName": "月对账折后实收汇总",
@@ -23,7 +23,7 @@
     },
     {
       "id": "sale-account-receivable",
-      "oracleBindingId": "sale-account",
+      "authorityBindingId": "sale-account",
       "chain": "sale-gift-bad-debt",
       "metricId": "sale-receivable",
       "metricName": "售账应收汇总",
@@ -43,7 +43,7 @@
     },
     {
       "id": "voucher-year-2026-count",
-      "oracleBindingId": "voucher-ledger",
+      "authorityBindingId": "voucher-ledger",
       "chain": "voucher-ledger",
       "metricId": "voucher-count",
       "metricName": "2026 会计凭证月度凭证数",

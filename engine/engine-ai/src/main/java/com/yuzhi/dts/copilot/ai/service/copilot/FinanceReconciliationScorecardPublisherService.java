@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,7 +45,7 @@ public class FinanceReconciliationScorecardPublisherService {
                     safeScorecardId,
                     INVALID_REQUEST,
                     List.of(),
-                    "Finance reconciliation scorecard publish failed: oracleBindingId and scorecardId are required");
+                    "Finance reconciliation scorecard publish failed: authorityBindingId and scorecardId are required");
         }
 
         return registry.policy(safeScorecardId)
@@ -75,6 +76,16 @@ public class FinanceReconciliationScorecardPublisherService {
                             + String.join(",", missingCategories));
         }
 
+        List<String> pendingLiveCategories = pendingLiveEvidenceCategories(policy, currentRuns);
+        if (!pendingLiveCategories.isEmpty()) {
+            return PublishResult.notPublished(
+                    oracleBindingId,
+                    policy.id(),
+                    PENDING_LIVE_EVIDENCE,
+                    pendingLiveCategories,
+                    pendingLiveEvidenceMessage(policy, currentRuns, pendingLiveCategories));
+        }
+
         FinanceReconciliationScorecardService.ScorecardReport report =
                 scorecardService.score(policy.scorecardSpec(), currentRuns, baselineFailures);
         snapshotService.publish(oracleBindingId, policy.id(), report);
@@ -100,6 +111,47 @@ public class FinanceReconciliationScorecardPublisherService {
                 .map(FinanceReconciliationScorecardRegistry.CategoryPolicy::id)
                 .filter(category -> !seenCategories.contains(category))
                 .toList();
+    }
+
+    private static List<String> pendingLiveEvidenceCategories(
+            FinanceReconciliationScorecardRegistry.ScorecardPolicy policy,
+            List<FinanceReconciliationScorecardService.CheckRun> currentRuns) {
+        Set<String> requiredCategories = new LinkedHashSet<>();
+        for (FinanceReconciliationScorecardRegistry.CategoryPolicy category : policy.categories()) {
+            if (category.required()) {
+                requiredCategories.add(category.id());
+            }
+        }
+        return currentRuns.stream()
+                .filter(run -> requiredCategories.contains(run.category()))
+                .filter(FinanceReconciliationScorecardPublisherService::hasPendingLiveEvidence)
+                .map(FinanceReconciliationScorecardService.CheckRun::category)
+                .distinct()
+                .toList();
+    }
+
+    private static boolean hasPendingLiveEvidence(FinanceReconciliationScorecardService.CheckRun run) {
+        return run.failures().stream()
+                .anyMatch(failure -> PENDING_LIVE_EVIDENCE.equals(failure.status()));
+    }
+
+    private static String pendingLiveEvidenceMessage(
+            FinanceReconciliationScorecardRegistry.ScorecardPolicy policy,
+            List<FinanceReconciliationScorecardService.CheckRun> currentRuns,
+            List<String> pendingLiveCategories) {
+        Set<String> pendingCategorySet = new LinkedHashSet<>(pendingLiveCategories);
+        return currentRuns.stream()
+                .flatMap(run -> run.failures().stream())
+                .filter(failure -> PENDING_LIVE_EVIDENCE.equals(failure.status()))
+                .filter(failure -> pendingCategorySet.contains(failure.category()))
+                .findFirst()
+                .map(failure -> "Finance reconciliation scorecard pending live evidence: scorecardId="
+                        + policy.id()
+                        + ", category="
+                        + failure.category()
+                        + ", checkId="
+                        + failure.checkId())
+                .orElse("Finance reconciliation scorecard pending live evidence: scorecardId=" + policy.id());
     }
 
     private static String textOrEmpty(String value) {
@@ -136,6 +188,11 @@ public class FinanceReconciliationScorecardPublisherService {
                     missingCategories,
                     null,
                     failureMessage);
+        }
+
+        @JsonProperty("authorityBindingId")
+        public String authorityBindingId() {
+            return oracleBindingId;
         }
     }
 }

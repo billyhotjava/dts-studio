@@ -14,7 +14,7 @@ class FinanceDifferentialGridServiceTest {
 
     @Test
     void shouldLoadRepresentativeGridCasesFromGovernanceAsset() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
         FinanceSummaryDualReconciliationRegistry summaryRegistry =
                 new FinanceSummaryDualReconciliationRegistry(objectMapper, oracleRegistry);
@@ -52,6 +52,42 @@ class FinanceDifferentialGridServiceTest {
         assertThat(sale.slices())
                 .extracting(FinanceDifferentialGridRegistry.GridSlice::boundary)
                 .contains("cross-month", "empty-result");
+    }
+
+    @Test
+    void shouldPreferAuthorityNamedDifferentialGridCaseFieldsWhileKeepingLegacyAccessors() throws Exception {
+        String json = """
+                {
+                  "id": "month-authority-grid",
+                  "summaryCaseId": "month-settlement-discounted-receivable",
+                  "authorityBindingId": "month-settlement",
+                  "chain": "rent-settlement",
+                  "metricId": "discounted-receivable",
+                  "metricName": "月对账折后实收代表性过滤网格",
+                  "dimensionKeys": ["projectId", "accountPeriod"],
+                  "slices": [
+                    {
+                      "id": "all-project-202606-month-boundary",
+                      "filters": {
+                        "projectId": "ALL",
+                        "accountPeriod": "202606"
+                      },
+                      "boundary": "month-boundary"
+                    }
+                  ],
+                  "copilotQuestion": "按代表性过滤网格对比月对账折后实收金额",
+                  "authorityEndpoint": "GET /rs-flowers-base/finance/monthAccounting/listData",
+                  "notes": "authority 字段为新契约，oracle 字段仅兼容旧资产"
+                }
+                """;
+
+        FinanceDifferentialGridRegistry.DifferentialGridCase gridCase =
+                objectMapper.readValue(json, FinanceDifferentialGridRegistry.DifferentialGridCase.class);
+
+        assertThat(gridCase.authorityBindingId()).isEqualTo("month-settlement");
+        assertThat(gridCase.oracleBindingId()).isEqualTo("month-settlement");
+        assertThat(gridCase.authorityEndpoint()).contains("monthAccounting");
+        assertThat(gridCase.oracleEndpoint()).contains("monthAccounting");
     }
 
     @Test
@@ -114,7 +150,7 @@ class FinanceDifferentialGridServiceTest {
 
         assertThat(missingOracle.passed()).isFalse();
         assertThat(missingOracle.failureMessage())
-                .contains("missing oracle cell", "copilot=1128.00", "oracle=0.00");
+                .contains("missing authority cell", "copilot=1128.00", "authority=0.00");
 
         FinanceDifferentialGridService.GridReport duplicate = service.reconcile(
                 spec,
@@ -125,6 +161,30 @@ class FinanceDifferentialGridServiceTest {
 
         assertThat(duplicate.passed()).isFalse();
         assertThat(duplicate.failureMessage()).contains("duplicate copilot grid cell", "sliceId=all-project-202606-month-boundary");
+    }
+
+    @Test
+    void shouldReportAuthorityTerminologyInGridFailures() {
+        FinanceDifferentialGridService service = new FinanceDifferentialGridService();
+        FinanceDifferentialGridService.GridSpec spec = spec();
+
+        FinanceDifferentialGridService.GridReport mismatch = service.reconcile(
+                spec,
+                List.of(row("all-project-202606-month-boundary", "rent-settlement", "discounted-receivable", "1001", "202606", "1127.99")),
+                List.of(row("all-project-202606-month-boundary", "rent-settlement", "discounted-receivable", "1001", "202606", "1128.00")));
+
+        assertThat(mismatch.failureMessage())
+                .contains("authority=1128.00")
+                .doesNotContain("oracle=1128.00");
+
+        FinanceDifferentialGridService.GridReport missingAuthority = service.reconcile(
+                spec,
+                List.of(row("all-project-202606-month-boundary", "rent-settlement", "discounted-receivable", "1001", "202606", "1128.00")),
+                List.of());
+
+        assertThat(missingAuthority.failureMessage())
+                .contains("missing authority cell", "authority=0.00")
+                .doesNotContain("missing oracle cell", "oracle=0.00");
     }
 
     private static FinanceDifferentialGridService.GridSpec spec() {

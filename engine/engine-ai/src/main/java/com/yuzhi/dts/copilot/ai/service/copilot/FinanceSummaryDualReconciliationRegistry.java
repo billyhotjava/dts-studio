@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -19,14 +20,14 @@ public class FinanceSummaryDualReconciliationRegistry {
     private static final String REGISTRY_RESOURCE = "governance/finance-summary-dual-reconciliation-cases.v1.json";
 
     private final ObjectMapper objectMapper;
-    private final FinanceOracleRegistry financeOracleRegistry;
+    private final FinanceAuthorityRegistry financeAuthorityRegistry;
     private Map<String, SummaryCase> cases = Map.of();
 
     public FinanceSummaryDualReconciliationRegistry(
             ObjectMapper objectMapper,
-            FinanceOracleRegistry financeOracleRegistry) {
+            FinanceAuthorityRegistry financeAuthorityRegistry) {
         this.objectMapper = objectMapper;
-        this.financeOracleRegistry = financeOracleRegistry;
+        this.financeAuthorityRegistry = financeAuthorityRegistry;
     }
 
     @PostConstruct
@@ -60,14 +61,14 @@ public class FinanceSummaryDualReconciliationRegistry {
     }
 
     private void assertAlignedWithOracleRegistry(SummaryCase summaryCase) {
-        FinanceOracleRegistry.OracleBinding binding = financeOracleRegistry.binding(summaryCase.oracleBindingId())
+        FinanceAuthorityRegistry.AuthorityBinding binding = financeAuthorityRegistry.binding(summaryCase.authorityBindingId())
                 .orElseGet(() -> {
-                    financeOracleRegistry.init();
-                    return financeOracleRegistry.binding(summaryCase.oracleBindingId()).orElseThrow(
-                            () -> new IllegalStateException("Missing finance oracle binding: " + summaryCase.oracleBindingId()));
+                    financeAuthorityRegistry.init();
+                    return financeAuthorityRegistry.binding(summaryCase.authorityBindingId()).orElseThrow(
+                            () -> new IllegalStateException("Missing finance authority binding: " + summaryCase.authorityBindingId()));
                 });
         if (!binding.chain().equals(summaryCase.chain())) {
-            throw new IllegalStateException("Summary dual reconciliation case chain is not aligned with oracle binding: "
+            throw new IllegalStateException("Summary dual reconciliation case chain is not aligned with authority binding: "
                     + summaryCase.id());
         }
     }
@@ -88,6 +89,7 @@ public class FinanceSummaryDualReconciliationRegistry {
 
     public record SummaryCase(
             String id,
+            @JsonAlias("authorityBindingId")
             String oracleBindingId,
             String chain,
             String metricId,
@@ -96,6 +98,7 @@ public class FinanceSummaryDualReconciliationRegistry {
             List<String> dimensionKeys,
             String copilotQuestion,
             SummaryQuery copilotQuery,
+            @JsonAlias("authorityQuery")
             SummaryQuery oracleQuery,
             String notes) {
 
@@ -115,6 +118,14 @@ public class FinanceSummaryDualReconciliationRegistry {
 
         public FinanceSummaryDualReconciliationService.SummarySpec reconciliationSpec() {
             return new FinanceSummaryDualReconciliationService.SummarySpec(id, chain, metricId, dimensionKeys);
+        }
+
+        public String authorityBindingId() {
+            return oracleBindingId;
+        }
+
+        public SummaryQuery authorityQuery() {
+            return oracleQuery;
         }
     }
 

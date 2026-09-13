@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -23,15 +24,15 @@ public class FinanceAnswerAuditTrailService {
 
     private final CaliberRuleRegistry caliberRuleRegistry;
     private final FinanceInvariantRegistry financeInvariantRegistry;
-    private final FinanceOracleRegistry financeOracleRegistry;
+    private final FinanceAuthorityRegistry financeAuthorityRegistry;
 
     public FinanceAnswerAuditTrailService(
             CaliberRuleRegistry caliberRuleRegistry,
             FinanceInvariantRegistry financeInvariantRegistry,
-            FinanceOracleRegistry financeOracleRegistry) {
+            FinanceAuthorityRegistry financeAuthorityRegistry) {
         this.caliberRuleRegistry = caliberRuleRegistry;
         this.financeInvariantRegistry = financeInvariantRegistry;
-        this.financeOracleRegistry = financeOracleRegistry;
+        this.financeAuthorityRegistry = financeAuthorityRegistry;
     }
 
     public AuditTrailReport buildAuditTrail(
@@ -51,7 +52,7 @@ public class FinanceAnswerAuditTrailService {
         String sanitizedSql = sanitizeSql(safeRequest.generatedSql());
         List<AppliedCaliberRule> appliedRules = appliedRules(safeBindingPolicy.caliberRuleIds());
         List<AppliedInvariant> appliedInvariants = appliedInvariants(safeBindingPolicy.invariantIds());
-        Optional<FinanceOracleRegistry.OracleBinding> oracleBinding = financeOracleRegistry.binding(safeBindingPolicy.oracleBindingId());
+        Optional<FinanceAuthorityRegistry.AuthorityBinding> oracleBinding = financeAuthorityRegistry.binding(safeBindingPolicy.oracleBindingId());
         List<LineageNode> lineage = lineage(safeRequest.answerId(), safeBindingPolicy, oracleBinding);
         OracleAuditStatus oracleStatus = oracleStatus(oracleBinding, safeRequest.scorecardReport());
         List<RouteTraceStep> routeTrace = safeRequest.routeTrace();
@@ -139,7 +140,7 @@ public class FinanceAnswerAuditTrailService {
     private static List<LineageNode> lineage(
             String answerId,
             FinanceAnswerAuditTrailRegistry.AuditTrailBindingPolicy bindingPolicy,
-            Optional<FinanceOracleRegistry.OracleBinding> oracleBinding) {
+            Optional<FinanceAuthorityRegistry.AuthorityBinding> oracleBinding) {
         List<LineageNode> nodes = new ArrayList<>();
         if (!answerId.isBlank()) {
             nodes.add(new LineageNode("RESULT", answerId, "finance-answer", List.of()));
@@ -151,8 +152,12 @@ public class FinanceAnswerAuditTrailService {
             for (String sourceTable : binding.sourceTables()) {
                 nodes.add(new LineageNode("SOURCE_TABLE", sourceTable, "adminapi-source", binding.adminWebEvidence()));
             }
-            for (FinanceOracleRegistry.OracleEndpoint endpoint : binding.endpoints()) {
-                nodes.add(new LineageNode("ORACLE_ENDPOINT", endpoint.signature(), binding.oracleLevel(), binding.adminWebEvidence()));
+            for (FinanceAuthorityRegistry.AuthorityEndpoint endpoint : binding.endpoints()) {
+                nodes.add(new LineageNode(
+                        "AUTHORITY_ENDPOINT",
+                        endpoint.signature(),
+                        binding.oracleLevel(),
+                        binding.adminWebEvidence()));
             }
             if (!textOrEmpty(binding.ledger().voucherTable()).isBlank()) {
                 nodes.add(new LineageNode("VOUCHER_LEDGER", binding.ledger().voucherTable(), "voucher-header", binding.adminWebEvidence()));
@@ -165,12 +170,12 @@ public class FinanceAnswerAuditTrailService {
     }
 
     private static OracleAuditStatus oracleStatus(
-            Optional<FinanceOracleRegistry.OracleBinding> oracleBinding,
+            Optional<FinanceAuthorityRegistry.AuthorityBinding> oracleBinding,
             FinanceReconciliationScorecardService.ScorecardReport scorecardReport) {
         if (oracleBinding.isEmpty()) {
-            return new OracleAuditStatus("", "", "", "", false, "MISSING_ORACLE", ZERO_CENTS, "oracle binding is missing");
+            return new OracleAuditStatus("", "", "", "", false, "MISSING_AUTHORITY", ZERO_CENTS, "authority binding is missing");
         }
-        FinanceOracleRegistry.OracleBinding binding = oracleBinding.get();
+        FinanceAuthorityRegistry.AuthorityBinding binding = oracleBinding.get();
         if (scorecardReport == null) {
             return new OracleAuditStatus(
                     binding.id(),
@@ -204,7 +209,7 @@ public class FinanceAnswerAuditTrailService {
         }
         if (!request.oracleBindingId().isBlank()
                 && !request.oracleBindingId().equals(bindingPolicy.oracleBindingId())) {
-            return "Finance answer audit trail failed: reason=oracle binding mismatch"
+            return "Finance answer audit trail failed: reason=authority binding mismatch"
                     + ", expected=" + bindingPolicy.oracleBindingId()
                     + ", actual=" + request.oracleBindingId();
         }
@@ -251,10 +256,10 @@ public class FinanceAnswerAuditTrailService {
                         return "Finance answer audit trail failed: reason=missing lineage";
                     }
                 }
-                case "oracleStatus" -> {
+                case "oracleStatus", "authorityStatus" -> {
                     if (!oracleStatus.covered()) {
-                        return "Finance answer audit trail failed: reason=missing oracle reconciliation status"
-                                + ", oracleBindingId=" + oracleStatus.bindingId()
+                        return "Finance answer audit trail failed: reason=missing authority reconciliation status"
+                                + ", authorityBindingId=" + oracleStatus.bindingId()
                                 + ", status=" + oracleStatus.healthStatus();
                     }
                 }
@@ -375,6 +380,11 @@ public class FinanceAnswerAuditTrailService {
             maxDifference = cents(maxDifference);
             failureMessage = textOrEmpty(failureMessage);
         }
+
+        @JsonProperty("authorityLevel")
+        public String authorityLevel() {
+            return oracleLevel;
+        }
     }
 
     public record AuditTrailReport(
@@ -395,9 +405,14 @@ public class FinanceAnswerAuditTrailService {
             appliedInvariants = copyOrEmpty(appliedInvariants);
             lineage = copyOrEmpty(lineage);
             oracleStatus = oracleStatus == null
-                    ? new OracleAuditStatus("", "", "", "", false, "MISSING_ORACLE", ZERO_CENTS, "")
+                    ? new OracleAuditStatus("", "", "", "", false, "MISSING_AUTHORITY", ZERO_CENTS, "")
                     : oracleStatus;
             routeTrace = copyOrEmpty(routeTrace);
+        }
+
+        @JsonProperty("authorityStatus")
+        public OracleAuditStatus authorityStatus() {
+            return oracleStatus;
         }
     }
 }

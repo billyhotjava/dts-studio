@@ -31,6 +31,8 @@ class FinanceReconciliationScorecardScheduledPublisherServiceTest {
         assertThat(result.publishedCount()).isZero();
         assertThat(result.results()).isEmpty();
         assertThat(result.failureMessage()).contains("no finance scorecard evidence provider");
+        assertThat(result.skippedReasonCode()).isEqualTo("NO_EVIDENCE_PROVIDER_REGISTERED");
+        assertThat(result.nextAction()).contains("enable a live FinanceReconciliationScorecardEvidenceProvider");
         verifyNoInteractions(publisher);
     }
 
@@ -43,6 +45,7 @@ class FinanceReconciliationScorecardScheduledPublisherServiceTest {
                 SCORECARD_ID,
                 runs,
                 baseline);
+        assertThat(provider.authorityBindingId()).isEqualTo("month-settlement");
         FinanceReconciliationScorecardPublisherService.PublishResult publishResult =
                 new FinanceReconciliationScorecardPublisherService.PublishResult(
                         true,
@@ -67,15 +70,53 @@ class FinanceReconciliationScorecardScheduledPublisherServiceTest {
         verify(publisher).publishLatest(eq("month-settlement"), eq(SCORECARD_ID), eq(runs), eq(baseline));
     }
 
+    @Test
+    void scheduledRunSurfacesPendingLiveEvidenceWhenProviderCannotPublishSnapshot() {
+        List<FinanceReconciliationScorecardService.CheckRun> runs = passingRuns();
+        List<FinanceReconciliationScorecardService.ReconciliationFailure> baseline = List.of();
+        FinanceReconciliationScorecardEvidenceProvider provider = provider(
+                "month-settlement",
+                SCORECARD_ID,
+                runs,
+                baseline);
+        FinanceReconciliationScorecardPublisherService.PublishResult publishResult =
+                new FinanceReconciliationScorecardPublisherService.PublishResult(
+                        false,
+                        "month-settlement",
+                        SCORECARD_ID,
+                        "PENDING_LIVE_EVIDENCE",
+                        List.of("f4-differential-grid"),
+                        null,
+                        "Finance reconciliation scorecard pending live evidence: scorecardId="
+                                + SCORECARD_ID
+                                + ", category=f4-differential-grid, checkId=f4-live-grid");
+        when(publisher.publishLatest(eq("month-settlement"), eq(SCORECARD_ID), eq(runs), eq(baseline)))
+                .thenReturn(publishResult);
+        FinanceReconciliationScorecardScheduledPublisherService service =
+                new FinanceReconciliationScorecardScheduledPublisherService(List.of(provider), publisher);
+
+        FinanceReconciliationScorecardScheduledPublisherService.ScheduledPublishResult result =
+                service.publishScheduledScorecards();
+
+        assertThat(result.status()).isEqualTo("PENDING_LIVE_EVIDENCE");
+        assertThat(result.totalProviders()).isEqualTo(1);
+        assertThat(result.publishedCount()).isZero();
+        assertThat(result.results()).containsExactly(publishResult);
+        assertThat(result.failureMessage()).contains("pending live evidence", "f4-differential-grid");
+        assertThat(result.skippedReasonCode()).isEqualTo("PENDING_LIVE_EVIDENCE");
+        assertThat(result.nextAction()).contains("satisfy F1/F2/F3/F4 required lanes");
+        verify(publisher).publishLatest(eq("month-settlement"), eq(SCORECARD_ID), eq(runs), eq(baseline));
+    }
+
     private static FinanceReconciliationScorecardEvidenceProvider provider(
-            String oracleBindingId,
+            String authorityBindingId,
             String scorecardId,
             List<FinanceReconciliationScorecardService.CheckRun> runs,
             List<FinanceReconciliationScorecardService.ReconciliationFailure> baseline) {
         return new FinanceReconciliationScorecardEvidenceProvider() {
             @Override
-            public String oracleBindingId() {
-                return oracleBindingId;
+            public String authorityBindingId() {
+                return authorityBindingId;
             }
 
             @Override

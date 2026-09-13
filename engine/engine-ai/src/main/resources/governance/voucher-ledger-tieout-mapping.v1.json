@@ -3,7 +3,7 @@
   "mappings": [
     {
       "id": "voucher-ledger",
-      "oracleBindingId": "voucher-ledger",
+      "authorityBindingId": "voucher-ledger",
       "description": "凭证主表 f_voucher 与凭证明细 f_voucher_item 的只读 tie-out 映射，用于按业务单号、账期、科目锚定借贷金额，并校验任意凭证子集 debit=credit。",
       "sourceTables": ["f_voucher", "f_voucher_item"],
       "adminApiEndpoints": [

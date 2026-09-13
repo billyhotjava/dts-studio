@@ -1,0 +1,148 @@
+{
+  "version": "v1",
+  "cases": [
+    {
+      "id": "qa-finance-voucher-2026-main",
+      "question": "2026年凭证的数据统计下",
+      "domain": "finance",
+      "expectedTemplate": "TPL-57",
+      "expectedTarget": "public.xycyl_ads_finance_voucher_monthly",
+      "expectedDataSurface": "L3_ADS",
+      "expectedGradeAtLeast": "HIGH",
+      "expectedSqlFragments": [
+        "public.xycyl_ads_finance_voucher_monthly",
+        "会计月份",
+        "凭证数"
+      ],
+      "forbiddenSqlFragments": [
+        "mysql.rs_cloud_flower.f_voucher",
+        "mysql.rs_cloud_flower.f_voucher_item",
+        "prs.finance.voucher.profile",
+        "L0_BUSINESS_OBJECT_PROFILE"
+      ],
+      "requiredEvidence": [
+        "route",
+        "sql",
+        "freshness",
+        "tieout"
+      ],
+      "expectedParameters": {
+        "year": "2026"
+      },
+      "metamorphicGroup": "finance-voucher-yearly-2026",
+      "tags": [
+        "finance",
+        "voucher",
+        "sprint-34",
+        "p0"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "qa-finance-voucher-2026-variant",
+      "question": "看下2026年度会计凭证汇总",
+      "domain": "finance",
+      "expectedTemplate": "TPL-57",
+      "expectedTarget": "public.xycyl_ads_finance_voucher_monthly",
+      "expectedDataSurface": "L3_ADS",
+      "expectedGradeAtLeast": "HIGH",
+      "expectedSqlFragments": [
+        "public.xycyl_ads_finance_voucher_monthly",
+        "借方金额",
+        "贷方金额"
+      ],
+      "forbiddenSqlFragments": [
+        "mysql.rs_cloud_flower.f_voucher",
+        "mysql.rs_cloud_flower.f_voucher_item",
+        "prs.finance.voucher.profile",
+        "L0_BUSINESS_OBJECT_PROFILE"
+      ],
+      "requiredEvidence": [
+        "route",
+        "sql",
+        "freshness",
+        "tieout"
+      ],
+      "expectedParameters": {
+        "year": "2026"
+      },
+      "metamorphicGroup": "finance-voucher-yearly-2026",
+      "tags": [
+        "finance",
+        "voucher",
+        "metamorphic",
+        "sprint-34",
+        "p0"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "qa-finance-year-2026-main",
+      "question": "2026年财务数据统计下",
+      "domain": "finance",
+      "expectedTemplate": "TPL-56",
+      "expectedTarget": "public.xycyl_ads_finance_month_settlement",
+      "expectedDataSurface": "L3_ADS",
+      "expectedGradeAtLeast": "MEDIUM",
+      "expectedSqlFragments": [
+        "public.xycyl_ads_finance_month_settlement",
+        "public.xycyl_ads_finance_collection",
+        "财务月份"
+      ],
+      "forbiddenSqlFragments": [
+        "mysql.rs_cloud_flower.a_month_accounting",
+        "mysql.rs_cloud_flower.a_sale_account",
+        "L0_BUSINESS_OBJECT_PROFILE"
+      ],
+      "requiredEvidence": [
+        "route",
+        "sql",
+        "freshness"
+      ],
+      "expectedParameters": {
+        "year": "2026"
+      },
+      "metamorphicGroup": "finance-yearly-2026",
+      "tags": [
+        "finance",
+        "yearly",
+        "sprint-34",
+        "p0"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "qa-flowerbiz-order-monthly-main",
+      "question": "本月报花订单明细看下",
+      "domain": "flowerbiz",
+      "expectedTemplate": "TPL-FLOWERBIZ-ORDER-MONTHLY",
+      "expectedTarget": "public.xycyl_dws_flowerbiz_order_monthly",
+      "expectedDataSurface": "L1_DBT_MART",
+      "expectedGradeAtLeast": "MEDIUM",
+      "expectedSqlFragments": [
+        "xycyl_dws_flowerbiz_order_monthly"
+      ],
+      "forbiddenSqlFragments": [
+        "mysql.rs_cloud_flower.t_flower_biz_info",
+        "mysql.rs_cloud_flower.t_flower_biz_item",
+        "L0_BUSINESS_OBJECT_PROFILE"
+      ],
+      "requiredEvidence": [
+        "route",
+        "sql",
+        "freshness"
+      ],
+      "expectedParameters": {
+        "period": "current_month"
+      },
+      "metamorphicGroup": "flowerbiz-order-monthly",
+      "tags": [
+        "flowerbiz",
+        "order",
+        "sprint-34",
+        "p0"
+      ],
+      "enabled": true
+    }
+  ]
+}

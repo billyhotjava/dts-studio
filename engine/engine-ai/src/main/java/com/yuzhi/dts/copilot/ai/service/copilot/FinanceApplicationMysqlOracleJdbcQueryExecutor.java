@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.util.StringUtils;
 
 public class FinanceApplicationMysqlOracleJdbcQueryExecutor
-        implements FinanceApplicationMysqlOracleProofService.QueryExecutor {
+        implements FinanceApplicationMysqlAuthorityProofService.QueryExecutor {
 
     private static final Pattern UNSAFE_SQL = Pattern.compile(
             "\\b(insert|update|delete|drop|alter|truncate|merge|create|grant|revoke|call)\\b",
@@ -28,7 +28,7 @@ public class FinanceApplicationMysqlOracleJdbcQueryExecutor
     public List<Map<String, Object>> query(String database, String nativeSql) {
         String requestedDatabase = textOrEmpty(database);
         if (StringUtils.hasText(expectedDatabase) && !expectedDatabase.equals(requestedDatabase)) {
-            throw new IllegalArgumentException("Unexpected application MySQL oracle database: expected="
+            throw new IllegalArgumentException("Unexpected application MySQL authority database: expected="
                     + expectedDatabase + ", actual=" + requestedDatabase);
         }
         assertReadOnlyApplicationMysqlSql(nativeSql);
@@ -42,14 +42,14 @@ public class FinanceApplicationMysqlOracleJdbcQueryExecutor
         String trimmed = sql.stripLeading();
         String lowered = trimmed.toLowerCase(Locale.ROOT);
         if (!(lowered.startsWith("select ") || lowered.startsWith("with "))) {
-            throw new IllegalArgumentException("Application MySQL oracle SQL must be read-only");
+            throw new IllegalArgumentException("Application MySQL authority SQL must be read-only");
         }
         if (lowered.contains(";") || UNSAFE_SQL.matcher(lowered).find()) {
-            throw new IllegalArgumentException("Application MySQL oracle SQL must be read-only");
+            throw new IllegalArgumentException("Application MySQL authority SQL must be read-only");
         }
         if (lowered.contains("public.ods_") || lowered.contains("mysql.rs_cloud_flower")
                 || lowered.contains("jdbc:mysql") || lowered.contains("password")) {
-            throw new IllegalArgumentException("Application MySQL oracle SQL must query application tables directly");
+            throw new IllegalArgumentException("Application MySQL authority SQL must query application tables directly");
         }
     }
 

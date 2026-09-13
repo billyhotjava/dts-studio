@@ -29,7 +29,7 @@ public class FinanceReconciliationScorecardSnapshotService implements FinanceRec
             String scorecardId,
             FinanceReconciliationScorecardService.ScorecardReport report) {
         if (!StringUtils.hasText(oracleBindingId) || !StringUtils.hasText(scorecardId) || report == null) {
-            throw new IllegalArgumentException("oracleBindingId, scorecardId and report are required");
+            throw new IllegalArgumentException("authorityBindingId, scorecardId and report are required");
         }
         try {
             FinanceReconciliationScorecardSnapshot snapshot = new FinanceReconciliationScorecardSnapshot();

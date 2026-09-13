@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -19,14 +20,14 @@ public class FinanceDetailReconciliationSampleRegistry {
     private static final String REGISTRY_RESOURCE = "governance/finance-detail-reconciliation-samples.v1.json";
 
     private final ObjectMapper objectMapper;
-    private final FinanceOracleRegistry financeOracleRegistry;
+    private final FinanceAuthorityRegistry financeAuthorityRegistry;
     private Map<String, DetailSample> samples = Map.of();
 
     public FinanceDetailReconciliationSampleRegistry(
             ObjectMapper objectMapper,
-            FinanceOracleRegistry financeOracleRegistry) {
+            FinanceAuthorityRegistry financeAuthorityRegistry) {
         this.objectMapper = objectMapper;
-        this.financeOracleRegistry = financeOracleRegistry;
+        this.financeAuthorityRegistry = financeAuthorityRegistry;
     }
 
     @PostConstruct
@@ -60,20 +61,20 @@ public class FinanceDetailReconciliationSampleRegistry {
     }
 
     private void assertAlignedWithOracleRegistry(DetailSample sample) {
-        FinanceOracleRegistry.OracleBinding binding = financeOracleRegistry.binding(sample.oracleBindingId())
+        FinanceAuthorityRegistry.AuthorityBinding binding = financeAuthorityRegistry.binding(sample.authorityBindingId())
                 .orElseGet(() -> {
-                    financeOracleRegistry.init();
-                    return financeOracleRegistry.binding(sample.oracleBindingId()).orElseThrow(
-                            () -> new IllegalStateException("Missing finance oracle binding: " + sample.oracleBindingId()));
+                    financeAuthorityRegistry.init();
+                    return financeAuthorityRegistry.binding(sample.authorityBindingId()).orElseThrow(
+                            () -> new IllegalStateException("Missing finance authority binding: " + sample.authorityBindingId()));
                 });
         if (!binding.chain().equals(sample.chain())) {
-            throw new IllegalStateException("Detail reconciliation sample chain is not aligned with oracle binding: " + sample.id());
+            throw new IllegalStateException("Detail reconciliation sample chain is not aligned with authority binding: " + sample.id());
         }
         boolean endpointRegistered = binding.endpoints().stream()
-                .map(FinanceOracleRegistry.OracleEndpoint::signature)
-                .anyMatch(sample.oracleEndpoint()::equals);
+                .map(FinanceAuthorityRegistry.AuthorityEndpoint::signature)
+                .anyMatch(sample.authorityEndpoint()::equals);
         if (!endpointRegistered) {
-            throw new IllegalStateException("Detail reconciliation sample endpoint is not registered: " + sample.oracleEndpoint());
+            throw new IllegalStateException("Detail reconciliation sample endpoint is not registered: " + sample.authorityEndpoint());
         }
     }
 
@@ -97,14 +98,17 @@ public class FinanceDetailReconciliationSampleRegistry {
 
     public record DetailSample(
             String id,
+            @JsonAlias("authorityBindingId")
             String oracleBindingId,
             String chain,
+            @JsonAlias("authorityEndpoint")
             String oracleEndpoint,
             String businessKey,
             String projectId,
             String accountPeriod,
             String copilotQuestion,
             List<String> amountFields,
+            @JsonAlias("authorityRequest")
             Map<String, String> oracleRequest,
             Map<String, String> copilotRequest) {
 
@@ -124,9 +128,21 @@ public class FinanceDetailReconciliationSampleRegistry {
 
         public FinanceDetailReconciliationService.DetailReconciliationSpec reconciliationSpec() {
             return new FinanceDetailReconciliationService.DetailReconciliationSpec(
-                    oracleBindingId,
+                    authorityBindingId(),
                     chain,
                     amountFields);
+        }
+
+        public String authorityBindingId() {
+            return oracleBindingId;
+        }
+
+        public String authorityEndpoint() {
+            return oracleEndpoint;
+        }
+
+        public Map<String, String> authorityRequest() {
+            return oracleRequest;
         }
     }
 }

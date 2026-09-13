@@ -1,13 +1,20 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class FinanceDetailReconciliationHarnessTest {
 
@@ -17,7 +24,7 @@ class FinanceDetailReconciliationHarnessTest {
 
     @Test
     void shouldLoadSamplesAlignedWithRegisteredL2OracleEndpoints() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
 
         FinanceDetailReconciliationSampleRegistry sampleRegistry =
@@ -66,6 +73,42 @@ class FinanceDetailReconciliationHarnessTest {
     }
 
     @Test
+    void shouldPreferAuthorityNamedSampleFieldsWhileKeepingLegacyAccessors() throws Exception {
+        String json = """
+                {
+                  "id": "month-authority-sample",
+                  "authorityBindingId": "month-settlement",
+                  "chain": "rent-settlement",
+                  "authorityEndpoint": "POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData",
+                  "businessKey": "结算2026060008",
+                  "projectId": "1001",
+                  "accountPeriod": "202606",
+                  "copilotQuestion": "查询月对账明细",
+                  "amountFields": ["receivableTotalAmount"],
+                  "authorityRequest": {
+                    "projectId": "1001",
+                    "yearAndMonth": "202606"
+                  },
+                  "copilotRequest": {
+                    "database": "prs.flowerbiz.federated",
+                    "nativeSql": "select 1"
+                  }
+                }
+                """;
+
+        FinanceDetailReconciliationSampleRegistry.DetailSample sample =
+                objectMapper.readValue(json, FinanceDetailReconciliationSampleRegistry.DetailSample.class);
+
+        assertThat(sample.authorityBindingId()).isEqualTo("month-settlement");
+        assertThat(sample.oracleBindingId()).isEqualTo("month-settlement");
+        assertThat(sample.authorityEndpoint()).isEqualTo("POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData");
+        assertThat(sample.oracleEndpoint()).isEqualTo("POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData");
+        assertThat(sample.authorityRequest()).containsEntry("yearAndMonth", "202606");
+        assertThat(sample.oracleRequest()).containsEntry("yearAndMonth", "202606");
+        assertThat(sample.reconciliationSpec().oracleBindingId()).isEqualTo("month-settlement");
+    }
+
+    @Test
     void shouldRunOracleAndCopilotFetchersForTheSameSampleThenCompareRows() {
         FinanceDetailReconciliationHarness harness = new FinanceDetailReconciliationHarness(
                 initializedSampleRegistry(),
@@ -91,11 +134,36 @@ class FinanceDetailReconciliationHarnessTest {
 
         assertThat(mismatch.passed()).isFalse();
         assertThat(mismatch.failureMessage())
-                .contains("month-settlement-js2026060008", "foldingAfterTotalAmount", "0.01");
+                .contains("month-settlement-js2026060008", "foldingAfterTotalAmount", "0.01", "authorityEndpoint=")
+                .doesNotContain("oracleEndpoint=");
+    }
+
+    @Test
+    void shouldLogAuthorityBindingWhenSampleRegistryBindingIsMissing() {
+        FinanceAuthorityRegistry oracleRegistry = mock(FinanceAuthorityRegistry.class);
+        when(oracleRegistry.binding("month-settlement")).thenReturn(Optional.empty());
+        when(oracleRegistry.binding("sale-account")).thenReturn(Optional.empty());
+        Logger logger = (Logger) LoggerFactory.getLogger(FinanceDetailReconciliationSampleRegistry.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            FinanceDetailReconciliationSampleRegistry sampleRegistry =
+                    new FinanceDetailReconciliationSampleRegistry(objectMapper, oracleRegistry);
+            sampleRegistry.init();
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        assertThat(appender.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .anySatisfy(message -> assertThat(message)
+                        .contains("Missing finance authority binding: month-settlement")
+                        .doesNotContain("Missing finance oracle binding"));
     }
 
     private FinanceDetailReconciliationSampleRegistry initializedSampleRegistry() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
         FinanceDetailReconciliationSampleRegistry sampleRegistry =
                 new FinanceDetailReconciliationSampleRegistry(objectMapper, oracleRegistry);

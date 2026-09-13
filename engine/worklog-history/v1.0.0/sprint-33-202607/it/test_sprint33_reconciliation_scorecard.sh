@@ -5,4 +5,4 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 cd "$REPO_ROOT"
-mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardServiceTest,FinanceReconciliationScorecardPublisherServiceTest,FinanceReconciliationScorecardScheduledPublisherServiceTest,FinanceReconciliationScorecardSnapshotServiceTest,FinanceReconciliationHealthIndicatorTest test
+mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardServiceTest,FinanceReconciliationScorecardPublisherServiceTest,FinanceReconciliationScorecardScheduledPublisherServiceTest,FinanceReconciliationScorecardSnapshotServiceTest,FinanceReconciliationScorecardLocalEvidenceProviderTest,FinanceApplicationMysqlScorecardEvidenceProviderTest,FinanceApplicationMysqlAuthorityScorecardCheckServiceTest,FinanceDifferentialGridScorecardEvidenceProviderTest,FinanceDifferentialGridSummarySqlRowProviderTest,FinanceReconciliationScorecardResourceTest,FinanceReconciliationHealthIndicatorTest test

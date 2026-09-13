@@ -34,4 +34,27 @@ class CopilotChatRequestContextTest {
         assertThat(context.assumptionOverrides()).containsExactly(Map.entry("period", "2026-05"));
         assertThat(context.clarificationAnswers()).containsExactly(Map.entry("target", "在租项目"));
     }
+
+    @Test
+    void filtersAndNormalizesFreshnessSnapshot() {
+        Map<String, String> freshness = new LinkedHashMap<>();
+        freshness.put(" public.xycyl_ads_finance_voucher_monthly ", " fresh ");
+        freshness.put("xycyl_dws_flowerbiz_project_monthly", "STALE");
+        freshness.put("missing_model", "missing");
+        freshness.put("ignored", "other");
+        freshness.put("", "FRESH");
+        freshness.put("blank", " ");
+        freshness.put(null, "FRESH");
+
+        CopilotChatRequestContext context = CopilotChatRequestContext.of(
+                Map.of(),
+                freshness,
+                Map.of(),
+                Map.of());
+
+        assertThat(context.freshnessSnapshot()).containsExactly(
+                Map.entry("public.xycyl_ads_finance_voucher_monthly", "FRESH"),
+                Map.entry("xycyl_dws_flowerbiz_project_monthly", "STALE"),
+                Map.entry("missing_model", "MISSING"));
+    }
 }

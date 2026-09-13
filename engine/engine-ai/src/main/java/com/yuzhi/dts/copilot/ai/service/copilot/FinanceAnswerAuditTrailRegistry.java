@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -42,7 +43,7 @@ public class FinanceAnswerAuditTrailRegistry {
             }
             Map<String, AuditTrailBindingPolicy> loadedBindings = new LinkedHashMap<>();
             for (AuditTrailBindingPolicy bindingPolicy : document.bindingPolicies()) {
-                loadedBindings.put(bindingPolicy.oracleBindingId(), bindingPolicy);
+                loadedBindings.put(bindingPolicy.authorityBindingId(), bindingPolicy);
             }
             this.policies = java.util.Collections.unmodifiableMap(loadedPolicies);
             this.bindingPolicies = java.util.Collections.unmodifiableMap(loadedBindings);
@@ -103,6 +104,7 @@ public class FinanceAnswerAuditTrailRegistry {
     }
 
     public record AuditTrailBindingPolicy(
+            @JsonAlias("authorityBindingId")
             String oracleBindingId,
             String reportCode,
             List<String> adsModels,
@@ -116,6 +118,10 @@ public class FinanceAnswerAuditTrailRegistry {
             caliberRuleIds = copyOrEmpty(caliberRuleIds);
             invariantIds = copyOrEmpty(invariantIds);
             lineageRefs = copyOrEmpty(lineageRefs);
+        }
+
+        public String authorityBindingId() {
+            return oracleBindingId;
         }
     }
 }

@@ -53,7 +53,7 @@ class FinanceAnswerAuditTrailServiceTest {
 
         assertThat(report.passed()).isTrue();
         assertThat(report.failureMessage()).isEmpty();
-        assertThat(report.sections()).containsExactly("sql", "caliberRules", "lineage", "oracleStatus", "routeTrace");
+        assertThat(report.sections()).containsExactly("sql", "caliberRules", "lineage", "authorityStatus", "routeTrace");
         assertThat(report.sanitizedSql()).contains("xycyl_ads_month_settlement_summary");
         assertThat(report.sanitizedSql()).doesNotContain("jdbc:mysql", "password=should_not_leak", "token=secret");
         assertThat(report.appliedRules())
@@ -70,13 +70,46 @@ class FinanceAnswerAuditTrailServiceTest {
                         "a_month_accounting",
                         "a_green_accounting",
                         "POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData");
+        assertThat(report.lineage())
+                .extracting(FinanceAnswerAuditTrailService.LineageNode::level)
+                .contains("AUTHORITY_ENDPOINT")
+                .doesNotContain("ORACLE_ENDPOINT");
         assertThat(report.oracleStatus().covered()).isTrue();
         assertThat(report.oracleStatus().bindingId()).isEqualTo("month-settlement");
         assertThat(report.oracleStatus().healthStatus()).isEqualTo("PASS");
         assertThat(report.oracleStatus().maxDifference()).isEqualByComparingTo("0.00");
+        assertThat(objectMapper.valueToTree(report).path("authorityStatus").path("bindingId").asText())
+                .isEqualTo("month-settlement");
+        assertThat(objectMapper.valueToTree(report).path("authorityStatus").path("authorityLevel").asText())
+                .isNotBlank();
+        assertThat(objectMapper.valueToTree(report).path("authorityStatus").path("healthStatus").asText())
+                .isEqualTo("PASS");
         assertThat(report.routeTrace())
                 .extracting(FinanceAnswerAuditTrailService.RouteTraceStep::tier)
                 .containsExactly("TIER_1_PUBLISHED_INDICATOR");
+    }
+
+    @Test
+    void shouldPreferAuthorityNamedAuditBindingPolicyFieldsWhileKeepingLegacyAccessors() throws Exception {
+        String json = """
+                {
+                  "authorityBindingId": "voucher-ledger",
+                  "reportCode": "finance.voucher_ledger",
+                  "adsModels": ["xycyl_ads_voucher_ledger_balance"],
+                  "caliberRuleIds": ["CAL-EXTRA-COST-VS-EXPENSE"],
+                  "invariantIds": ["FIN-INV-01-VOUCHER-BALANCE"],
+                  "lineageRefs": [
+                    "dbt:model.xy_cyl.xycyl_ads_voucher_ledger_balance"
+                  ]
+                }
+                """;
+
+        FinanceAnswerAuditTrailRegistry.AuditTrailBindingPolicy bindingPolicy =
+                objectMapper.readValue(json, FinanceAnswerAuditTrailRegistry.AuditTrailBindingPolicy.class);
+
+        assertThat(bindingPolicy.authorityBindingId()).isEqualTo("voucher-ledger");
+        assertThat(bindingPolicy.oracleBindingId()).isEqualTo("voucher-ledger");
+        assertThat(bindingPolicy.adsModels()).containsExactly("xycyl_ads_voucher_ledger_balance");
     }
 
     @Test
@@ -145,11 +178,37 @@ class FinanceAnswerAuditTrailServiceTest {
         assertThat(report.failureMessage()).contains("domain not covered");
     }
 
+    @Test
+    void reportsAuthorityBindingMismatchWithoutOracleDatabaseTerminology() {
+        FinanceAnswerAuditTrailRegistry registry = auditRegistry();
+        FinanceAnswerAuditTrailService service = auditTrailService();
+        FinanceAnswerAuditTrailRegistry.AuditTrailPolicy policy = registry.policy("sprint33-finance-answer-audit-trail")
+                .orElseThrow();
+        FinanceAnswerAuditTrailRegistry.AuditTrailBindingPolicy bindingPolicy = registry.bindingPolicy("month-settlement")
+                .orElseThrow();
+
+        FinanceAnswerAuditTrailService.AuditTrailReport report = service.buildAuditTrail(
+                policy,
+                bindingPolicy,
+                new FinanceAnswerAuditTrailService.AuditTrailRequest(
+                        "answer-binding-mismatch",
+                        "finance",
+                        "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+                        "sale-account",
+                        List.of(),
+                        null));
+
+        assertThat(report.passed()).isFalse();
+        assertThat(report.failureMessage())
+                .contains("authority binding mismatch", "expected=month-settlement", "actual=sale-account")
+                .doesNotContain("oracle binding mismatch");
+    }
+
     private FinanceAnswerAuditTrailService auditTrailService() {
         CaliberRuleRegistry caliberRuleRegistry = caliberRuleRegistry();
         FinanceInvariantRegistry invariantRegistry = new FinanceInvariantRegistry(objectMapper, caliberRuleRegistry);
         invariantRegistry.init();
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
         return new FinanceAnswerAuditTrailService(caliberRuleRegistry, invariantRegistry, oracleRegistry);
     }

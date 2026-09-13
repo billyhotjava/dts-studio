@@ -3,7 +3,7 @@
   "mappings": [
     {
       "id": "settlement-discounted-receivable",
-      "oracleBindingId": "voucher-ledger",
+      "authorityBindingId": "voucher-ledger",
       "chain": "rent-settlement",
       "metricId": "discounted-receivable",
       "metricName": "租摆结算折后实收",
@@ -21,7 +21,7 @@
     },
     {
       "id": "sale-receivable",
-      "oracleBindingId": "voucher-ledger",
+      "authorityBindingId": "voucher-ledger",
       "chain": "sale-gift-bad-debt",
       "metricId": "sale-receivable",
       "metricName": "售账应收",
@@ -39,7 +39,7 @@
     },
     {
       "id": "bad-debt-loss",
-      "oracleBindingId": "voucher-ledger",
+      "authorityBindingId": "voucher-ledger",
       "chain": "sale-gift-bad-debt",
       "metricId": "bad-debt-loss",
       "metricName": "坏账损失",

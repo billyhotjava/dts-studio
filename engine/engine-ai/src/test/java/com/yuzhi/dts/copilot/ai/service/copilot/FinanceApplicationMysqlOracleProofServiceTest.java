@@ -15,24 +15,24 @@ class FinanceApplicationMysqlOracleProofServiceTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void shouldLoadApplicationMysqlOracleSqlCasesWithoutWarehouseOrTrinoTables() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+    void shouldLoadApplicationMysqlAuthoritySqlCasesWithoutWarehouseOrTrinoTables() {
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
-        FinanceApplicationMysqlOracleRegistry registry =
-                new FinanceApplicationMysqlOracleRegistry(objectMapper, oracleRegistry);
+        FinanceApplicationMysqlAuthorityRegistry registry =
+                new FinanceApplicationMysqlAuthorityRegistry(objectMapper, oracleRegistry);
         registry.init();
 
         assertThat(registry.cases())
-                .extracting(FinanceApplicationMysqlOracleRegistry.OracleSqlCase::id)
+                .extracting(FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase::id)
                 .containsExactly(
                         "month-settlement-discounted-receivable",
                         "sale-account-receivable",
                         "voucher-year-2026-count");
-        FinanceApplicationMysqlOracleRegistry.OracleSqlCase settlement =
+        FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase settlement =
                 registry.caseById("month-settlement-discounted-receivable").orElseThrow();
-        FinanceApplicationMysqlOracleRegistry.OracleSqlCase sale =
+        FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase sale =
                 registry.caseById("sale-account-receivable").orElseThrow();
-        FinanceApplicationMysqlOracleRegistry.OracleSqlCase voucher =
+        FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase voucher =
                 registry.caseById("voucher-year-2026-count").orElseThrow();
 
         assertThat(settlement.oracleBindingId()).isEqualTo("month-settlement");
@@ -80,15 +80,48 @@ class FinanceApplicationMysqlOracleProofServiceTest {
     }
 
     @Test
-    void shouldProveNl2SqlSummaryWithApplicationMysqlOracleRows() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+    void shouldPreferAuthorityNamedApplicationMysqlProofCaseFieldsWhileKeepingLegacyAccessors() throws Exception {
+        String json = """
+                {
+                  "id": "voucher-authority-case",
+                  "authorityBindingId": "voucher-ledger",
+                  "chain": "voucher-ledger",
+                  "metricId": "voucher-count",
+                  "metricName": "2026 会计凭证月度凭证数",
+                  "dimensionKeys": ["accountPeriod"],
+                  "copilotQuestion": "2026年凭证的数据统计下",
+                  "copilotQuery": {
+                    "kind": "warehouse-ads-sql",
+                    "database": "prs.flowerbiz.federated",
+                    "nativeSql": "select 1"
+                  },
+                  "applicationMysqlQuery": {
+                    "kind": "application-mysql-sql",
+                    "database": "rs_cloud_flower",
+                    "nativeSql": "select 2"
+                  },
+                  "notes": "authority 字段为新契约，oracle 字段仅兼容旧资产"
+                }
+                """;
+
+        FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase authorityCase =
+                objectMapper.readValue(json, FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase.class);
+
+        assertThat(authorityCase.authorityBindingId()).isEqualTo("voucher-ledger");
+        assertThat(authorityCase.oracleBindingId()).isEqualTo("voucher-ledger");
+        assertThat(authorityCase.applicationMysqlQuery().kind()).isEqualTo("application-mysql-sql");
+    }
+
+    @Test
+    void shouldProveNl2SqlSummaryWithApplicationMysqlAuthorityRows() {
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
-        FinanceApplicationMysqlOracleRegistry registry =
-                new FinanceApplicationMysqlOracleRegistry(objectMapper, oracleRegistry);
+        FinanceApplicationMysqlAuthorityRegistry registry =
+                new FinanceApplicationMysqlAuthorityRegistry(objectMapper, oracleRegistry);
         registry.init();
         FinanceApplicationMysqlOracleProofService service =
                 new FinanceApplicationMysqlOracleProofService(new FinanceSummaryDualReconciliationService());
-        FinanceApplicationMysqlOracleRegistry.OracleSqlCase voucher =
+        FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase voucher =
                 registry.caseById("voucher-year-2026-count").orElseThrow();
         RecordingQueryExecutor copilotExecutor = new RecordingQueryExecutor(List.of(
                 row("voucher-ledger", "voucher-count", "2026-01", "31.00"),
@@ -110,11 +143,29 @@ class FinanceApplicationMysqlOracleProofServiceTest {
     }
 
     @Test
-    void shouldProveAllCoreApplicationMysqlOracleCases() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+    @SuppressWarnings("unchecked")
+    void shouldExposeAuthoritySourceInProofReportWithLegacyOracleSourceAlias() {
+        FinanceApplicationMysqlOracleProofService.ProofReport report =
+                new FinanceApplicationMysqlOracleProofService.ProofReport(
+                        "voucher-year-2026-count",
+                        "APPLICATION_MYSQL",
+                        true,
+                        "",
+                        new FinanceSummaryDualReconciliationService.SummaryReconciliationReport(true, List.of(), ""));
+
+        Map<String, Object> serialized = objectMapper.convertValue(report, Map.class);
+
+        assertThat(serialized)
+                .containsEntry("authoritySource", "APPLICATION_MYSQL")
+                .containsEntry("oracleSource", "APPLICATION_MYSQL");
+    }
+
+    @Test
+    void shouldProveAllCoreApplicationMysqlAuthorityCases() {
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
-        FinanceApplicationMysqlOracleRegistry registry =
-                new FinanceApplicationMysqlOracleRegistry(objectMapper, oracleRegistry);
+        FinanceApplicationMysqlAuthorityRegistry registry =
+                new FinanceApplicationMysqlAuthorityRegistry(objectMapper, oracleRegistry);
         registry.init();
         FinanceApplicationMysqlOracleProofService service =
                 new FinanceApplicationMysqlOracleProofService(new FinanceSummaryDualReconciliationService());
@@ -127,30 +178,30 @@ class FinanceApplicationMysqlOracleProofServiceTest {
                 "voucher-year-2026-count",
                 List.of(row("voucher-ledger", "voucher-count", "2026-01", "31.00")));
 
-        for (FinanceApplicationMysqlOracleRegistry.OracleSqlCase oracleCase : registry.cases()) {
-            RecordingQueryExecutor copilotExecutor = new RecordingQueryExecutor(fixtures.get(oracleCase.id()));
-            RecordingQueryExecutor mysqlExecutor = new RecordingQueryExecutor(fixtures.get(oracleCase.id()));
+        for (FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase authorityCase : registry.cases()) {
+            RecordingQueryExecutor copilotExecutor = new RecordingQueryExecutor(fixtures.get(authorityCase.id()));
+            RecordingQueryExecutor mysqlExecutor = new RecordingQueryExecutor(fixtures.get(authorityCase.id()));
 
             FinanceApplicationMysqlOracleProofService.ProofReport report =
-                    service.prove(oracleCase, copilotExecutor, mysqlExecutor);
+                    service.prove(authorityCase, copilotExecutor, mysqlExecutor);
 
-            assertThat(report.passed()).as(oracleCase.id()).isTrue();
+            assertThat(report.passed()).as(authorityCase.id()).isTrue();
             assertThat(report.oracleSource()).isEqualTo("APPLICATION_MYSQL");
-            assertThat(copilotExecutor.calls()).containsExactly(oracleCase.copilotQuery().nativeSql());
-            assertThat(mysqlExecutor.calls()).containsExactly(oracleCase.applicationMysqlQuery().nativeSql());
+            assertThat(copilotExecutor.calls()).containsExactly(authorityCase.copilotQuery().nativeSql());
+            assertThat(mysqlExecutor.calls()).containsExactly(authorityCase.applicationMysqlQuery().nativeSql());
         }
     }
 
     @Test
-    void shouldFailWhenApplicationMysqlOracleDiffersFromNl2SqlResult() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+    void shouldFailWhenApplicationMysqlAuthorityDiffersFromNl2SqlResult() {
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
-        FinanceApplicationMysqlOracleRegistry registry =
-                new FinanceApplicationMysqlOracleRegistry(objectMapper, oracleRegistry);
+        FinanceApplicationMysqlAuthorityRegistry registry =
+                new FinanceApplicationMysqlAuthorityRegistry(objectMapper, oracleRegistry);
         registry.init();
         FinanceApplicationMysqlOracleProofService service =
                 new FinanceApplicationMysqlOracleProofService(new FinanceSummaryDualReconciliationService());
-        FinanceApplicationMysqlOracleRegistry.OracleSqlCase voucher =
+        FinanceApplicationMysqlAuthorityRegistry.AuthoritySqlCase voucher =
                 registry.caseById("voucher-year-2026-count").orElseThrow();
 
         FinanceApplicationMysqlOracleProofService.ProofReport report = service.prove(

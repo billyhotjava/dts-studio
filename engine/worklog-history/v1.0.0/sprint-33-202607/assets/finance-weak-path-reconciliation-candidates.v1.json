@@ -24,7 +24,7 @@
       "semanticDraftThreshold": 3,
       "reconciliationSets": ["f1-detail", "f3-invariant-seed", "f4-differential-grid"],
       "itScript": "worklog/v1.0.0/sprint-33-202607/it/test_f4_weak_path_reconciliation_candidates.sh",
-      "notes": "F4-T03 本地 contract 策略；live telemetry 查询、候选持久化、Sprint-31 F3 草稿流转待接线。"
+      "notes": "F4-T03 本地 contract 策略；候选快照持久化、本地语义草稿 staging、scheduled publisher 已接线；真实 live telemetry 样本复核和 Sprint-31 F3 治理审核提交待接线。"
     }
   ]
 }

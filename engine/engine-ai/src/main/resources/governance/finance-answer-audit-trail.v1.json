@@ -4,13 +4,13 @@
     {
       "id": "sprint33-finance-answer-audit-trail",
       "domains": ["finance", "flowerbiz"],
-      "requiredSections": ["sql", "caliberRules", "lineage", "oracleStatus", "routeTrace"],
+      "requiredSections": ["sql", "caliberRules", "lineage", "authorityStatus", "routeTrace"],
       "itScript": "worklog/v1.0.0/sprint-33-202607/it/test_f5_finance_answer_audit_trail.sh"
     }
   ],
   "bindingPolicies": [
     {
-      "oracleBindingId": "month-settlement",
+      "authorityBindingId": "month-settlement",
       "reportCode": "finance.month_settlement",
       "adsModels": ["xycyl_ads_month_settlement_summary"],
       "caliberRuleIds": ["CAL-SETTLEMENT-CHAIN", "CAL-MONTH-AMOUNT-TIER", "CAL-SALE-IN-RENT"],
@@ -25,7 +25,7 @@
       ]
     },
     {
-      "oracleBindingId": "sale-account",
+      "authorityBindingId": "sale-account",
       "reportCode": "finance.sale_account",
       "adsModels": ["xycyl_ads_sale_account_summary"],
       "caliberRuleIds": ["CAL-SETTLEMENT-CHAIN", "CAL-BIZTYPE-SCOPE"],
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "oracleBindingId": "voucher-ledger",
+      "authorityBindingId": "voucher-ledger",
       "reportCode": "finance.voucher_ledger",
       "adsModels": ["xycyl_ads_voucher_ledger_balance"],
       "caliberRuleIds": ["CAL-EXTRA-COST-VS-EXPENSE"],

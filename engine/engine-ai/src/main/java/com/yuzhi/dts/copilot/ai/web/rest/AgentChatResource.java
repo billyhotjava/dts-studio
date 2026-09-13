@@ -68,6 +68,7 @@ public class AgentChatResource {
                 request.message(),
                 request.datasourceId(),
                 Collections.emptyMap(),
+                request.freshness(),
                 request.assumptionOverrides(),
                 request.clarificationAnswers());
 
@@ -102,6 +103,7 @@ public class AgentChatResource {
                     request.message(),
                     request.datasourceId(),
                     Collections.emptyMap(),
+                    request.freshness(),
                     request.assumptionOverrides(),
                     request.clarificationAnswers(),
                     output);
@@ -243,6 +245,7 @@ public class AgentChatResource {
             String userId,
             String message,
             @JsonProperty("datasourceId") Long datasourceId,
+            Map<String, String> freshness,
             Map<String, String> assumptionOverrides,
             Map<String, String> clarificationAnswers
     ) {}

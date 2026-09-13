@@ -12,10 +12,10 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class FinanceApplicationMysqlOracleJdbcConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(FinanceApplicationMysqlOracleJdbcConfiguration.class);
+            .withUserConfiguration(FinanceApplicationMysqlAuthorityJdbcConfiguration.class);
 
     @Test
-    void shouldCreateApplicationMysqlOracleExecutorOnlyWhenEnabled() {
+    void shouldCreateApplicationMysqlAuthorityExecutorOnlyWhenEnabledWithLegacyAlias() {
         contextRunner.run(context -> assertThat(context)
                 .doesNotHaveBean(FinanceApplicationMysqlOracleProofService.QueryExecutor.class));
 
@@ -28,11 +28,13 @@ class FinanceApplicationMysqlOracleJdbcConfigurationTest {
                         "copilot.finance.application-mysql-oracle.password=secret",
                         "copilot.finance.application-mysql-oracle.database=rs_cloud_flower")
                 .run(context -> {
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityJdbcQueryExecutor");
                     assertThat(context).hasBean("financeApplicationMysqlOracleJdbcQueryExecutor");
+                    assertThat(context).doesNotHaveBean("financeApplicationMysqlAuthorityCopilotJdbcQueryExecutor");
                     assertThat(context).doesNotHaveBean("financeApplicationMysqlOracleCopilotJdbcQueryExecutor");
                     FinanceApplicationMysqlOracleProofService.QueryExecutor executor =
                             context.getBean(
-                                    "financeApplicationMysqlOracleJdbcQueryExecutor",
+                                    "financeApplicationMysqlAuthorityJdbcQueryExecutor",
                                     FinanceApplicationMysqlOracleProofService.QueryExecutor.class);
 
                     assertThat(executor.query("rs_cloud_flower", "SELECT 1 AS amount"))
@@ -57,11 +59,13 @@ class FinanceApplicationMysqlOracleJdbcConfigurationTest {
                         "copilot.finance.application-mysql-oracle.copilot-password=secret",
                         "copilot.finance.application-mysql-oracle.copilot-database=prs.flowerbiz.federated")
                 .run(context -> {
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityJdbcQueryExecutor");
                     assertThat(context).hasBean("financeApplicationMysqlOracleJdbcQueryExecutor");
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityCopilotJdbcQueryExecutor");
                     assertThat(context).hasBean("financeApplicationMysqlOracleCopilotJdbcQueryExecutor");
                     FinanceApplicationMysqlOracleProofService.QueryExecutor executor =
                             context.getBean(
-                                    "financeApplicationMysqlOracleCopilotJdbcQueryExecutor",
+                                    "financeApplicationMysqlAuthorityCopilotJdbcQueryExecutor",
                                     FinanceApplicationMysqlOracleProofService.QueryExecutor.class);
 
                     assertThat(executor.query("prs.flowerbiz.federated", "SELECT 1 AS amount"))
@@ -71,10 +75,49 @@ class FinanceApplicationMysqlOracleJdbcConfigurationTest {
     }
 
     @Test
+    void shouldPreferAuthorityNamedConfigurationForApplicationMysqlProof() {
+        contextRunner
+                .withPropertyValues(
+                        "copilot.finance.application-mysql-authority.enabled=true",
+                        "copilot.finance.application-mysql-authority.jdbc-url=jdbc:h2:mem:finance_app_mysql_authority_app;MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1",
+                        "copilot.finance.application-mysql-authority.driver-class-name=org.h2.Driver",
+                        "copilot.finance.application-mysql-authority.username=sa",
+                        "copilot.finance.application-mysql-authority.password=secret",
+                        "copilot.finance.application-mysql-authority.database=rs_cloud_flower",
+                        "copilot.finance.application-mysql-authority.copilot-jdbc-url=jdbc:h2:mem:finance_app_mysql_authority_ads;MODE=PostgreSQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1",
+                        "copilot.finance.application-mysql-authority.copilot-driver-class-name=org.h2.Driver",
+                        "copilot.finance.application-mysql-authority.copilot-username=sa",
+                        "copilot.finance.application-mysql-authority.copilot-password=secret",
+                        "copilot.finance.application-mysql-authority.copilot-database=prs.flowerbiz.federated")
+                .run(context -> {
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityJdbcQueryExecutor");
+                    assertThat(context).hasBean("financeApplicationMysqlOracleJdbcQueryExecutor");
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityCopilotJdbcQueryExecutor");
+                    assertThat(context).hasBean("financeApplicationMysqlOracleCopilotJdbcQueryExecutor");
+
+                    FinanceApplicationMysqlOracleProofService.QueryExecutor applicationExecutor =
+                            context.getBean(
+                                    "financeApplicationMysqlAuthorityJdbcQueryExecutor",
+                                    FinanceApplicationMysqlOracleProofService.QueryExecutor.class);
+                    FinanceApplicationMysqlOracleProofService.QueryExecutor copilotExecutor =
+                            context.getBean(
+                                    "financeApplicationMysqlAuthorityCopilotJdbcQueryExecutor",
+                                    FinanceApplicationMysqlOracleProofService.QueryExecutor.class);
+
+                    assertThat(applicationExecutor.query("rs_cloud_flower", "SELECT 1 AS amount"))
+                            .singleElement()
+                            .satisfies(row -> assertThat(row).containsEntry("amount", BigDecimal.ONE));
+                    assertThat(copilotExecutor.query("prs.flowerbiz.federated", "SELECT 1 AS amount"))
+                            .singleElement()
+                            .satisfies(row -> assertThat(row).containsEntry("amount", BigDecimal.ONE));
+                });
+    }
+
+    @Test
     void shouldKeepSpringBootPrimaryDataSourceWhenProofJdbcIsEnabled() {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(DataSourceAutoConfiguration.class))
-                .withUserConfiguration(FinanceApplicationMysqlOracleJdbcConfiguration.class)
+                .withUserConfiguration(FinanceApplicationMysqlAuthorityJdbcConfiguration.class)
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:copilot_primary;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
                         "spring.datasource.driver-class-name=org.h2.Driver",
@@ -96,7 +139,9 @@ class FinanceApplicationMysqlOracleJdbcConfigurationTest {
                     assertThat(context).hasBean("dataSource");
                     assertThat(context.getBeanNamesForType(DataSource.class))
                             .containsExactly("dataSource");
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityJdbcQueryExecutor");
                     assertThat(context).hasBean("financeApplicationMysqlOracleJdbcQueryExecutor");
+                    assertThat(context).hasBean("financeApplicationMysqlAuthorityCopilotJdbcQueryExecutor");
                     assertThat(context).hasBean("financeApplicationMysqlOracleCopilotJdbcQueryExecutor");
                 });
     }

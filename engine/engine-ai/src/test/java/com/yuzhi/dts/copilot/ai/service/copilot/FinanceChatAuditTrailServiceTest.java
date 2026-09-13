@@ -5,6 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.domain.FinanceReconciliationScorecardSnapshot;
 import com.yuzhi.dts.copilot.ai.repository.FinanceReconciliationScorecardSnapshotRepository;
@@ -16,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class FinanceChatAuditTrailServiceTest {
@@ -26,7 +30,7 @@ class FinanceChatAuditTrailServiceTest {
             .withUserConfiguration(
                     CaliberRuleRegistry.class,
                     FinanceInvariantRegistry.class,
-                    FinanceOracleRegistry.class,
+                    FinanceAuthorityRegistry.class,
                     FinanceAnswerAuditTrailRegistry.class,
                     FinanceAnswerAuditTrailService.class,
                     FinanceChatAuditTrailService.class);
@@ -54,7 +58,7 @@ class FinanceChatAuditTrailServiceTest {
         assertThat(report.oracleStatus().covered()).isFalse();
         assertThat(report.oracleStatus().healthStatus()).isEqualTo("MISSING_SCORECARD");
         assertThat(report.passed()).isFalse();
-        assertThat(report.failureMessage()).contains("missing oracle reconciliation status");
+        assertThat(report.failureMessage()).contains("missing authority reconciliation status");
     }
 
     @Test
@@ -123,7 +127,32 @@ class FinanceChatAuditTrailServiceTest {
                 .orElseThrow();
 
         assertThat(report.oracleStatus().healthStatus()).isEqualTo("MISSING_SCORECARD");
-        assertThat(report.failureMessage()).contains("missing oracle reconciliation status");
+        assertThat(report.failureMessage()).contains("missing authority reconciliation status");
+    }
+
+    @Test
+    void logsAuthorityBindingWhenScorecardSourceFails() {
+        Logger logger = (Logger) LoggerFactory.getLogger(FinanceChatAuditTrailService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            FinanceChatAuditTrailService service = financeChatAuditTrailService(oracleBindingId -> {
+                throw new IllegalStateException("scorecard store unavailable");
+            });
+
+            service.buildAuditTrail(
+                    financeMonthSettlementPlan(),
+                    "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary");
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        assertThat(appender.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .anySatisfy(message -> assertThat(message)
+                        .contains("authorityBindingId=month-settlement")
+                        .doesNotContain("oracleBindingId=month-settlement"));
     }
 
     @Test
@@ -191,7 +220,7 @@ class FinanceChatAuditTrailServiceTest {
         caliberRuleRegistry.init();
         FinanceInvariantRegistry invariantRegistry = new FinanceInvariantRegistry(objectMapper, caliberRuleRegistry);
         invariantRegistry.init();
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
         FinanceAnswerAuditTrailRegistry auditTrailRegistry = new FinanceAnswerAuditTrailRegistry(objectMapper);
         auditTrailRegistry.init();

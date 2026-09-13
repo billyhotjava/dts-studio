@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -19,14 +20,14 @@ public class FinanceVoucherSubjectTieoutRegistry {
     private static final String REGISTRY_RESOURCE = "governance/finance-voucher-subject-tieout.v1.json";
 
     private final ObjectMapper objectMapper;
-    private final FinanceOracleRegistry financeOracleRegistry;
+    private final FinanceAuthorityRegistry financeAuthorityRegistry;
     private Map<String, SubjectTieoutMapping> mappings = Map.of();
 
     public FinanceVoucherSubjectTieoutRegistry(
             ObjectMapper objectMapper,
-            FinanceOracleRegistry financeOracleRegistry) {
+            FinanceAuthorityRegistry financeAuthorityRegistry) {
         this.objectMapper = objectMapper;
-        this.financeOracleRegistry = financeOracleRegistry;
+        this.financeAuthorityRegistry = financeAuthorityRegistry;
     }
 
     @PostConstruct
@@ -60,14 +61,15 @@ public class FinanceVoucherSubjectTieoutRegistry {
     }
 
     private void assertAlignedWithOracleRegistry(SubjectTieoutMapping mapping) {
-        FinanceOracleRegistry.OracleBinding binding = financeOracleRegistry.binding(mapping.oracleBindingId())
+        FinanceAuthorityRegistry.AuthorityBinding binding = financeAuthorityRegistry.binding(mapping.authorityBindingId())
                 .orElseGet(() -> {
-                    financeOracleRegistry.init();
-                    return financeOracleRegistry.binding(mapping.oracleBindingId()).orElseThrow(
-                            () -> new IllegalStateException("Missing finance oracle binding: " + mapping.oracleBindingId()));
+                    financeAuthorityRegistry.init();
+                    return financeAuthorityRegistry.binding(mapping.authorityBindingId()).orElseThrow(
+                            () -> new IllegalStateException("Missing finance authority binding: "
+                                    + mapping.authorityBindingId()));
                 });
         if (!"voucher-ledger".equals(binding.chain())) {
-            throw new IllegalStateException("Finance voucher subject tie-out must bind to voucher-ledger oracle: "
+            throw new IllegalStateException("Finance voucher subject tie-out must bind to voucher-ledger authority: "
                     + mapping.id());
         }
     }
@@ -88,6 +90,7 @@ public class FinanceVoucherSubjectTieoutRegistry {
 
     public record SubjectTieoutMapping(
             String id,
+            @JsonAlias("authorityBindingId")
             String oracleBindingId,
             String chain,
             String metricId,
@@ -126,6 +129,10 @@ public class FinanceVoucherSubjectTieoutRegistry {
                     voucherSide,
                     subjectIds,
                     dimensionKeys);
+        }
+
+        public String authorityBindingId() {
+            return oracleBindingId;
         }
     }
 }

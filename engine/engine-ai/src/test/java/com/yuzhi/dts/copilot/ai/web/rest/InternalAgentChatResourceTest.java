@@ -97,7 +97,7 @@ class InternalAgentChatResourceTest {
         verify(agentChatService)
                 .sendMessageStream(
                         isNull(), eq("bob"), eq("hi"), eq(1L),
-                        isNull(), isNull(), isNull(), any());
+                        isNull(), isNull(), isNull(), isNull(), any());
     }
 
     @Test
@@ -127,7 +127,7 @@ class InternalAgentChatResourceTest {
         when(agentChatService.getSession("sess-2")).thenReturn(Optional.of(newSession));
         when(agentChatService.sendMessage(
                 isNull(), eq("bob"), eq("hi"), eq(1L),
-                isNull(), isNull(), isNull()))
+                isNull(), isNull(), isNull(), isNull()))
                 .thenReturn("ok");
 
         InternalAgentChatResource resource = new InternalAgentChatResource(agentChatService, "secret");
@@ -152,6 +152,6 @@ class InternalAgentChatResourceTest {
                 .containsKey("trace");
         verify(agentChatService).sendMessage(
                 isNull(), eq("bob"), eq("hi"), eq(1L),
-                isNull(), isNull(), isNull());
+                isNull(), isNull(), isNull(), isNull());
     }
 }

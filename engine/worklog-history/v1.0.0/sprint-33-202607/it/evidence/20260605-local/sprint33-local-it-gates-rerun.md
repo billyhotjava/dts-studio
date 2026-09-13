@@ -2,7 +2,7 @@
 
 **时间**: 2026-06-05
 **环境**: local repo (`dts-copilot`)
-**结论**: PASS。Sprint-33 现有本地 contract / IT 脚本全部重跑通过；F1 live 双路取数分离认证改动后已二次复跑；F4-T02 记分卡健康字段、scorecard publisher 完整证据门禁与 schedule provider 骨架已纳入 `test_sprint33_reconciliation_scorecard.sh`；F5-T02 已补充“未签字 baseline 不可压制 scorecard 漂移”的 TDD 门禁。剩余 IN_PROGRESS 项仍按任务文件记录为 live oracle、真实端点、live evidence provider 或财务/审计签字接线缺口。
+**结论**: PASS。Sprint-33 现有本地 contract / IT 脚本全部重跑通过；F1 live 双路取数分离认证改动后已二次复跑；F4-T02 记分卡健康字段、scorecard publisher 完整证据门禁与 schedule provider 骨架已纳入 `test_sprint33_reconciliation_scorecard.sh`；F5-T02 已补充“未签字 baseline 不可压制 scorecard 漂移”的 TDD 门禁。剩余 IN_PROGRESS 项仍按任务文件记录为 live 权威基准、真实端点、live evidence provider 或财务/审计签字接线缺口。
 
 ## 重跑脚本
 
@@ -39,7 +39,7 @@ PASS mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardScheduledPub
 PASS worklog/v1.0.0/sprint-33-202607/it/test_f5_finance_answer_audit_trail.sh
 ```
 
-F1 补充规则：当 live oracle `/rs-flowers-base/...` 返回非 2xx 时，HTTP provider 的异常会直接提示 `copilot.finance.reconciliation.oracle-base-url` 需要 legacy `adminapi` / `rs-gateway` / `rs-flowers-base` 入口，可使用 `/flowers-dev-api` 或等价 gateway base URL，不要指向当前 `dts-admin /api` 服务。
+F1 补充规则：当 live L2 权威基准 `/rs-flowers-base/...` 返回非 2xx 时，HTTP provider 的异常会直接提示推荐 `copilot.finance.reconciliation.authority-base-url` 需要 legacy `adminapi` / `rs-gateway` / `rs-flowers-base` 入口，可使用 `/flowers-dev-api` 或等价 gateway base URL，不要指向当前 `dts-admin /api` 服务；旧 `oracle-base-url` 仅作为兼容配置保留。
 
 补充规则：`PENDING_SIGNATURE` 的财务签字基线不会向 scorecard 提供已接受差异，不能吞掉新增漂移；只有 `SIGNED` 且 `accepted=true` 的基线才可压制重复漂移告警。`FinanceSignoffBaselineService` 生成的 baseline markdown 也会明确输出“漂移基线采信”状态，避免重新生成资产时丢失业务说明。
 

@@ -40,7 +40,7 @@ public class FinanceDetailReconciliationHarness {
                 false,
                 reconciliation,
                 "Detail reconciliation sample failed: sampleId=" + sample.id()
-                        + ", oracleEndpoint=" + sample.oracleEndpoint()
+                        + ", authorityEndpoint=" + sample.authorityEndpoint()
                         + ", reason=" + reconciliation.failureMessage());
     }
 

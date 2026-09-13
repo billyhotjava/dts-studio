@@ -4,7 +4,11 @@ import java.util.List;
 
 public interface FinanceReconciliationScorecardEvidenceProvider {
 
-    String oracleBindingId();
+    String authorityBindingId();
+
+    default String oracleBindingId() {
+        return authorityBindingId();
+    }
 
     String scorecardId();
 

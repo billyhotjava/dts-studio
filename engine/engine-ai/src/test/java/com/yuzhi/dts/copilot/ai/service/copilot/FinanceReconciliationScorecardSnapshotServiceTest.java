@@ -1,6 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +68,17 @@ class FinanceReconciliationScorecardSnapshotServiceTest {
                 .thenReturn(Optional.of(snapshot));
 
         assertThat(service.latestScorecard("month-settlement")).isEmpty();
+    }
+
+    @Test
+    void requiresAuthorityBindingIdWhenPublishingSnapshot() {
+        FinanceReconciliationScorecardSnapshotService service =
+                new FinanceReconciliationScorecardSnapshotService(repository, objectMapper);
+
+        assertThatThrownBy(() -> service.publish("", "sprint33-finance-daily-scorecard", passingScorecard("PASS")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("authorityBindingId, scorecardId and report are required")
+                .hasMessageNotContaining("oracleBindingId");
     }
 
     private static FinanceReconciliationScorecardService.ScorecardReport passingScorecard(String status) {

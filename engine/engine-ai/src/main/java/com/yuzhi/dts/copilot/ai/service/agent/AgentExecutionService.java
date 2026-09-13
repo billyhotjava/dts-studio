@@ -14,6 +14,7 @@ import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.copilot.FinanceChatAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
+import com.yuzhi.dts.copilot.ai.service.platform.DbtFreshnessResolver;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.rag.dto.RagResult;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
@@ -23,10 +24,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -98,6 +101,7 @@ public class AgentExecutionService {
     private final LlmProviderClientFactory clientFactory;
     private final AiDataSourceRepository dataSourceRepository;
     private final FinanceChatAuditTrailService financeChatAuditTrailService;
+    private final DbtFreshnessResolver dbtFreshnessResolver;
 
     private volatile LlmProviderClient cachedClient;
     private volatile String cachedClientKey;
@@ -115,7 +119,26 @@ public class AgentExecutionService {
                 conversationPlannerService,
                 clientFactory,
                 dataSourceRepository,
-                null);
+                null,
+                (DbtFreshnessResolver) null);
+    }
+
+    public AgentExecutionService(ReActEngine reActEngine,
+                                 RagService ragService,
+                                 AiProviderConfigRepository providerConfigRepository,
+                                 ConversationPlannerService conversationPlannerService,
+                                 LlmProviderClientFactory clientFactory,
+                                 AiDataSourceRepository dataSourceRepository,
+                                 FinanceChatAuditTrailService financeChatAuditTrailService) {
+        this(
+                reActEngine,
+                ragService,
+                providerConfigRepository,
+                conversationPlannerService,
+                clientFactory,
+                dataSourceRepository,
+                financeChatAuditTrailService,
+                (DbtFreshnessResolver) null);
     }
 
     @Autowired
@@ -125,7 +148,27 @@ public class AgentExecutionService {
                                  ConversationPlannerService conversationPlannerService,
                                  LlmProviderClientFactory clientFactory,
                                  AiDataSourceRepository dataSourceRepository,
-                                 FinanceChatAuditTrailService financeChatAuditTrailService) {
+                                 FinanceChatAuditTrailService financeChatAuditTrailService,
+                                 ObjectProvider<DbtFreshnessResolver> dbtFreshnessResolverProvider) {
+        this(
+                reActEngine,
+                ragService,
+                providerConfigRepository,
+                conversationPlannerService,
+                clientFactory,
+                dataSourceRepository,
+                financeChatAuditTrailService,
+                dbtFreshnessResolverProvider == null ? null : dbtFreshnessResolverProvider.getIfAvailable());
+    }
+
+    public AgentExecutionService(ReActEngine reActEngine,
+                                 RagService ragService,
+                                 AiProviderConfigRepository providerConfigRepository,
+                                 ConversationPlannerService conversationPlannerService,
+                                 LlmProviderClientFactory clientFactory,
+                                 AiDataSourceRepository dataSourceRepository,
+                                 FinanceChatAuditTrailService financeChatAuditTrailService,
+                                 DbtFreshnessResolver dbtFreshnessResolver) {
         this.reActEngine = reActEngine;
         this.ragService = ragService;
         this.providerConfigRepository = providerConfigRepository;
@@ -133,6 +176,7 @@ public class AgentExecutionService {
         this.clientFactory = clientFactory;
         this.dataSourceRepository = dataSourceRepository;
         this.financeChatAuditTrailService = financeChatAuditTrailService;
+        this.dbtFreshnessResolver = dbtFreshnessResolver;
     }
 
     public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
@@ -151,6 +195,7 @@ public class AgentExecutionService {
                 dataSourceId,
                 martHealthSnapshot,
                 Collections.emptyMap(),
+                Collections.emptyMap(),
                 Collections.emptyMap());
     }
 
@@ -159,9 +204,28 @@ public class AgentExecutionService {
                                            Map<String, Boolean> martHealthSnapshot,
                                            Map<String, String> assumptionOverrides,
                                            Map<String, String> clarificationAnswers) {
+        return executeChat(
+                sessionId,
+                userId,
+                userMessage,
+                history,
+                dataSourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                assumptionOverrides,
+                clarificationAnswers);
+    }
+
+    public ChatExecutionResult executeChat(String sessionId, String userId, String userMessage,
+                                           List<Map<String, Object>> history, Long dataSourceId,
+                                           Map<String, Boolean> martHealthSnapshot,
+                                           Map<String, String> freshnessSnapshot,
+                                           Map<String, String> assumptionOverrides,
+                                           Map<String, String> clarificationAnswers) {
         CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
-                martHealthSnapshot, assumptionOverrides, clarificationAnswers);
+                martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers);
         ConversationPlan conversationPlan = planConversation(userMessage, requestContext);
+        requestContext = enrichWithLiveDbtFreshness(requestContext, conversationPlan);
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
         }
@@ -207,7 +271,9 @@ public class AgentExecutionService {
                 toolContext,
                 provider.getTemperature(),
                 provider.getMaxTokens());
+        String attemptedSql = extractSqlFromMarkdown(response);
         String generatedSql = resolveGeneratedSql(response, conversationPlan);
+        String evidenceSql = StringUtils.hasText(generatedSql) ? generatedSql : attemptedSql;
         FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
                 buildFinanceAuditTrail(conversationPlan, generatedSql);
         return new ChatExecutionResult(
@@ -216,7 +282,8 @@ public class AgentExecutionService {
                 conversationPlan,
                 null,
                 requestContext,
-                financeAuditTrail
+                financeAuditTrail,
+                evidenceSql
         );
     }
 
@@ -240,6 +307,7 @@ public class AgentExecutionService {
                 martHealthSnapshot,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
+                Collections.emptyMap(),
                 sseOutput);
     }
 
@@ -249,9 +317,30 @@ public class AgentExecutionService {
                                                  Map<String, String> assumptionOverrides,
                                                  Map<String, String> clarificationAnswers,
                                                  OutputStream sseOutput) {
+        return executeChatStream(
+                sessionId,
+                userId,
+                userMessage,
+                history,
+                dataSourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                assumptionOverrides,
+                clarificationAnswers,
+                sseOutput);
+    }
+
+    public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                 List<Map<String, Object>> history, Long dataSourceId,
+                                                 Map<String, Boolean> martHealthSnapshot,
+                                                 Map<String, String> freshnessSnapshot,
+                                                 Map<String, String> assumptionOverrides,
+                                                 Map<String, String> clarificationAnswers,
+                                                 OutputStream sseOutput) {
         CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
-                martHealthSnapshot, assumptionOverrides, clarificationAnswers);
+                martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers);
         ConversationPlan conversationPlan = planConversation(userMessage, requestContext);
+        requestContext = enrichWithLiveDbtFreshness(requestContext, conversationPlan);
         if (conversationPlan.mode() == PlanMode.DIRECT_RESPONSE) {
             writeTokenAndDone(sseOutput, conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
             return new ChatExecutionResult(conversationPlan.directResponse(), null, conversationPlan, null, requestContext);
@@ -295,7 +384,9 @@ public class AgentExecutionService {
                 provider.getTemperature(),
                 provider.getMaxTokens(),
                 sseOutput);
+        String attemptedSql = extractSqlFromMarkdown(response);
         String sql = resolveGeneratedSql(response, conversationPlan);
+        String evidenceSql = StringUtils.hasText(sql) ? sql : attemptedSql;
         FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail =
                 buildFinanceAuditTrail(conversationPlan, sql);
         writeDoneEvent(
@@ -304,7 +395,8 @@ public class AgentExecutionService {
                 conversationPlan,
                 inferSuggestedDisplay(userMessage, sql, conversationPlan),
                 requestContext,
-                financeAuditTrail);
+                financeAuditTrail,
+                evidenceSql);
 
         return new ChatExecutionResult(
                 response,
@@ -312,7 +404,8 @@ public class AgentExecutionService {
                 conversationPlan,
                 extractReasoningFromMessages(messages),
                 requestContext,
-                financeAuditTrail
+                financeAuditTrail,
+                evidenceSql
         );
     }
 
@@ -328,6 +421,126 @@ public class AgentExecutionService {
         return conversationPlannerService.plan(
                 userMessage,
                 requestContext == null ? Collections.emptyMap() : requestContext.martHealthSnapshot());
+    }
+
+    private CopilotChatRequestContext enrichWithLiveDbtFreshness(
+            CopilotChatRequestContext requestContext,
+            ConversationPlan conversationPlan) {
+        if (dbtFreshnessResolver == null || conversationPlan == null || !shouldResolveDbtFreshness(conversationPlan)) {
+            return requestContext;
+        }
+        List<String> relations = dbtFreshnessRelations(conversationPlan).stream()
+                .filter(relation -> !hasFreshness(requestContext, relation))
+                .toList();
+        if (relations.isEmpty()) {
+            return requestContext;
+        }
+        Map<String, String> resolved;
+        try {
+            resolved = dbtFreshnessResolver.resolveFreshness(relations);
+        } catch (Exception ex) {
+            log.debug("Live dbt freshness probe skipped: {}", ex.getMessage());
+            return requestContext;
+        }
+        if (resolved == null || resolved.isEmpty()) {
+            return requestContext;
+        }
+        Map<String, String> merged = new LinkedHashMap<>(resolved);
+        if (requestContext != null) {
+            merged.putAll(requestContext.freshnessSnapshot());
+        }
+        CopilotChatRequestContext base = requestContext == null ? CopilotChatRequestContext.empty() : requestContext;
+        return new CopilotChatRequestContext(
+                base.martHealthSnapshot(),
+                merged,
+                base.assumptionOverrides(),
+                base.clarificationAnswers());
+    }
+
+    private boolean shouldResolveDbtFreshness(ConversationPlan conversationPlan) {
+        StringBuilder text = new StringBuilder();
+        text.append(' ').append(String.valueOf(conversationPlan.dataSurface()));
+        text.append(' ').append(String.valueOf(conversationPlan.dataLayer()));
+        text.append(' ').append(String.valueOf(conversationPlan.primaryTarget()));
+        text.append(' ').append(String.valueOf(conversationPlan.martTable()));
+        conversationPlan.sourceRefs().forEach(ref -> text.append(' ').append(ref));
+        String normalized = text.toString().toLowerCase(Locale.ROOT);
+        if (normalized.contains("mysql.rs_cloud_flower.")
+                || normalized.contains("jdbc:mysql:")
+                || normalized.contains("application-mysql")
+                || normalized.contains("应用 mysql")
+                || normalized.contains("应用mysql")) {
+            return false;
+        }
+        return normalized.contains("l1_dbt_mart")
+                || normalized.contains("l2_ads")
+                || normalized.contains("l3_ads")
+                || normalized.contains("ads")
+                || normalized.contains("dws")
+                || normalized.contains("dbt-model:")
+                || normalized.contains("xycyl_");
+    }
+
+    private List<String> dbtFreshnessRelations(ConversationPlan conversationPlan) {
+        LinkedHashSet<String> relations = new LinkedHashSet<>();
+        addDbtRelation(relations, conversationPlan.martTable());
+        addDbtRelation(relations, conversationPlan.primaryTarget());
+        conversationPlan.sourceRefs().stream()
+                .map(this::extractSourceRelation)
+                .forEach(value -> addDbtRelation(relations, value));
+        return List.copyOf(relations);
+    }
+
+    private void addDbtRelation(LinkedHashSet<String> relations, String value) {
+        String relation = normalizeRelation(value);
+        if (!StringUtils.hasText(relation)) {
+            return;
+        }
+        String lower = relation.toLowerCase(Locale.ROOT);
+        if (lower.contains("xycyl_") || lower.contains("ads_") || lower.contains("dws_")
+                || lower.contains("dwd_") || lower.contains("dim_")) {
+            relations.add(relation);
+        }
+    }
+
+    private String extractSourceRelation(String sourceRef) {
+        if (!StringUtils.hasText(sourceRef)) {
+            return null;
+        }
+        String trimmed = sourceRef.trim();
+        int colon = trimmed.indexOf(':');
+        return colon >= 0 ? trimmed.substring(colon + 1) : trimmed;
+    }
+
+    private String normalizeRelation(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim().replace("`", "").replace("\"", "");
+        return StringUtils.hasText(normalized) ? normalized : null;
+    }
+
+    private boolean hasFreshness(CopilotChatRequestContext requestContext, String relation) {
+        if (requestContext == null || requestContext.freshnessSnapshot().isEmpty() || !StringUtils.hasText(relation)) {
+            return false;
+        }
+        String normalized = simpleRelationName(relation);
+        for (String key : requestContext.freshnessSnapshot().keySet()) {
+            String snapshotKey = simpleRelationName(key);
+            if (normalized.equals(snapshotKey) || normalizeRelation(relation).equalsIgnoreCase(normalizeRelation(key))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String simpleRelationName(String value) {
+        String normalized = normalizeRelation(value);
+        if (!StringUtils.hasText(normalized)) {
+            return "";
+        }
+        int dot = normalized.lastIndexOf('.');
+        return (dot >= 0 ? normalized.substring(dot + 1) : normalized).toLowerCase(Locale.ROOT);
     }
 
     private String buildSystemPrompt(
@@ -594,7 +807,7 @@ public class AgentExecutionService {
         try {
             String escaped = MAPPER.createObjectNode().put("content", text).toString();
             out.write(("event: token\ndata: " + escaped + "\n\n").getBytes(StandardCharsets.UTF_8));
-            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, financeAuditTrail);
+            writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, financeAuditTrail, sql);
             out.flush();
         } catch (IOException e) {
             log.debug("SSE write failed: {}", e.getMessage());
@@ -625,6 +838,17 @@ public class AgentExecutionService {
             String suggestedDisplay,
             CopilotChatRequestContext requestContext,
             FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
+        writeDoneEvent(out, sql, conversationPlan, suggestedDisplay, requestContext, financeAuditTrail, sql);
+    }
+
+    private void writeDoneEvent(
+            OutputStream out,
+            String sql,
+            ConversationPlan conversationPlan,
+            String suggestedDisplay,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail,
+            String evidenceSql) {
         try {
             ObjectNode done = MAPPER.createObjectNode();
             if (sql != null) {
@@ -667,7 +891,8 @@ public class AgentExecutionService {
                     var sourceRefs = done.putArray("sourceRefs");
                     conversationPlan.sourceRefs().forEach(sourceRefs::add);
                 }
-                CopilotChatContract.putDoneFields(done, conversationPlan, sql, requestContext, financeAuditTrail);
+                String contractSql = StringUtils.hasText(evidenceSql) ? evidenceSql : sql;
+                CopilotChatContract.putDoneFields(done, conversationPlan, contractSql, requestContext, financeAuditTrail);
             }
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -732,8 +957,19 @@ public class AgentExecutionService {
             ConversationPlan conversationPlan,
             String reasoningContent,
             CopilotChatRequestContext requestContext,
-            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail,
+            String evidenceSql
     ) {
+        public ChatExecutionResult(
+                String response,
+                String generatedSql,
+                ConversationPlan conversationPlan,
+                String reasoningContent,
+                CopilotChatRequestContext requestContext,
+                FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
+            this(response, generatedSql, conversationPlan, reasoningContent, requestContext, financeAuditTrail, generatedSql);
+        }
+
         public ChatExecutionResult(
                 String response,
                 String generatedSql,

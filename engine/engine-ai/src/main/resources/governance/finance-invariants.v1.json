@@ -27,7 +27,7 @@
       "sourceRefs": [
         "adminapi/rs-modules/rs-flowers-base/src/main/java/com/rs/flowers/base/finace/controller/VoucherController.java",
         "adminapi/rs-modules/rs-flowers-base/src/main/java/com/rs/flowers/base/finace/mapper/VoucherItemSQLProvider.java",
-        "dts-copilot-ai/src/main/resources/governance/finance-oracle-registry.v1.json#voucher-ledger"
+        "dts-copilot-ai/src/main/resources/governance/finance-authority-registry.v1.json#voucher-ledger"
       ]
     },
     {

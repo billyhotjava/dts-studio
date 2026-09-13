@@ -28,7 +28,7 @@ public class FinanceDetailReconciliationService {
 
         String chainFailure = firstChainMismatch(safeSpec, safeCopilotRows, "copilot");
         if (chainFailure.isEmpty()) {
-            chainFailure = firstChainMismatch(safeSpec, safeOracleRows, "oracle");
+            chainFailure = firstChainMismatch(safeSpec, safeOracleRows, "authority");
         }
         if (!chainFailure.isEmpty()) {
             return new DetailReconciliationReport(false, List.of(), chainFailure);
@@ -36,7 +36,7 @@ public class FinanceDetailReconciliationService {
 
         String duplicateFailure = firstDuplicateFailure(safeSpec, safeCopilotRows, "copilot");
         if (duplicateFailure.isEmpty()) {
-            duplicateFailure = firstDuplicateFailure(safeSpec, safeOracleRows, "oracle");
+            duplicateFailure = firstDuplicateFailure(safeSpec, safeOracleRows, "authority");
         }
         if (!duplicateFailure.isEmpty()) {
             return new DetailReconciliationReport(false, List.of(), duplicateFailure);
@@ -60,7 +60,7 @@ public class FinanceDetailReconciliationService {
                 continue;
             }
             if (oracleRow == null) {
-                DetailDiff diff = DetailDiff.missing(key, "missing oracle row");
+                DetailDiff diff = DetailDiff.missing(key, "missing authority row");
                 diffs.add(diff);
                 failureMessage = firstFailure(failureMessage, safeSpec, diff, "");
                 continue;
@@ -101,7 +101,7 @@ public class FinanceDetailReconciliationService {
             String source) {
         for (DetailRow row : rows) {
             if (!spec.chain().equals(row.chain())) {
-                return "Detail reconciliation chain mismatch: oracleBindingId=" + spec.oracleBindingId()
+                return "Detail reconciliation chain mismatch: authorityBindingId=" + spec.oracleBindingId()
                         + ", source=" + source
                         + ", businessKey=" + row.businessKey()
                         + ", expected=" + spec.chain()
@@ -119,7 +119,7 @@ public class FinanceDetailReconciliationService {
         for (DetailRow row : rows) {
             DetailKey key = DetailKey.from(row);
             if (!seen.add(key)) {
-                return "Detail reconciliation failed: oracleBindingId=" + spec.oracleBindingId()
+                return "Detail reconciliation failed: authorityBindingId=" + spec.oracleBindingId()
                         + ", chain=" + spec.chain()
                         + ", reason=duplicate " + source + " row"
                         + ", businessKey=" + key.businessKey()
@@ -139,7 +139,7 @@ public class FinanceDetailReconciliationService {
             return currentFailure;
         }
         if (diff.missing()) {
-            return "Detail reconciliation failed: oracleBindingId=" + spec.oracleBindingId()
+            return "Detail reconciliation failed: authorityBindingId=" + spec.oracleBindingId()
                     + ", chain=" + spec.chain()
                     + ", businessKey=" + diff.key().businessKey()
                     + ", projectId=" + diff.key().projectId()
@@ -150,14 +150,14 @@ public class FinanceDetailReconciliationService {
         if (firstMismatch == null) {
             return "";
         }
-        return "Detail reconciliation failed: oracleBindingId=" + spec.oracleBindingId()
+        return "Detail reconciliation failed: authorityBindingId=" + spec.oracleBindingId()
                 + ", chain=" + spec.chain()
                 + ", businessKey=" + diff.key().businessKey()
                 + ", projectId=" + diff.key().projectId()
                 + ", accountPeriod=" + diff.key().accountPeriod()
                 + ", field=" + textOrEmpty(amountField)
                 + ", copilot=" + amountText(firstMismatch.copilotAmount())
-                + ", oracle=" + amountText(firstMismatch.oracleAmount())
+                + ", authority=" + amountText(firstMismatch.oracleAmount())
                 + ", difference=" + amountText(firstMismatch.difference());
     }
 

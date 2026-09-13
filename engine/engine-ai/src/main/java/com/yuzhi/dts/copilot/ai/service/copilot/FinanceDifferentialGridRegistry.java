@@ -1,5 +1,6 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -98,6 +99,7 @@ public class FinanceDifferentialGridRegistry {
     public record DifferentialGridCase(
             String id,
             String summaryCaseId,
+            @JsonAlias("authorityBindingId")
             String oracleBindingId,
             String chain,
             String metricId,
@@ -105,6 +107,7 @@ public class FinanceDifferentialGridRegistry {
             List<String> dimensionKeys,
             List<GridSlice> slices,
             String copilotQuestion,
+            @JsonAlias("authorityEndpoint")
             String oracleEndpoint,
             String notes) {
         public DifferentialGridCase {
@@ -133,6 +136,14 @@ public class FinanceDifferentialGridRegistry {
                                     slice.filters(),
                                     slice.boundary()))
                             .toList());
+        }
+
+        public String authorityBindingId() {
+            return oracleBindingId;
+        }
+
+        public String authorityEndpoint() {
+            return oracleEndpoint;
         }
     }
 

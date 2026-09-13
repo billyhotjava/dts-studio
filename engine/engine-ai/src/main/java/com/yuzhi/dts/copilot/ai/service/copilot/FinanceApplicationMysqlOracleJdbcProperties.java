@@ -1,7 +1,9 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Primary;
 
+@Primary
 @ConfigurationProperties(prefix = "copilot.finance.application-mysql-oracle")
 public class FinanceApplicationMysqlOracleJdbcProperties {
 

@@ -22,10 +22,10 @@ public class FinanceDetailReconciliationHttpPayloadProvider
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
-    private final String oracleBaseUrl;
+    private final String authorityBaseUrl;
     private final String analyticsBaseUrl;
-    private final String oracleAuthorizationHeader;
-    private final String oracleCookieHeader;
+    private final String authorityAuthorizationHeader;
+    private final String authorityCookieHeader;
     private final String analyticsAuthorizationHeader;
     private final String analyticsCookieHeader;
     private final int timeoutSeconds;
@@ -33,18 +33,18 @@ public class FinanceDetailReconciliationHttpPayloadProvider
     @Autowired
     public FinanceDetailReconciliationHttpPayloadProvider(
             ObjectMapper objectMapper,
-            @Value("${copilot.finance.reconciliation.oracle-base-url:}") String oracleBaseUrl,
+            @Value("${copilot.finance.reconciliation.authority-base-url:${copilot.finance.reconciliation.oracle-base-url:}}") String authorityBaseUrl,
             @Value("${copilot.finance.reconciliation.analytics-base-url:}") String analyticsBaseUrl,
-            @Value("${copilot.finance.reconciliation.oracle-authorization:${copilot.finance.reconciliation.authorization:}}") String oracleAuthorizationHeader,
-            @Value("${copilot.finance.reconciliation.oracle-cookie:${copilot.finance.reconciliation.cookie:}}") String oracleCookieHeader,
+            @Value("${copilot.finance.reconciliation.authority-authorization:${copilot.finance.reconciliation.oracle-authorization:${copilot.finance.reconciliation.authorization:}}}") String authorityAuthorizationHeader,
+            @Value("${copilot.finance.reconciliation.authority-cookie:${copilot.finance.reconciliation.oracle-cookie:${copilot.finance.reconciliation.cookie:}}}") String authorityCookieHeader,
             @Value("${copilot.finance.reconciliation.analytics-authorization:${copilot.finance.reconciliation.authorization:}}") String analyticsAuthorizationHeader,
             @Value("${copilot.finance.reconciliation.analytics-cookie:${copilot.finance.reconciliation.cookie:}}") String analyticsCookieHeader) {
         this(
                 objectMapper,
-                oracleBaseUrl,
+                authorityBaseUrl,
                 analyticsBaseUrl,
-                oracleAuthorizationHeader,
-                oracleCookieHeader,
+                authorityAuthorizationHeader,
+                authorityCookieHeader,
                 analyticsAuthorizationHeader,
                 analyticsCookieHeader,
                 30);
@@ -78,10 +78,10 @@ public class FinanceDetailReconciliationHttpPayloadProvider
             String analyticsCookieHeader,
             int timeoutSeconds) {
         this.objectMapper = objectMapper;
-        this.oracleBaseUrl = trimTrailingSlash(oracleBaseUrl);
+        this.authorityBaseUrl = trimTrailingSlash(oracleBaseUrl);
         this.analyticsBaseUrl = trimTrailingSlash(analyticsBaseUrl);
-        this.oracleAuthorizationHeader = normalizeAuthorizationHeader(oracleAuthorizationHeader);
-        this.oracleCookieHeader = trimToNull(oracleCookieHeader);
+        this.authorityAuthorizationHeader = normalizeAuthorizationHeader(oracleAuthorizationHeader);
+        this.authorityCookieHeader = trimToNull(oracleCookieHeader);
         this.analyticsAuthorizationHeader = normalizeAuthorizationHeader(analyticsAuthorizationHeader);
         this.analyticsCookieHeader = trimToNull(analyticsCookieHeader);
         this.timeoutSeconds = Math.max(1, timeoutSeconds);
@@ -92,22 +92,23 @@ public class FinanceDetailReconciliationHttpPayloadProvider
 
     @Override
     public String oraclePayload(FinanceDetailReconciliationSampleRegistry.DetailSample sample) {
-        if (!StringUtils.hasText(oracleBaseUrl)) {
-            throw new IllegalStateException("copilot.finance.reconciliation.oracle-base-url is required");
+        if (!StringUtils.hasText(authorityBaseUrl)) {
+            throw new IllegalStateException("copilot.finance.reconciliation.authority-base-url is required"
+                    + " (legacy copilot.finance.reconciliation.oracle-base-url is still accepted)");
         }
-        Endpoint endpoint = Endpoint.parse(sample.oracleEndpoint());
-        URI uri = URI.create(oracleBaseUrl + endpoint.pathWithQuery(sample.oracleRequest()));
-        HttpRequest.Builder builder = requestBuilder(uri, oracleAuthorizationHeader, oracleCookieHeader);
+        Endpoint endpoint = Endpoint.parse(sample.authorityEndpoint());
+        URI uri = URI.create(authorityBaseUrl + endpoint.pathWithQuery(sample.authorityRequest()));
+        HttpRequest.Builder builder = requestBuilder(uri, authorityAuthorizationHeader, authorityCookieHeader);
         if ("GET".equals(endpoint.method())) {
             return send(builder.GET().build());
         }
         if ("POST".equals(endpoint.method())) {
             return send(builder
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(writeJson(sample.oracleRequest())))
+                    .POST(HttpRequest.BodyPublishers.ofString(writeJson(sample.authorityRequest())))
                     .build());
         }
-        throw new IllegalArgumentException("Unsupported finance oracle endpoint method: " + endpoint.method());
+        throw new IllegalArgumentException("Unsupported finance authority endpoint method: " + endpoint.method());
     }
 
     @Override
@@ -175,8 +176,9 @@ public class FinanceDetailReconciliationHttpPayloadProvider
         if (uri == null || !uri.getPath().contains("/rs-flowers-base/")) {
             return "";
         }
-        return "; oracle-route-hint=expected legacy adminapi rs-gateway/rs-flowers-base route. "
-                + "Check copilot.finance.reconciliation.oracle-base-url: use /flowers-dev-api or an equivalent "
+        return "; authority-route-hint=expected legacy adminapi rs-gateway/rs-flowers-base route. "
+                + "Check copilot.finance.reconciliation.authority-base-url "
+                + "(legacy oracle-base-url is still accepted): use /flowers-dev-api or an equivalent "
                 + "rs-gateway/rs-flowers-base base URL, not the dts-admin /api service.";
     }
 
@@ -256,11 +258,11 @@ public class FinanceDetailReconciliationHttpPayloadProvider
     private record Endpoint(String method, String path) {
         private static Endpoint parse(String signature) {
             if (!StringUtils.hasText(signature)) {
-                throw new IllegalArgumentException("finance oracle endpoint is blank");
+                throw new IllegalArgumentException("finance authority endpoint is blank");
             }
             String[] parts = signature.trim().split("\\s+", 2);
             if (parts.length != 2 || !StringUtils.hasText(parts[0]) || !StringUtils.hasText(parts[1])) {
-                throw new IllegalArgumentException("finance oracle endpoint must be '<METHOD> <PATH>': " + signature);
+                throw new IllegalArgumentException("finance authority endpoint must be '<METHOD> <PATH>': " + signature);
             }
             String method = parts[0].trim().toUpperCase();
             String path = parts[1].trim();

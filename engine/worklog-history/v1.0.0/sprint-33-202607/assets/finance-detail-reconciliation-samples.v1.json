@@ -3,15 +3,15 @@
   "samples": [
     {
       "id": "month-settlement-js2026060008",
-      "oracleBindingId": "month-settlement",
+      "authorityBindingId": "month-settlement",
       "chain": "rent-settlement",
-      "oracleEndpoint": "POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData",
+      "authorityEndpoint": "POST /rs-flowers-base/operate/monthAccount/getMonthSettlementData",
       "businessKey": "结算2026060008",
       "projectId": "1001",
       "accountPeriod": "202606",
       "copilotQuestion": "查询 202606 账期 1001 项目 结算2026060008 的月对账三级金额明细",
       "amountFields": ["receivableTotalAmount", "netReceiptTotalAmount", "foldingAfterTotalAmount", "totalAmount"],
-      "oracleRequest": {
+      "authorityRequest": {
         "projectId": "1001",
         "yearAndMonth": "202606",
         "businessKey": "结算2026060008"
@@ -27,15 +27,15 @@
     },
     {
       "id": "sale-account-bx202606030968",
-      "oracleBindingId": "sale-account",
+      "authorityBindingId": "sale-account",
       "chain": "sale-gift-bad-debt",
-      "oracleEndpoint": "GET /rs-flowers-base/operate/saleAccount/listSaleAccountPage",
+      "authorityEndpoint": "GET /rs-flowers-base/operate/saleAccount/listSaleAccountPage",
       "businessKey": "BX202606030968",
       "projectId": "1001",
       "accountPeriod": "202606",
       "copilotQuestion": "查询 202606 账期 1001 项目 BX202606030968 的售账应收实收明细",
       "amountFields": ["receivableAmount", "netReceiptsAmount", "bizAmount"],
-      "oracleRequest": {
+      "authorityRequest": {
         "projectId": "1001",
         "bizCode": "BX202606030968"
       },

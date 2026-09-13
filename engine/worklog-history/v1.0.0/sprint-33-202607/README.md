@@ -15,22 +15,24 @@
 
 ## 背景
 
+> 术语说明：本 Sprint 统一使用“权威基准/权威答案源”描述对账真相。历史类名、资源文件名、脚本名或兼容字段里仍可能保留 `oracle`，仅代表测试语境中的权威答案源，不是 Oracle 数据库。应用数据库仍是 MySQL；应用 MySQL/应用报表端点只作为只读对账基准，Copilot 正常统计查询仍应走入湖后的 dbt/DWS/ADS。
+
 ### 三个工程命题
 
 | 要求 | 命题 | 证明手段 |
 |------|------|----------|
 | ① 一致性 | 明细级：同一业务单，copilot 行级 == 应用系统 | 对账 equality |
-| ② 汇总正确 | copilot SUM == oracle SUM，且锚到复式凭证 | 双路计算 + 凭证 tie-out |
+| ② 汇总正确 | copilot SUM == 权威基准 SUM，且锚到复式凭证 | 双路计算 + 凭证 tie-out |
 | ② 自定义条件正确 | 无穷过滤组合 | **口径不变量（任意条件成立）+ 差分抽样** |
 
 ②的"各种自定义条件"无法穷举证明，只能靠"对任意条件都成立的性质"（metamorphic invariants）来**证明**而非抽查——这是本 sprint 的灵魂。
 
-### Oracle 三层（强度递增，必须对正确的基准对账）
+### 权威基准三层（强度递增，必须对正确的基准对账）
 
 ```
 L1 原始业务表镜像 (ods_ptr_mysql_a_month_accounting …)   只证 “mart=表聚合”，必要不充分
 L2 应用系统报表端点输出 (MonthAccountController.getMonthSettlementData …)  证 “copilot=业务所见” ← 满足 req#1
-L3 已过账凭证 (VoucherController, debit_amount=credit_amount 复式)  会计级真相，最强 oracle
+L3 已过账凭证 (VoucherController, debit_amount=credit_amount 复式)  会计级真相，最强权威基准
 ```
 
 ### 现状缺口（诚实记录）
@@ -39,7 +41,7 @@ L3 已过账凭证 (VoucherController, debit_amount=credit_amount 复式)  会�
 
 ## 设计依据
 
-- **Oracle 端点（已核实存在）**：`MonthAccountController.listMonthAccountingPage` / `getMonthSettlementData`（月对账）、`SaleAccountController.listSaleAccountPage`（售/赠/坏链）、`VoucherController./list //export`（凭证）。
+- **权威基准端点（已核实存在，不是 Oracle 数据库）**：`MonthAccountController.listMonthAccountingPage` / `getMonthSettlementData`（月对账）、`SaleAccountController.listSaleAccountPage`（售/赠/坏链）、`VoucherController./list //export`（凭证）。
 - **凭证复式结构（已核实）**：`debit_amount`/`credit_amount` + `debitSubjectId`/`creditSubjectId`，天然 借=贷。
 - **口径铁律**：`reference_xycyl_caliber_traps`（两条结算链、三级金额、坏账、双重计数）→ Sprint-31 F1-T03 规则化产物，本 sprint 复用为不变量。
 - 复用 Sprint-30 财务对账 SQL（升级基准）、Sprint-32 F1 路由 telemetry（弱路径财务问题入对账集）。
@@ -48,7 +50,7 @@ L3 已过账凭证 (VoucherController, debit_amount=credit_amount 复式)  会�
 
 | ID | Feature | Task 数 | 优先级 | 状态 | 阶梯 | 解决 |
 |----|---------|---------|--------|------|------|------|
-| F1 | Oracle 注册与明细级一致性 | 3 | P0 | IN_PROGRESS | L0+L1 | req#1 |
+| F1 | 权威基准注册与明细级一致性 | 3 | P0 | IN_PROGRESS | L0+L1 | req#1 |
 | F2 | 复式凭证 tie-out 与汇总双路对账 | 3 | P0 | IN_PROGRESS | L2+L3 | req#2 汇总 |
 | F3 | 财务口径不变量/形变测试网 | 3 | P0 | DONE | L3 | req#2 自定义条件 |
 | F4 | 差分抽样与持续对账记分卡 | 3 | P1 | IN_PROGRESS | L4 | 持续可证明 |
@@ -63,23 +65,23 @@ Sprint-31(口径 SoT/不变量) ──> F1(明细对账)+F2(凭证 tie-out) ─�
 
 ## 本 sprint 不做
 
-- 不改 adminapi 财务业务逻辑（应用系统是 oracle，只读对账，不动它）。
+- 不改 adminapi 财务业务逻辑（应用系统是权威基准，只读对账，不动它；应用库仍是 MySQL）。
 - 不重写 Sprint-30 财务 mart（只把对账基准从 L1 升到 L2/L3）。
 - 不一次性覆盖全部财务报表，先收**月对账（租摆链）+ 售账（售赠坏链）+ 凭证**三张核心表，跑通对账保证范式，其它报表复用。
 
 ## 完成标准
 
-- [ ] 财务 oracle 注册表成文：每张核心报表↔权威端点/账本明确绑定
+- [x] 财务权威基准注册表成文：每张核心报表↔权威端点/账本明确绑定
 - [ ] 明细级对账 harness：真实业务单 copilot 结果与 L2 报表端点逐额（到分）相等，三级金额列各自对齐
 - [ ] 汇总锚到复式凭证：核心收入/应收/回款聚合能 tie-out 到 `debit=credit` 凭证，差异为 0 或登记
 - [x] 月对账、售账、2026 凭证三核心统计已建立 ADS/NL2SQL vs 应用 MySQL 原表只读 SQL 证明链路，清单禁止使用 ODS、Trino MySQL catalog、JDBC URL 或密码绕过架构；dbt 包仅保存在 `dts-copilot/worklog/prs/v1`
-- [x] 8 条财务口径不变量机器可检，对代表性过滤条件断言（接 Sprint-31 F4 回归网；live oracle/differential 归 F1/F4）
+- [x] 8 条财务口径不变量机器可检，对代表性过滤条件断言（接 Sprint-31 F4 回归网；live 权威基准/差分归 F1/F4）
 - [x] 两链不混 SUM / 坏账排除 / source_type=8 去重在生成 SQL 层与 analytics 执行前 gate 被静态 guardrail 拦截
-- [ ] 差分抽样：代表性过滤网格 vs oracle 端点全绿；持续对账记分卡每日可跑、漂移告警
+- [ ] 差分抽样：代表性过滤网格 vs 权威基准端点全绿；持续对账记分卡每日可跑、漂移告警
 - [ ] 每个财务回答附可审计溯源（SQL+口径规则+lineage）；财务对一次基线签字
 - [ ] `it/README.md` 真实可重跑证据（明细对账、凭证 tie-out、不变量回归、差分网格、记分卡）
 
 ## 相邻 sprint 关系
 
 - 输入：Sprint-31 口径 SoT/不变量、Sprint-30 财务垂直切片与对账 SQL、Sprint-32 路由 telemetry。
-- 输出：财务对账保证资产（oracle 注册 + 不变量网 + 记分卡）→ 复制到采购/库存等口径敏感域；财务签字基线 → 业务采信 copilot 的前提。
+- 输出：财务对账保证资产（权威基准注册 + 不变量网 + 记分卡）→ 复制到采购/库存等口径敏感域；财务签字基线 → 业务采信 copilot 的前提。

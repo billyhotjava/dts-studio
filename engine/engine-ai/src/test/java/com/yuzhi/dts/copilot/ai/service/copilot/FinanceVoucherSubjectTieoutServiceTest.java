@@ -14,7 +14,7 @@ class FinanceVoucherSubjectTieoutServiceTest {
 
     @Test
     void shouldLoadMetricToVoucherSubjectMappingsFromGovernanceAsset() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
         FinanceVoucherSubjectTieoutRegistry registry =
                 new FinanceVoucherSubjectTieoutRegistry(objectMapper, oracleRegistry);
@@ -47,6 +47,34 @@ class FinanceVoucherSubjectTieoutServiceTest {
         assertThat(badDebt.voucherSide()).isEqualTo("debit");
         assertThat(badDebt.subjectGroup()).isEqualTo("bad-debt-loss-subjects");
         assertThat(badDebt.notes()).contains("坏账不计入收入");
+    }
+
+    @Test
+    void shouldPreferAuthorityNamedVoucherSubjectMappingFieldsWhileKeepingLegacyAccessors() throws Exception {
+        String json = """
+                {
+                  "id": "voucher-subject-authority-case",
+                  "authorityBindingId": "voucher-ledger",
+                  "chain": "voucher-ledger",
+                  "metricId": "voucher-count",
+                  "metricName": "2026 会计凭证月度凭证数",
+                  "voucherBusinessType": 1,
+                  "voucherSide": "debit",
+                  "subjectGroup": "voucher-count-subjects",
+                  "subjectIds": [112201],
+                  "dimensionKeys": ["businessCode", "accountPeriod"],
+                  "adminApiEndpoint": "GET /rs-flowers-base/finace/voucher/getcountItems",
+                  "adminWebEvidence": ["adminweb/src/views/flower/finance/voucher/summary.vue"],
+                  "notes": "authority 字段为新契约，oracle 字段仅兼容旧资产"
+                }
+                """;
+
+        FinanceVoucherSubjectTieoutRegistry.SubjectTieoutMapping mapping =
+                objectMapper.readValue(json, FinanceVoucherSubjectTieoutRegistry.SubjectTieoutMapping.class);
+
+        assertThat(mapping.authorityBindingId()).isEqualTo("voucher-ledger");
+        assertThat(mapping.oracleBindingId()).isEqualTo("voucher-ledger");
+        assertThat(mapping.subjectIds()).containsExactly(112201L);
     }
 
     @Test

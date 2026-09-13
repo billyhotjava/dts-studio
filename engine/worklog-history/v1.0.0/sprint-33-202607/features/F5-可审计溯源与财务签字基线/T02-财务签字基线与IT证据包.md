@@ -27,6 +27,7 @@
 
 - 已落地 `FinanceSignoffBaselineRegistry`：机器化读取 `finance-signoff-baseline.v1.json`，固化账期、scorecard policy、必需证据、重跑命令、签字角色、资产路径和 IT 脚本。
 - 已落地 `FinanceSignoffBaselineService`：组装签字基线报告，校验 F1-F5 证据是否齐全、scorecard 是否 PASS、财务/审计签字角色是否完成。
+- 已落地 `FinanceSignoffBaselineResource`：`GET /api/ai/finance/signoff-baselines/policies` 可查看签字基线 policy，`POST /api/ai/finance/signoff-baselines/build` 可按 policy + scorecard + IT evidence + signatures 构建报告；缺签字只返回 `PENDING_SIGNATURE`，不会把 baseline 伪造成已采信。
 - 已落地 `acceptedBaselineFailures` 门禁：工程证据齐全但 `PENDING_SIGNATURE` 时，不向 scorecard 提供“已接受差异”列表，避免未签字基线吞掉新增漂移；只有 `SIGNED` 且 `accepted=true` 后才可作为后续 baseline failure。
 - 已生成 `assets/finance-signoff-baseline.md`：本地工程证据包为 `PASS`，签字状态明确为 `PENDING_SIGNATURE`，不伪造真实财务签字。
 - 当前仍是 IN_PROGRESS：真实财务负责人/审计复核签字、live 双路取数证据、真实基线存储尚未完成。
@@ -34,6 +35,7 @@
 ## 验证
 
 - [x] 本地财务签字基线报告成文，工程证据齐全且状态可机检
+- [x] 本地 REST contract 可列 policy、构建未签字报告、未知 policy 返回 404
 - [x] 每条证据含可第三方复跑命令；F5-T02 门禁 exit 0
 - [x] 未签字基线不能作为 scorecard 已接受差异，签字基线才可压制重复漂移
 - [ ] 财务签字基线报告经财务负责人/审计复核确认

@@ -19,5 +19,6 @@
 - [x] 本地 contract 可展开：执行的精确 SQL + 应用的口径规则 + 到源表/凭证的 lineage
 - [x] 本地 chat/SSE contract 自动附加审计溯源并可在面板展开
 - [x] 本地工程签字基线包成文，覆盖明细+汇总+凭证 tie-out+不变量+差分+溯源证据
+- [x] 本地签字基线 REST contract 可列出 policy 并构建 `PENDING_SIGNATURE` 报告，不伪造已签字采信
 - [ ] 财务对一次完整对账基线（明细+汇总+凭证 tie-out）签字确认
 - [ ] `it/README.md` 证据齐全、可重跑、非占位

@@ -4,7 +4,7 @@
     {
       "id": "month-settlement",
       "reportName": "月对账",
-      "oracleLevel": "L2",
+      "authorityLevel": "L2",
       "chain": "rent-settlement",
       "sourceTables": ["a_month_accounting", "a_green_accounting"],
       "amountColumns": [
@@ -37,12 +37,12 @@
         "adminweb/src/views/flower/operate/bill/list-bill.vue",
         "adminweb/src/views/flower/operate/bill/components/create-month-account-new.vue"
       ],
-      "notes": "租摆链 oracle 使用应用系统服务层输出，不能用 a_month_accounting 裸 SUM 替代业务所见。"
+      "notes": "租摆链权威基准使用应用系统服务层输出，不能用 a_month_accounting 裸 SUM 替代业务所见。"
     },
     {
       "id": "sale-account",
       "reportName": "售账",
-      "oracleLevel": "L2",
+      "authorityLevel": "L2",
       "chain": "sale-gift-bad-debt",
       "sourceTables": ["a_sale_account"],
       "amountColumns": ["receivable", "total_amount", "tax_amount"],
@@ -66,7 +66,7 @@
     {
       "id": "voucher-ledger",
       "reportName": "凭证",
-      "oracleLevel": "L3",
+      "authorityLevel": "L3",
       "chain": "voucher-ledger",
       "sourceTables": ["f_voucher", "f_voucher_item"],
       "amountColumns": ["debit_amount", "credit_amount"],
@@ -107,7 +107,7 @@
       "adminWebEvidence": [
         "adminweb/src/api/flower/finance/voucher.js"
       ],
-      "notes": "凭证明细以 debit_amount=credit_amount 复式平衡作为 L3 会计级 oracle。"
+      "notes": "凭证明细以 debit_amount=credit_amount 复式平衡作为 L3 会计级权威基准。"
     }
   ]
 }

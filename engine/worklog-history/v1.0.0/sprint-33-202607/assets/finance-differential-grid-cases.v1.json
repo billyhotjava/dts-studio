@@ -4,7 +4,7 @@
     {
       "id": "month-settlement-representative-grid",
       "summaryCaseId": "month-settlement-discounted-receivable",
-      "oracleBindingId": "month-settlement",
+      "authorityBindingId": "month-settlement",
       "chain": "rent-settlement",
       "metricId": "discounted-receivable",
       "metricName": "月对账折后实收代表性过滤网格",
@@ -48,17 +48,17 @@
             "accountPeriod": "209912"
           },
           "boundary": "empty-result",
-          "notes": "覆盖 oracle 与 copilot 都返回空结果集的代表组。"
+          "notes": "覆盖权威基准与 copilot 都返回空结果集的代表组。"
         }
       ],
       "copilotQuestion": "按代表性过滤网格对比月对账折后实收金额",
-      "oracleEndpoint": "GET /rs-flowers-base/finance/monthAccounting/listData",
+      "authorityEndpoint": "GET /rs-flowers-base/finance/monthAccounting/listData",
       "notes": "F4-T01 本地 contract 网格；live 端点参数和真实样本项目需接线确认。"
     },
     {
       "id": "sale-account-representative-grid",
       "summaryCaseId": "sale-account-receivable",
-      "oracleBindingId": "sale-account",
+      "authorityBindingId": "sale-account",
       "chain": "sale-gift-bad-debt",
       "metricId": "sale-receivable",
       "metricName": "售账应收代表性过滤网格",
@@ -97,7 +97,7 @@
         }
       ],
       "copilotQuestion": "按代表性过滤网格对比售账应收金额",
-      "oracleEndpoint": "GET /rs-flowers-base/finance/saleAccount/list",
+      "authorityEndpoint": "GET /rs-flowers-base/finance/saleAccount/list",
       "notes": "售赠坏链必须与租摆结算链分离；live 端点签字 SQL 待接。"
     }
   ]

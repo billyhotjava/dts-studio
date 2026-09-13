@@ -3,7 +3,7 @@
   "cases": [
     {
       "id": "month-settlement-discounted-receivable",
-      "oracleBindingId": "month-settlement",
+      "authorityBindingId": "month-settlement",
       "chain": "rent-settlement",
       "metricId": "discounted-receivable",
       "metricName": "月对账折后实收汇总",
@@ -15,7 +15,7 @@
         "database": "prs.flowerbiz.federated",
         "nativeSql": "SELECT CAST(m.project_id AS VARCHAR) AS \"projectId\", REPLACE(COALESCE(m.year_and_month, CONCAT(CAST(m.settlement_year AS VARCHAR), LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0'))), '-', '') AS \"accountPeriod\", ROUND(SUM(CAST(NULLIF(CAST(m.folding_after_total_amount AS VARCHAR), '') AS DECIMAL(18,4))), 2) AS \"amount\" FROM public.ods_ptr_mysql_a_month_accounting m WHERE m.status > 1 GROUP BY CAST(m.project_id AS VARCHAR), REPLACE(COALESCE(m.year_and_month, CONCAT(CAST(m.settlement_year AS VARCHAR), LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0'))), '-', '')"
       },
-      "oracleQuery": {
+      "authorityQuery": {
         "kind": "golden-sql",
         "database": "prs.flowerbiz.federated",
         "nativeSql": "SELECT CAST(m.project_id AS VARCHAR) AS \"projectId\", REPLACE(COALESCE(m.year_and_month, CONCAT(CAST(m.settlement_year AS VARCHAR), LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0'))), '-', '') AS \"accountPeriod\", ROUND(SUM(CAST(NULLIF(CAST(m.folding_after_total_amount AS VARCHAR), '') AS DECIMAL(18,4))), 2) AS \"amount\" FROM public.ods_ptr_mysql_a_month_accounting m WHERE m.status > 1 GROUP BY CAST(m.project_id AS VARCHAR), REPLACE(COALESCE(m.year_and_month, CONCAT(CAST(m.settlement_year AS VARCHAR), LPAD(CAST(m.settlement_month AS VARCHAR), 2, '0'))), '-', '')"
@@ -24,7 +24,7 @@
     },
     {
       "id": "sale-account-receivable",
-      "oracleBindingId": "sale-account",
+      "authorityBindingId": "sale-account",
       "chain": "sale-gift-bad-debt",
       "metricId": "sale-receivable",
       "metricName": "售账应收汇总",
@@ -36,7 +36,7 @@
         "database": "prs.flowerbiz.federated",
         "nativeSql": "SELECT CAST(b.project_id AS VARCHAR) AS \"projectId\", date_format(CAST(COALESCE(b.finish_time, b.apply_time) AS timestamp), '%Y%m') AS \"accountPeriod\", ROUND(SUM(CAST(NULLIF(CAST(a.receivable_amount AS VARCHAR), '') AS DECIMAL(18,4))), 2) AS \"amount\" FROM public.ods_ptr_mysql_a_sale_account a JOIN public.ods_ptr_mysql_t_flower_biz_info b ON CAST(a.biz_id AS VARCHAR) = CAST(b.id AS VARCHAR) WHERE b.biz_type IN (5, 6, 7) GROUP BY CAST(b.project_id AS VARCHAR), date_format(CAST(COALESCE(b.finish_time, b.apply_time) AS timestamp), '%Y%m')"
       },
-      "oracleQuery": {
+      "authorityQuery": {
         "kind": "golden-sql",
         "database": "prs.flowerbiz.federated",
         "nativeSql": "SELECT CAST(b.project_id AS VARCHAR) AS \"projectId\", date_format(CAST(COALESCE(b.finish_time, b.apply_time) AS timestamp), '%Y%m') AS \"accountPeriod\", ROUND(SUM(CAST(NULLIF(CAST(a.receivable_amount AS VARCHAR), '') AS DECIMAL(18,4))), 2) AS \"amount\" FROM public.ods_ptr_mysql_a_sale_account a JOIN public.ods_ptr_mysql_t_flower_biz_info b ON CAST(a.biz_id AS VARCHAR) = CAST(b.id AS VARCHAR) WHERE b.biz_type IN (5, 6, 7) GROUP BY CAST(b.project_id AS VARCHAR), date_format(CAST(COALESCE(b.finish_time, b.apply_time) AS timestamp), '%Y%m')"

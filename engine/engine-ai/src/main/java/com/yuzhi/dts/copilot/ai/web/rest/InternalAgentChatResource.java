@@ -82,6 +82,7 @@ public class InternalAgentChatResource {
                 request.message(),
                 request.datasourceId(),
                 request.martHealth(),
+                request.freshness(),
                 request.assumptionOverrides(),
                 request.clarificationAnswers());
 
@@ -119,6 +120,7 @@ public class InternalAgentChatResource {
                 sessionId, request.userId(), request.message(),
                 request.datasourceId(),
                 request.martHealth(),
+                request.freshness(),
                 request.assumptionOverrides(),
                 request.clarificationAnswers(),
                 outputStream);
@@ -277,9 +279,29 @@ public class InternalAgentChatResource {
             String message,
             @JsonProperty("datasourceId") Long datasourceId,
             Map<String, Boolean> martHealth,
+            Map<String, String> freshness,
             Map<String, String> assumptionOverrides,
             Map<String, String> clarificationAnswers
     ) {
+        public ChatRequest(
+                String sessionId,
+                String userId,
+                String message,
+                Long datasourceId,
+                Map<String, Boolean> martHealth,
+                Map<String, String> assumptionOverrides,
+                Map<String, String> clarificationAnswers) {
+            this(
+                    sessionId,
+                    userId,
+                    message,
+                    datasourceId,
+                    martHealth,
+                    null,
+                    assumptionOverrides,
+                    clarificationAnswers);
+        }
+
         boolean hasRequiredFields() {
             return StringUtils.hasText(userId) && StringUtils.hasText(message);
         }

@@ -23,6 +23,7 @@ import com.yuzhi.dts.copilot.ai.service.copilot.FinanceAnswerAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.copilot.FinanceChatAuditTrailService;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClient;
 import com.yuzhi.dts.copilot.ai.service.llm.LlmProviderClientFactory;
+import com.yuzhi.dts.copilot.ai.service.platform.DbtFreshnessResolver;
 import com.yuzhi.dts.copilot.ai.service.rag.RagService;
 import com.yuzhi.dts.copilot.ai.service.tool.ToolContext;
 import java.io.ByteArrayOutputStream;
@@ -64,6 +65,9 @@ class AgentExecutionServiceTest {
 
     @Mock
     private FinanceChatAuditTrailService financeChatAuditTrailService;
+
+    @Mock
+    private DbtFreshnessResolver dbtFreshnessResolver;
 
     private AgentExecutionService service;
 
@@ -242,6 +246,8 @@ class AgentExecutionServiceTest {
         assertThat(sse).contains("\"suggestedDisplay\":\"line\"");
         assertThat(sse).contains("\"reportCode\":\"prs.flowerbiz.lease_execution_monthly\"");
         assertThat(sse).contains("\"dataSurface\":\"L1_DBT_MART\"");
+        assertThat(sse).contains("\"accuracyEvidence\"");
+        assertThat(sse).contains("\"grade\":\"MEDIUM\"");
         assertThat(sse).contains("\"qualityLevel\":\"MEDIUM\"");
         assertThat(sse).contains("\"qualityNotes\":[\"2025年5月以后数据较完整，但回款和坏账字段需交叉校验\"]");
         assertThat(sse).contains("\"sourceRefs\":[\"dbt-model:public.xycyl_dws_flowerbiz_project_monthly\",\"semantic-pack:flowerbiz\"]");
@@ -303,11 +309,60 @@ class AgentExecutionServiceTest {
         String sse = output.toString();
         assertThat(result.financeAuditTrail()).isEqualTo(auditTrail);
         assertThat(sse)
+                .contains("\"accuracyEvidence\"")
+                .contains("\"grade\":\"HIGH\"")
                 .contains("\"trace\"")
                 .contains("\"financeAudit\"")
                 .contains("\"sanitizedSql\"")
                 .contains("CAL-MONTH-AMOUNT-TIER")
                 .contains("\"healthStatus\":\"PASS\"");
+    }
+
+    @Test
+    void executeChatStreamMergesLiveDbtFreshnessIntoDoneContract() {
+        String question = "2026年凭证的数据统计";
+        ConversationPlan plan = new ConversationPlan(
+                PlanMode.TEMPLATE_FAST_PATH,
+                ResponseKind.REPORT_DRAFT,
+                null,
+                "finance",
+                "xycyl_ads_finance_voucher_monthly",
+                List.of(),
+                "FINANCE-VOUCHER-MONTHLY",
+                "select fiscal_year, voucher_count from xycyl_ads_finance_voucher_monthly where fiscal_year = 2026",
+                "MART",
+                "xycyl_ads_finance_voucher_monthly",
+                "凭证月度统计优先使用财务 ADS",
+                "L3_ADS",
+                "HIGH",
+                List.of("凭证统计需使用 dbt 构建后的 ADS"),
+                "table",
+                "finance.voucher.profile",
+                List.of("dbt-model:xycyl_ads_finance_voucher_monthly"));
+        service = new AgentExecutionService(
+                reActEngine,
+                ragService,
+                providerConfigRepository,
+                conversationPlannerService,
+                clientFactory,
+                dataSourceRepository,
+                financeChatAuditTrailService,
+                dbtFreshnessResolver);
+
+        when(conversationPlannerService.plan(question, Map.of())).thenReturn(plan);
+        when(dbtFreshnessResolver.resolveFreshness(List.of("xycyl_ads_finance_voucher_monthly")))
+                .thenReturn(Map.of("xycyl_ads_finance_voucher_monthly", "MISSING"));
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        AgentExecutionService.ChatExecutionResult result = service.executeChatStream(
+                "sess-1", "alice", question, Collections.emptyList(), 7L, Map.of(), output);
+
+        assertThat(result.requestContext().freshnessSnapshot())
+                .containsEntry("xycyl_ads_finance_voucher_monthly", "MISSING");
+        assertThat(output.toString())
+                .contains("\"freshness\":\"MISSING\"")
+                .contains("\"grade\":\"UNTRUSTED\"")
+                .contains("目标 ADS/DWS 未入湖或未构建");
     }
 
     @Test
@@ -377,6 +432,48 @@ class AgentExecutionServiceTest {
     }
 
     @Test
+    void executeChatReportDraftRejectsNonReadOnlyGeneratedSqlButKeepsEvidenceSql() {
+        String question = "删除坏账测试数据";
+        when(ragService.retrieve(anyString(), anyInt())).thenReturn(List.of());
+        when(conversationPlannerService.plan(question, Map.of()))
+                .thenReturn(new ConversationPlan(
+                        PlanMode.AGENT_WORKFLOW,
+                        ResponseKind.REPORT_DRAFT,
+                        null,
+                        "flowerbiz",
+                        "public.xycyl_ads_flowerbiz_baddebt_summary",
+                        List.of(),
+                        null,
+                        null,
+                        "MART",
+                        "public.xycyl_ads_flowerbiz_baddebt_summary",
+                        "【报表草稿生成】只允许生成 SELECT 报表查询",
+                        "L1_DBT_MART",
+                        "MEDIUM",
+                        List.of("只读报表草稿"),
+                        "table",
+                        "prs.flowerbiz.baddebt_rank"));
+        when(providerConfigRepository.findByIsDefaultTrue())
+                .thenReturn(Optional.of(buildProvider()));
+        when(clientFactory.create(any())).thenReturn(llmProviderClient);
+        when(reActEngine.execute(eq(llmProviderClient), eq("qwen-plus"), anyList(), any(ToolContext.class),
+                eq(0.2), eq(4096)))
+                .thenReturn("""
+                        不能直接删除数据，但这里是模型误返回的 SQL。
+
+                        ```sql
+                        delete from public.xycyl_ads_flowerbiz_baddebt_summary
+                        ```
+                        """);
+
+        AgentExecutionService.ChatExecutionResult result = service.executeChat(
+                "sess-1", "alice", question, Collections.emptyList(), 7L, Map.of());
+
+        assertThat(result.generatedSql()).isNull();
+        assertThat(result.evidenceSql()).contains("delete from public.xycyl_ads_flowerbiz_baddebt_summary");
+    }
+
+    @Test
     void executeChatStreamReportDraftRejectsNonReadOnlyGeneratedSql() {
         String question = "删除坏账测试数据";
         when(ragService.retrieve(anyString(), anyInt())).thenReturn(List.of());
@@ -417,6 +514,8 @@ class AgentExecutionServiceTest {
 
         assertThat(result.generatedSql()).isNull();
         assertThat(output.toString()).doesNotContain("generatedSql");
+        assertThat(output.toString()).contains("\"accuracyEvidence\"");
+        assertThat(output.toString()).contains("\"grade\":\"UNTRUSTED\"");
     }
 
     @Test

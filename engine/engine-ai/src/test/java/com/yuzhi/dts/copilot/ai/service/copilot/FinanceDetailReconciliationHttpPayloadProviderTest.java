@@ -33,6 +33,50 @@ class FinanceDetailReconciliationHttpPayloadProviderTest {
     }
 
     @Test
+    void shouldPreferAuthorityNamedConfigurationForLiveBaselineEndpoint() throws Exception {
+        AtomicReference<String> authorityAuth = new AtomicReference<>();
+        AtomicReference<String> authorityCookie = new AtomicReference<>();
+        HttpServer adminapi = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        adminapi.createContext("/rs-flowers-base/operate/saleAccount/listSaleAccountPage", exchange -> {
+            authorityAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            authorityCookie.set(exchange.getRequestHeaders().getFirst("Cookie"));
+            byte[] body = """
+                    {"rows":[{"bizCode":"BX202606030968","projectId":"1001","accountPriod":"202606",
+                    "receivableAmount":3451.68,"netReceiptsAmount":3451.68,"bizAmount":3451.68}]}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(body);
+            }
+        });
+        adminapi.start();
+
+        try {
+            new ApplicationContextRunner()
+                    .withBean(ObjectMapper.class, ObjectMapper::new)
+                    .withUserConfiguration(FinanceDetailReconciliationHttpPayloadProvider.class)
+                    .withPropertyValues(
+                            "copilot.finance.reconciliation.authority-base-url=http://127.0.0.1:"
+                                    + adminapi.getAddress().getPort(),
+                            "copilot.finance.reconciliation.analytics-base-url=http://analytics.example",
+                            "copilot.finance.reconciliation.authority-authorization=authority-token",
+                            "copilot.finance.reconciliation.authority-cookie=portal_session=authority")
+                    .run(context -> {
+                        FinanceDetailReconciliationJsonSourceClient.PayloadProvider provider =
+                                context.getBean(FinanceDetailReconciliationJsonSourceClient.PayloadProvider.class);
+
+                        String payload = provider.oraclePayload(saleSample());
+
+                        assertThat(payload).contains("\"rows\"");
+                        assertThat(authorityAuth.get()).isEqualTo("Bearer authority-token");
+                        assertThat(authorityCookie.get()).isEqualTo("portal_session=authority");
+                    });
+        } finally {
+            adminapi.stop(0);
+        }
+    }
+
+    @Test
     void shouldCallOraclePostEndpointAndCopilotDatasetEndpointWithConfiguredHeaders() throws Exception {
         AtomicReference<String> oracleMethod = new AtomicReference<>();
         AtomicReference<String> oracleAuth = new AtomicReference<>();
@@ -235,7 +279,9 @@ class FinanceDetailReconciliationHttpPayloadProviderTest {
                     .hasMessageContaining("legacy adminapi")
                     .hasMessageContaining("rs-gateway")
                     .hasMessageContaining("rs-flowers-base")
-                    .hasMessageContaining("oracle-base-url")
+                    .hasMessageContaining("authority-base-url")
+                    .hasMessageContaining("legacy oracle-base-url")
+                    .hasMessageNotContaining("oracle-route-hint")
                     .hasMessageContaining("/flowers-dev-api");
         } finally {
             dtsAdminLikeServer.stop(0);
@@ -249,7 +295,8 @@ class FinanceDetailReconciliationHttpPayloadProviderTest {
 
         assertThatThrownBy(() -> provider.oraclePayload(monthSampleWithNativeSql()))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("oracle-base-url");
+                .hasMessageContaining("authority-base-url")
+                .hasMessageContaining("legacy copilot.finance.reconciliation.oracle-base-url");
         assertThatThrownBy(() -> provider.copilotPayload(monthSampleWithNativeSql()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("analytics-base-url");

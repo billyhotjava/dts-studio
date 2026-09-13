@@ -27,26 +27,30 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
                 runner.prove("voucher-year-2026-count");
 
         assertThat(result.status()).isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.DISABLED);
-        assertThat(result.message()).contains("not configured");
+        assertThat(result.message())
+                .contains("Finance application MySQL authority proof")
+                .contains("not configured")
+                .doesNotContain("oracle proof");
         assertThat(result.reports()).isEmpty();
     }
 
     @Test
     void shouldStartAsSpringBeanWithOptionalRuntimeExecutors() {
         new ApplicationContextRunner()
-                .withBean(FinanceApplicationMysqlOracleRegistry.class, this::registry)
+                .withBean(FinanceApplicationMysqlAuthorityRegistry.class, this::registry)
                 .withBean(
-                        FinanceApplicationMysqlOracleProofService.class,
-                        () -> new FinanceApplicationMysqlOracleProofService(
+                        FinanceApplicationMysqlAuthorityProofService.class,
+                        () -> new FinanceApplicationMysqlAuthorityProofService(
                                 new FinanceSummaryDualReconciliationService()))
-                .withBean(FinanceApplicationMysqlOracleProofRunner.class)
+                .withBean(FinanceApplicationMysqlAuthorityProofRunner.class)
                 .run(context -> {
                     assertThat(context).hasNotFailed();
-                    FinanceApplicationMysqlOracleProofRunner runner =
-                            context.getBean(FinanceApplicationMysqlOracleProofRunner.class);
+                    FinanceApplicationMysqlAuthorityProofRunner runner =
+                            context.getBean(FinanceApplicationMysqlAuthorityProofRunner.class);
 
                     assertThat(runner.prove("voucher-year-2026-count").status())
-                            .isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.DISABLED);
+                            .isEqualTo(FinanceApplicationMysqlAuthorityProofRunner.RunStatus.DISABLED);
+                    assertThat(context).doesNotHaveBean(FinanceApplicationMysqlOracleProofRunner.class);
                 });
     }
 
@@ -91,7 +95,9 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
                 runner.prove("voucher-year-2026-count");
 
         assertThat(result.status()).isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.FAILED);
-        assertThat(result.message()).contains("Finance application MySQL oracle proof failed");
+        assertThat(result.message())
+                .contains("Finance application MySQL authority proof failed")
+                .doesNotContain("oracle proof");
         assertThat(result.message()).contains("Access denied");
         assertThat(result.reports()).isEmpty();
     }
@@ -112,13 +118,16 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
                         "voucher-year-2026-count");
         assertThat(runner.prove("missing-case").status())
                 .isEqualTo(FinanceApplicationMysqlOracleProofRunner.RunStatus.NOT_FOUND);
+        assertThat(runner.prove("missing-case").message())
+                .contains("Finance application MySQL authority proof case not found")
+                .doesNotContain("oracle proof");
     }
 
-    private FinanceApplicationMysqlOracleRegistry registry() {
-        FinanceOracleRegistry oracleRegistry = new FinanceOracleRegistry(objectMapper);
+    private FinanceApplicationMysqlAuthorityRegistry registry() {
+        FinanceAuthorityRegistry oracleRegistry = new FinanceAuthorityRegistry(objectMapper);
         oracleRegistry.init();
-        FinanceApplicationMysqlOracleRegistry registry =
-                new FinanceApplicationMysqlOracleRegistry(objectMapper, oracleRegistry);
+        FinanceApplicationMysqlAuthorityRegistry registry =
+                new FinanceApplicationMysqlAuthorityRegistry(objectMapper, oracleRegistry);
         registry.init();
         return registry;
     }

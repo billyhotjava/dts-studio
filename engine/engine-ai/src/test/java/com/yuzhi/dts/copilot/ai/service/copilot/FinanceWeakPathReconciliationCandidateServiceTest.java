@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.service.chat.RouteTelemetryService;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -153,6 +154,22 @@ class FinanceWeakPathReconciliationCandidateServiceTest {
                 .contains("missing weak tier");
     }
 
+    @Test
+    void shouldRegisterWeakPathCandidateSnapshotLiquibaseTable() throws Exception {
+        String master = readResource("config/liquibase/master.xml");
+        String changelog = readResource(
+                "config/liquibase/changelog/v1_0_0_034__finance_weak_path_reconciliation_candidate_snapshot.xml");
+
+        assertThat(master).contains("v1_0_0_034__finance_weak_path_reconciliation_candidate_snapshot.xml");
+        assertThat(changelog)
+                .contains("finance_weak_path_reconciliation_candidate_snapshot")
+                .contains("candidate_key")
+                .contains("semantic_draft_id")
+                .contains("question_samples_json")
+                .contains("reconciliation_sets_json")
+                .doesNotContain("oracle");
+    }
+
     private static FinanceWeakPathReconciliationCandidateService.WeakPathCandidateSpec spec() {
         return new FinanceWeakPathReconciliationCandidateService.WeakPathCandidateSpec(
                 "sprint33-finance-weak-path-reconciliation",
@@ -200,5 +217,14 @@ class FinanceWeakPathReconciliationCandidateServiceTest {
                 List.of("f1-detail", "f3-invariant-seed", "f4-differential-grid"),
                 "CREATE_SPRINT31_DRAFT",
                 "frequent finance weak path");
+    }
+
+    private static String readResource(String path) throws Exception {
+        try (java.io.InputStream input = Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream(path)) {
+            assertThat(input).as("resource " + path).isNotNull();
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }

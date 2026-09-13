@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.chat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
 import com.yuzhi.dts.copilot.ai.domain.AiChatSession;
 import com.yuzhi.dts.copilot.ai.repository.AiChatSessionRepository;
@@ -33,6 +35,7 @@ import java.util.UUID;
 public class AgentChatService {
 
     private static final Logger log = LoggerFactory.getLogger(AgentChatService.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final AiChatSessionRepository sessionRepository;
     private final AgentExecutionService agentExecutionService;
@@ -81,12 +84,30 @@ public class AgentChatService {
                 datasourceId,
                 martHealthSnapshot,
                 Collections.emptyMap(),
+                Collections.emptyMap(),
                 Collections.emptyMap());
     }
 
     @Transactional
     public String sendMessage(String sessionId, String userId, String message, Long datasourceId,
                               Map<String, Boolean> martHealthSnapshot,
+                              Map<String, String> assumptionOverrides,
+                              Map<String, String> clarificationAnswers) {
+        return sendMessage(
+                sessionId,
+                userId,
+                message,
+                datasourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                assumptionOverrides,
+                clarificationAnswers);
+    }
+
+    @Transactional
+    public String sendMessage(String sessionId, String userId, String message, Long datasourceId,
+                              Map<String, Boolean> martHealthSnapshot,
+                              Map<String, String> freshnessSnapshot,
                               Map<String, String> assumptionOverrides,
                               Map<String, String> clarificationAnswers) {
         AiChatSession session = resolveOrCreateSession(sessionId, userId);
@@ -109,13 +130,20 @@ public class AgentChatService {
         Long effectiveDataSourceId = datasourceId != null ? datasourceId : session.getDataSourceId();
 
         // Execute agent
-        ChatExecutionResult executionResult = hasContractInputs(assumptionOverrides, clarificationAnswers)
-                ? agentExecutionService.executeChat(
-                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
-                        martHealthSnapshot, assumptionOverrides, clarificationAnswers)
-                : agentExecutionService.executeChat(
-                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
-                        martHealthSnapshot);
+        ChatExecutionResult executionResult;
+        if (hasFreshnessSnapshot(freshnessSnapshot)) {
+            executionResult = agentExecutionService.executeChat(
+                    session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                    martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers);
+        } else if (hasContractInputs(assumptionOverrides, clarificationAnswers)) {
+            executionResult = agentExecutionService.executeChat(
+                    session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                    martHealthSnapshot, assumptionOverrides, clarificationAnswers);
+        } else {
+            executionResult = agentExecutionService.executeChat(
+                    session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                    martHealthSnapshot);
+        }
         String response = executionResult.response();
 
         // Persist assistant message
@@ -128,9 +156,9 @@ public class AgentChatService {
         CopilotChatContract.applyToMessage(
                 assistantMsg,
                 executionResult.conversationPlan(),
-                executionResult.generatedSql(),
-                executionResult.requestContext());
-        CopilotChatContract.attachFinanceAuditTrail(assistantMsg, executionResult.financeAuditTrail());
+                executionResult.evidenceSql(),
+                executionResult.requestContext(),
+                executionResult.financeAuditTrail());
         attachRouteTelemetry(assistantMsg, message);
         session.addMessage(assistantMsg);
 
@@ -172,11 +200,30 @@ public class AgentChatService {
                 martHealthSnapshot,
                 Collections.emptyMap(),
                 Collections.emptyMap(),
+                Collections.emptyMap(),
                 output);
     }
 
     public void sendMessageStream(String sessionId, String userId, String message,
                                   Long datasourceId, Map<String, Boolean> martHealthSnapshot,
+                                  Map<String, String> assumptionOverrides,
+                                  Map<String, String> clarificationAnswers,
+                                  OutputStream output) {
+        sendMessageStream(
+                sessionId,
+                userId,
+                message,
+                datasourceId,
+                martHealthSnapshot,
+                Collections.emptyMap(),
+                assumptionOverrides,
+                clarificationAnswers,
+                output);
+    }
+
+    public void sendMessageStream(String sessionId, String userId, String message,
+                                  Long datasourceId, Map<String, Boolean> martHealthSnapshot,
+                                  Map<String, String> freshnessSnapshot,
                                   Map<String, String> assumptionOverrides,
                                   Map<String, String> clarificationAnswers,
                                   OutputStream output) {
@@ -207,13 +254,19 @@ public class AgentChatService {
         // Execute with real streaming
         ChatExecutionResult executionResult;
         try {
-            executionResult = hasContractInputs(assumptionOverrides, clarificationAnswers)
-                    ? agentExecutionService.executeChatStream(
-                            session.getSessionId(), userId, message, history, effectiveDataSourceId,
-                            martHealthSnapshot, assumptionOverrides, clarificationAnswers, output)
-                    : agentExecutionService.executeChatStream(
-                            session.getSessionId(), userId, message, history, effectiveDataSourceId,
-                            martHealthSnapshot, output);
+            if (hasFreshnessSnapshot(freshnessSnapshot)) {
+                executionResult = agentExecutionService.executeChatStream(
+                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                        martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers, output);
+            } else if (hasContractInputs(assumptionOverrides, clarificationAnswers)) {
+                executionResult = agentExecutionService.executeChatStream(
+                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                        martHealthSnapshot, assumptionOverrides, clarificationAnswers, output);
+            } else {
+                executionResult = agentExecutionService.executeChatStream(
+                        session.getSessionId(), userId, message, history, effectiveDataSourceId,
+                        martHealthSnapshot, output);
+            }
         } catch (Exception e) {
             if (isStreamInterrupted(e)) {
                 restoreInterruptFlag(e);
@@ -224,7 +277,7 @@ public class AgentChatService {
             String errorMessage = buildStreamFailureMessage(e);
             persistStreamingFailure(session, userId, message, errorMessage);
             try {
-                output.write(("event: error\ndata: {\"error\":\"" + escapeForSse(errorMessage) + "\"}\n\n")
+                output.write(("event: error\ndata: " + buildStreamErrorPayload(errorMessage) + "\n\n")
                         .getBytes(StandardCharsets.UTF_8));
                 output.flush();
             } catch (Exception ignored) {}
@@ -241,9 +294,9 @@ public class AgentChatService {
         CopilotChatContract.applyToMessage(
                 assistantMsg,
                 executionResult.conversationPlan(),
-                executionResult.generatedSql(),
-                executionResult.requestContext());
-        CopilotChatContract.attachFinanceAuditTrail(assistantMsg, executionResult.financeAuditTrail());
+                executionResult.evidenceSql(),
+                executionResult.requestContext(),
+                executionResult.financeAuditTrail());
         attachRouteTelemetry(assistantMsg, message);
         session.addMessage(assistantMsg);
 
@@ -307,6 +360,10 @@ public class AgentChatService {
         return sessionRepository.save(session);
     }
 
+    private boolean hasFreshnessSnapshot(Map<String, String> freshnessSnapshot) {
+        return freshnessSnapshot != null && !freshnessSnapshot.isEmpty();
+    }
+
     private boolean hasContractInputs(
             Map<String, String> assumptionOverrides,
             Map<String, String> clarificationAnswers) {
@@ -358,6 +415,9 @@ public class AgentChatService {
         AiChatMessage assistantMsg = new AiChatMessage();
         assistantMsg.setRole("assistant");
         assistantMsg.setContent(errorMessage);
+        ObjectNode trace = MAPPER.createObjectNode();
+        trace.set("accuracyEvidence", buildUntrustedAccuracyEvidence(errorMessage));
+        assistantMsg.setTrace(trace.toString());
         session.addMessage(assistantMsg);
 
         if (session.getTitle() == null || session.getTitle().isBlank()) {
@@ -379,6 +439,26 @@ public class AgentChatService {
             detail = detail.substring(0, 197) + "...";
         }
         return base + " 原因: " + detail;
+    }
+
+    private static String buildStreamErrorPayload(String errorMessage) {
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.put("error", errorMessage == null ? "" : errorMessage);
+        payload.set("accuracyEvidence", buildUntrustedAccuracyEvidence(errorMessage));
+        return payload.toString();
+    }
+
+    private static ObjectNode buildUntrustedAccuracyEvidence(String errorMessage) {
+        ObjectNode evidence = MAPPER.createObjectNode();
+        evidence.put("grade", "UNTRUSTED");
+        evidence.put("score", 0.2d);
+        evidence.putArray("reasons").add("执行异常");
+        var warnings = evidence.putArray("warnings");
+        if (StringUtils.hasText(errorMessage)) {
+            warnings.add(errorMessage);
+        }
+        evidence.putObject("tieout").put("status", "MISSING");
+        return evidence;
     }
 
     private void applyGroundingMetadata(AiChatMessage assistantMsg, ConversationPlan conversationPlan) {

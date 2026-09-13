@@ -58,7 +58,7 @@ class FinanceDetailReconciliationServiceTest {
 
         assertThat(missingRow.passed()).isFalse();
         assertThat(missingRow.failureMessage())
-                .contains("sale-account", "BX202606030968", "missing oracle row");
+                .contains("sale-account", "BX202606030968", "missing authority row");
 
         FinanceDetailReconciliationService.DetailReconciliationReport mixedChain = service.reconcile(
                 spec,
@@ -84,6 +84,44 @@ class FinanceDetailReconciliationServiceTest {
         assertThat(duplicate.passed()).isFalse();
         assertThat(duplicate.failureMessage())
                 .contains("duplicate copilot row", "BX202606030968", "1001", "202606");
+    }
+
+    @Test
+    void shouldReportAuthorityBindingTerminologyInFailureMessages() {
+        FinanceDetailReconciliationService.DetailReconciliationSpec spec =
+                new FinanceDetailReconciliationService.DetailReconciliationSpec(
+                        "month-settlement",
+                        "rent-settlement",
+                        List.of("foldingAfterTotalAmount"));
+
+        FinanceDetailReconciliationService.DetailReconciliationReport amountMismatch = service.reconcile(
+                spec,
+                List.of(monthRow("结算2026060008", "1001", "202606", "1128.00", "1128.00", "1127.99", "1128.00")),
+                List.of(monthRow("结算2026060008", "1001", "202606", "1128.00", "1128.00", "1128.00", "1128.00")));
+
+        assertThat(amountMismatch.failureMessage())
+                .contains("authorityBindingId=month-settlement", "authority=1128.00")
+                .doesNotContain("oracleBindingId", "oracle=1128.00");
+
+        FinanceDetailReconciliationService.DetailReconciliationReport missingAuthorityRow = service.reconcile(
+                spec,
+                List.of(monthRow("结算2026060008", "1001", "202606", "1128.00", "1128.00", "1128.00", "1128.00")),
+                List.of());
+
+        assertThat(missingAuthorityRow.failureMessage())
+                .contains("authorityBindingId=month-settlement", "missing authority row")
+                .doesNotContain("oracleBindingId", "missing oracle row");
+
+        FinanceDetailReconciliationService.DetailReconciliationReport duplicateAuthorityRow = service.reconcile(
+                spec,
+                List.of(monthRow("结算2026060008", "1001", "202606", "1128.00", "1128.00", "1128.00", "1128.00")),
+                List.of(
+                        monthRow("结算2026060008", "1001", "202606", "1128.00", "1128.00", "1128.00", "1128.00"),
+                        monthRow("结算2026060008", "1001", "202606", "1128.00", "1128.00", "1128.00", "1128.00")));
+
+        assertThat(duplicateAuthorityRow.failureMessage())
+                .contains("authorityBindingId=month-settlement", "duplicate authority row")
+                .doesNotContain("oracleBindingId", "duplicate oracle row");
     }
 
     private static FinanceDetailReconciliationService.DetailRow monthRow(

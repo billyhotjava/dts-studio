@@ -76,11 +76,11 @@ public class FinanceChatAuditTrailService {
         return Optional.of(auditTrailService.buildAuditTrail(policy.get(), bindingPolicy.get(), request));
     }
 
-    private Optional<FinanceReconciliationScorecardService.ScorecardReport> latestScorecard(String oracleBindingId) {
+    private Optional<FinanceReconciliationScorecardService.ScorecardReport> latestScorecard(String authorityBindingId) {
         try {
-            return scorecardSource.latestScorecard(oracleBindingId);
+            return scorecardSource.latestScorecard(authorityBindingId);
         } catch (Exception e) {
-            log.warn("Failed to load finance scorecard for oracleBindingId={}: {}", oracleBindingId, e.getMessage());
+            log.warn("Failed to load finance scorecard for authorityBindingId={}: {}", authorityBindingId, e.getMessage());
             return Optional.empty();
         }
     }

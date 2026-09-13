@@ -215,11 +215,65 @@ class AgentChatServiceTest {
 
         AiChatMessage assistantMessage = session.getMessages().get(1);
         assertThat(assistantMessage.getTrace())
+                .contains("\"accuracyEvidence\"")
+                .contains("\"grade\":\"HIGH\"")
                 .contains("\"financeAudit\"")
                 .contains("\"sanitizedSql\"")
                 .contains("CAL-MONTH-AMOUNT-TIER")
                 .contains("xycyl_ads_month_settlement_summary")
                 .contains("\"healthStatus\":\"PASS\"");
+    }
+
+    @Test
+    void sendMessageUsesEvidenceSqlWhenGeneratedSqlWasRejected() {
+        AiChatSessionRepository sessionRepository = mock(AiChatSessionRepository.class);
+        AgentExecutionService agentExecutionService = mock(AgentExecutionService.class);
+        AiAuditService auditService = mock(AiAuditService.class);
+
+        AiChatSession session = new AiChatSession();
+        session.setSessionId("sess-unsafe");
+        session.setUserId("alice");
+        session.setStatus("ACTIVE");
+
+        when(sessionRepository.findBySessionId("sess-unsafe")).thenReturn(Optional.of(session));
+        when(sessionRepository.save(any(AiChatSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(agentExecutionService.executeChat(
+                eq("sess-unsafe"), eq("alice"), eq("删除坏账测试数据"), anyList(), eq(7L), anyMap()))
+                .thenReturn(new ChatExecutionResult(
+                        "不能删除数据。",
+                        null,
+                        new ConversationPlan(
+                                PlanMode.AGENT_WORKFLOW,
+                                ResponseKind.REPORT_DRAFT,
+                                null,
+                                "flowerbiz",
+                                "public.xycyl_ads_flowerbiz_baddebt_summary",
+                                List.of(),
+                                null,
+                                null,
+                                "MART",
+                                "public.xycyl_ads_flowerbiz_baddebt_summary",
+                                "只允许报表查询",
+                                "L1_DBT_MART",
+                                "MEDIUM",
+                                List.of("只读报表草稿"),
+                                "table",
+                                "prs.flowerbiz.baddebt_rank"),
+                        null,
+                        CopilotChatRequestContext.empty(),
+                        null,
+                        "delete from public.xycyl_ads_flowerbiz_baddebt_summary"));
+
+        AgentChatService service = new AgentChatService(sessionRepository, agentExecutionService, auditService);
+
+        service.sendMessage("sess-unsafe", "alice", "删除坏账测试数据", 7L, Map.of());
+
+        AiChatMessage assistantMessage = session.getMessages().get(1);
+        assertThat(assistantMessage.getGeneratedSql()).isNull();
+        assertThat(assistantMessage.getTrace())
+                .contains("\"accuracyEvidence\"")
+                .contains("\"grade\":\"UNTRUSTED\"")
+                .contains("非只读查询不能采信");
     }
 
     @Test
@@ -392,6 +446,8 @@ class AgentChatServiceTest {
         assertThat(output.toString(StandardCharsets.UTF_8))
                 .contains("event: session")
                 .contains("event: error")
+                .contains("\"accuracyEvidence\"")
+                .contains("\"grade\":\"UNTRUSTED\"")
                 .contains("upstream unavailable");
         assertThat(session.getMessages()).hasSize(2);
         assertThat(session.getMessages().get(0).getRole()).isEqualTo("user");
