@@ -7,19 +7,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# ── 加载镜像版本 ──────────────────────────────────────────
-if [[ -f imgversion.conf ]]; then
-  set -a
-  source imgversion.conf
-  set +a
-fi
-
-# ── 加载运行配置 ──────────────────────────────────────────
-if [[ -f .env ]]; then
-  set -a
-  source <(sed $'s/\r$//' .env)
-  set +a
-fi
+# 统一加载运行配置和镜像版本（与 build.sh 保持一致）。
+source ./scripts/load-env.sh
 
 # ── 宿主机端口默认值：对外端口统一使用 50000+ ─────────────
 export PG_HOST_PORT="${PG_HOST_PORT:-55432}"

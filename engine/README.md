@@ -11,7 +11,7 @@ HTTPS (Traefik TLS 终止)
 └─ /*            → copilot-webapp:80      React 前端（BI 界面 + AI 聊天面板）
 
 基础设施
-├─ PostgreSQL 16 (pgvector)   copilot_ai + copilot_analytics 两个 schema
+├─ PostgreSQL 18.6 (pgvector 0.8.6)   copilot_ai + copilot_analytics 两个 schema
 └─ Ollama                     本地 LLM（qwen2.5-coder:7b）
 ```
 
@@ -22,8 +22,8 @@ HTTPS (Traefik TLS 终止)
 | copilot-ai | Java 21 + Spring Boot 3.4.5 + JPA + Liquibase |
 | copilot-analytics | Java 21 + Spring Boot 3.4.5 + JDBC + JPA |
 | copilot-webapp | React 19 + TypeScript + Vite 6 + Ant Design 5 |
-| 反向代理 | Traefik v3.3 (TLS 终止 + 路由) |
-| 数据库 | PostgreSQL 16 + pgvector (向量检索) |
+| 反向代理 | Traefik v3.7.13 (TLS 终止 + 路由) |
+| 数据库 | PostgreSQL 18.6 + pgvector 0.8.6 (向量检索) |
 | LLM | Ollama (OpenAI 兼容接口) |
 
 ---
@@ -396,7 +396,7 @@ curl --cacert services/certs/ca.crt https://copilot.local/                      
 
 | 问题 | 原因 | 解决 |
 |------|------|------|
-| copilot-ai 启动失败 | Liquibase 迁移失败，通常是 pgvector 扩展未安装 | 确认使用 `pgvector/pgvector:pg16` 镜像 |
+| copilot-ai 启动失败 | Liquibase 迁移失败，通常是 pgvector 扩展未安装 | 确认使用 `imgversion.conf` 锁定的 PG18 pgvector 镜像 |
 | Ollama 返回空 | 模型未拉取 | `docker exec dts-copilot-ollama ollama pull qwen2.5-coder:7b` |
 | API 返回 401 | API Key 无效或未传递 | 检查 Authorization 头格式: `Bearer cpk_xxx` |
 | NL2SQL 结果不准 | 上下文不足 | 在请求中提供 schemaContext（DDL 语句） |

@@ -1,6 +1,6 @@
 services:
   copilot-postgres:
-    image: ${IMAGE_POSTGRES:-pgvector/pgvector:pg17}
+    image: ${IMAGE_POSTGRES:-pgvector/pgvector:0.8.6-pg18-trixie@sha256:78bf48b801e792f99e3ac62b5036fd3876e9be48afda16c1e331af1c75ceb2ff}
     container_name: dts-copilot-postgres
     environment:
       POSTGRES_DB: ${PG_DB:-copilot}
@@ -9,7 +9,7 @@ services:
     ports:
       - "${PG_HOST_PORT:-55432}:5432"
     volumes:
-      - copilot-pg-data:/var/lib/postgresql/data
+      - copilot-pg-data:/var/lib/postgresql
       - ./docker/postgres/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-copilot} -d ${PG_DB:-copilot}"]
@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
 
   copilot-ai:
-    image: ${IMAGE_COPILOT_AI:-dts-copilot-ai:latest}
+    image: ${IMAGE_COPILOT_AI:-dts-copilot-ai:${COPILOT_APP_IMAGE_TAG:-${COPILOT_RELEASE_VERSION:-v1.0.0-local}}}
     build:
       context: ./dts-copilot-ai
       dockerfile: Dockerfile
@@ -118,7 +118,7 @@ services:
     restart: unless-stopped
 
   copilot-analytics:
-    image: ${IMAGE_COPILOT_ANALYTICS:-dts-copilot-analytics:latest}
+    image: ${IMAGE_COPILOT_ANALYTICS:-dts-copilot-analytics:${COPILOT_APP_IMAGE_TAG:-${COPILOT_RELEASE_VERSION:-v1.0.0-local}}}
     build:
       context: ./dts-copilot-analytics
       dockerfile: Dockerfile
@@ -168,7 +168,7 @@ services:
     restart: unless-stopped
 
   copilot-webapp:
-    image: ${IMAGE_COPILOT_WEBAPP:-dts-copilot-webapp:latest}
+    image: ${IMAGE_COPILOT_WEBAPP:-dts-copilot-webapp:${COPILOT_APP_IMAGE_TAG:-${COPILOT_RELEASE_VERSION:-v1.0.0-local}}}
     build:
       context: ./dts-copilot-webapp
       dockerfile: Dockerfile
@@ -190,7 +190,7 @@ services:
     restart: unless-stopped
 
   copilot-proxy:
-    image: ${IMAGE_TRAEFIK:-traefik:v3.5.2}
+    image: ${IMAGE_TRAEFIK:-traefik:v3.7.13}
     container_name: dts-copilot-proxy
     ports:
       - "${TLS_PORT:-443}:443"

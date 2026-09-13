@@ -3,6 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+source ./scripts/load-env.sh
+
 echo "=== Building dts-copilot ==="
 mvn clean package -DskipTests
 

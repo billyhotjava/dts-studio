@@ -18,18 +18,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# ── 加载镜像版本 ──────────────────────────────────────────
-if [[ -f imgversion.conf ]]; then
-  set -a
-  source imgversion.conf
-  set +a
-fi
-
-if [[ -f .env ]]; then
-  set -a
-  source .env
-  set +a
-fi
+# 统一加载运行配置和镜像版本（与 build.sh 保持一致）。
+source ./scripts/load-env.sh
 
 # ── 颜色 ──────────────────────────────────────────────────
 GREEN='\033[0;32m'
