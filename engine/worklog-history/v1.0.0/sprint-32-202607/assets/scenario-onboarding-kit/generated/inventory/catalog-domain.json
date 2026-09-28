@@ -1,0 +1,105 @@
+{
+  "domain": "inventory",
+  "domainName": "库存",
+  "owner": "warehouse-team",
+  "classification": "INTERNAL",
+  "dataLayerPolicy": {
+    "defaultRouteTier": "TIER_2_MART_TEMPLATE",
+    "weakPathTiers": ["TIER_4_GUARDRAIL_FEDERATED", "TIER_5_DIRECT_DETAIL"],
+    "martCandidateSignal": true
+  },
+  "sourceSystems": [
+    {
+      "catalog": "mysql",
+      "schema": "rs_cloud_flower",
+      "accessMode": "READ_ONLY",
+      "notes": "已通过 Trino 联邦入口验证源表存在；必须使用读副本或受限账号，禁止业务写操作。"
+    }
+  ],
+  "sourceTables": [
+    {
+      "name": "s_stock_info",
+      "rowCount": 14732,
+      "role": "库存余额主表",
+      "keyFields": ["id", "storehouse_info_id", "storehouse_name", "good_price_id", "good_name", "good_number", "out_cost", "status", "del_flag"]
+    },
+    {
+      "name": "s_stock_item",
+      "role": "库存明细批次/出入库关联",
+      "keyFields": ["stock_info_id", "price", "in_stock_time", "out_stock_time", "source", "status", "biz_id"]
+    },
+    {
+      "name": "t_warehousing_info",
+      "role": "入库单主表",
+      "keyFields": ["id", "code", "title", "storehouse_info_id", "warehousing_time", "status", "warehousing_type"]
+    },
+    {
+      "name": "t_warehousing_item",
+      "role": "入库单明细",
+      "keyFields": ["warehousing_info_id", "good_price_id", "good_name", "good_number", "price"]
+    },
+    {
+      "name": "t_ex_warehouse_info",
+      "role": "出库/配送单主表",
+      "keyFields": ["id", "code", "title", "storehouse_info_id", "distribution_time", "ex_warehouse_time", "receive_time", "status", "out_house_type"]
+    },
+    {
+      "name": "t_ex_warehouse_item",
+      "role": "出库/配送单明细",
+      "keyFields": ["ex_warehouse_info_id", "good_price_id", "good_name", "good_number", "price"]
+    },
+    {
+      "name": "b_goods_price",
+      "rowCount": 6517,
+      "role": "物品价格/SKU 主数据",
+      "keyFields": ["id", "goods_id", "goods_name", "specifications", "goods_att", "cost_price", "guidance_price", "unit", "status"]
+    },
+    {
+      "name": "b_goods",
+      "role": "物品主数据",
+      "keyFields": ["id", "name", "code", "type", "unit", "specifications", "status", "category"]
+    }
+  ],
+  "warehouse": {
+    "catalog": "postgres",
+    "schema": "public",
+    "dbtNamespacePrefixes": ["inventory_stg", "inventory_dwd", "inventory_dws", "inventory_ads"]
+  },
+  "businessObjects": [
+    {
+      "objectCode": "inventory.stock_balance",
+      "name": "库存现量",
+      "pagePath": "仓库管理 > 库存管理",
+      "primaryTarget": "postgres.public.inventory_ads_overview",
+      "fallbackSource": "mysql.rs_cloud_flower.s_stock_info",
+      "keyFields": ["storehouse_name", "good_price_id", "good_name", "good_number", "out_cost", "status"],
+      "qualityNotes": ["首版 ADS 未建成前只能走只读源表画像；库存成本应优先按 good_price_id/SKU 关联，不能只按 good_name 粗聚合。"]
+    },
+    {
+      "objectCode": "inventory.inbound_outbound_flow",
+      "name": "出入库流水",
+      "pagePath": "仓库管理 > 入库管理 / 出库管理",
+      "primaryTarget": "postgres.public.inventory_ads_io_flow",
+      "fallbackSources": ["mysql.rs_cloud_flower.t_warehousing_info", "mysql.rs_cloud_flower.t_warehousing_item", "mysql.rs_cloud_flower.t_ex_warehouse_info", "mysql.rs_cloud_flower.t_ex_warehouse_item"],
+      "keyFields": ["code", "storehouse_info_id", "good_price_id", "good_number", "price", "status"],
+      "qualityNotes": ["入库和出库状态枚举独立，不能用同一状态标签直接合并。"]
+    }
+  ],
+  "caliberTraps": [
+    {
+      "code": "CAL-INVENTORY-SKU-001",
+      "title": "库存统计优先按 SKU/good_price_id 关联",
+      "rule": "good_name 可能同名不同规格或属性；库存余额、出入库和成本统计应优先使用 good_price_id，并关联 b_goods_price 补物品规格、单位和成本价。"
+    },
+    {
+      "code": "CAL-INVENTORY-COST-002",
+      "title": "库存成本使用库存主表 out_cost 或价格主数据，不默认按出入库单价混算",
+      "rule": "s_stock_info.out_cost 为库存现量出库成本参考；t_warehousing_item.price/t_ex_warehouse_item.price 是单据价格，未对齐业务时不要直接当作库存成本。"
+    },
+    {
+      "code": "CAL-INVENTORY-STATUS-003",
+      "title": "入库、出库、库存状态枚举独立",
+      "rule": "s_stock_info.status、t_warehousing_info.status、t_ex_warehouse_info.status 不能直接共用同一状态字典，ADS 需要分别展开。"
+    }
+  ]
+}

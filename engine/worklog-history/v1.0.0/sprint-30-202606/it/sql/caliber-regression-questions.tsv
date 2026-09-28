@@ -1,0 +1,10 @@
+case_id	question	rule_ids	expected_behavior
+F3-Q01	本月收入一共多少	CAL-SETTLEMENT-CHAIN;CAL-MONTH-AMOUNT-TIER	必须拆分租摆链、售赠坏链和坏账损失,不能直接混合 SUM; 月对账金额层级未指定时追问或分别展示应收折前、折后实收、已回款。
+F3-Q02	按业务类型统计报花和开票金额	CAL-BIZTYPE-SCOPE	必须分别声明 t_flower_biz_info.biz_type 与 a_invoice_item.biz_type 的枚举来源,不能用同一个 biz_type 含义跨表过滤。
+F3-Q03	本月月对账应收是多少	CAL-MONTH-AMOUNT-TIER	必须区分名义租金、应收折前、折后实收和已回款; 用户只说应收时默认输出应收折前并提示折后实收差异。
+F3-Q04	销售摊入租摆后本月经营收入	CAL-SALE-IN-RENT;CAL-SETTLEMENT-CHAIN	必须识别 a_green_accounting.source_type=8 与 a_sale_account 可能重复,跨链汇总需要剔除或单列。
+F3-Q05	去年某项目历史租金是多少	CAL-RENT-HISTORY	必须读 p_project_green_sett 或 mart 历史快照,不能使用当前 p_project_green.rent 回推历史。
+F3-Q06	库存成本按物品名称汇总	CAL-INVENTORY-COST	必须按 good_price_id/SKU 关联并使用加权平均 out_cost 口径,不能只用 good_name 或指导价 cost_price。
+F3-Q07	报花单关联结算单明细	CAL-JSON-EXPAND	必须展开 f_settlement.biz_ids_json 或 draft_item_json 后 JOIN,不能报花单 id = JSON 字符串。
+F3-Q08	销售租金 rent 排名前十	CAL-VARCHAR-AMOUNT-CAST	必须过滤空值并 CAST a_sale_account_rent_item.rent 为 numeric 后聚合或排序。
+F3-Q09	额外费用和费用报销合计	CAL-EXTRA-COST-VS-EXPENSE	必须拆分 t_flower_extra_cost 与 f_expense_account_info; 凭证缺失分析需检查 rs.spelrule.enabled/autorun。

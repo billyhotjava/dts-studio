@@ -1,0 +1,49 @@
+# 园林平台 Gateway 路由配置示例
+# 添加以下路由到 rs-gateway 的 Nacos 配置中
+#
+# 配置路径（Nacos）:
+#   Data ID: rs-gateway-dev.yml (或对应环境)
+#   Group:   DEFAULT_GROUP
+#
+# 注意：copilot 各服务地址需根据实际部署方式调整
+#   - Docker 同网络部署：使用容器名（如 copilot-ai）
+#   - 物理机部署：使用实际 IP + 端口
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        # ========================================
+        # DTS Copilot AI 服务
+        # 处理对话、Tool 调用、数据源管理等
+        # ========================================
+        - id: copilot-ai
+          uri: http://copilot-ai:8091
+          predicates:
+            - Path=/copilot/ai/**
+          filters:
+            - StripPrefix=2
+            - name: RequestHeaderToRequestUri
+              args: {}
+
+        # ========================================
+        # DTS Copilot Analytics 服务
+        # 处理 BI 分析、报表、大屏数据
+        # ========================================
+        - id: copilot-analytics
+          uri: http://copilot-analytics:8092
+          predicates:
+            - Path=/copilot/analytics/**
+          filters:
+            - StripPrefix=2
+
+        # ========================================
+        # DTS Copilot Webapp 前端
+        # AI 对话界面、数据分析仪表盘
+        # ========================================
+        - id: copilot-webapp
+          uri: http://copilot-webapp:80
+          predicates:
+            - Path=/copilot/web/**
+          filters:
+            - StripPrefix=2

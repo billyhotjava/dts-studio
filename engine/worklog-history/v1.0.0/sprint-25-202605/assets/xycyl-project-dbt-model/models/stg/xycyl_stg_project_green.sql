@@ -1,0 +1,38 @@
+{{ config(tags=['project-green']) }}
+
+SELECT
+  o.id::bigint AS project_green_id,
+  o.project_id::bigint AS project_id,
+  {{ nullif_placeholder("o.project_name") }} AS project_name,
+  o.position_id::bigint AS position_id,
+  {{ nullif_placeholder("o.position_name") }} AS position_name,
+  {{ nullif_placeholder("o.position_full_name") }} AS position_full_name,
+  o.green_type::integer AS green_type_raw,
+  {{ nullif_placeholder("o.good_name") }} AS good_name,
+  o.good_price_id::bigint AS good_price_id,
+  o.good_type::integer AS good_type_raw,
+  {{ nullif_placeholder("o.good_norms") }} AS good_norms,
+  {{ nullif_placeholder("o.good_specs") }} AS good_specs,
+  {{ nullif_placeholder("o.good_unit") }} AS good_unit,
+  o.status::integer AS status_raw,
+  o.rent_mode::integer AS rent_mode_raw,
+  o.rent::numeric(18,2) AS rent_amount_raw,
+  o.cost::numeric(18,2) AS cost_amount_raw,
+  o.pose_time::timestamp AS pose_time,
+  o.parent_id::bigint AS parent_project_green_id,
+  o.good_number::integer AS good_number,
+  o.import_status::integer AS import_status_raw,
+  o.total_number::integer AS total_number,
+  o.lock_change_number::integer AS lock_change_number,
+  o.lock_cut_number::integer AS lock_cut_number,
+  o.lock_transfer_number::integer AS lock_transfer_number,
+  o.lock_bad_number::integer AS lock_bad_number,
+  o.lock_adjustment_number::integer AS lock_adjustment_number,
+  o.last_cost::numeric(18,2) AS last_cost_amount,
+  o.create_time::timestamp AS created_at,
+  o.update_time::timestamp AS updated_at,
+  {{ nullif_placeholder("o.remark") }} AS remark,
+  COALESCE({{ nullif_placeholder("o._dts_source_system") }}, 'ptr_mysql') AS source_system,
+  o._dts_import_time AS imported_at
+FROM {{ source('xycyl_project_ods', 'p_project_green') }} o
+WHERE COALESCE({{ nullif_placeholder("o.del_flag") }}, '0') = '0'

@@ -1,0 +1,100 @@
+{
+  "domain": "project",
+  "description": "项目履约主题域，覆盖项目、客户、合同、摆位和实摆绿植。Sprint-25 默认使用 PostgreSQL dbt mart，不再使用 legacy v_project_* 视图。",
+  "objects": [
+    {
+      "name": "项目总览",
+      "view": "public.xycyl_ads_project_overview",
+      "description": "项目点主数据、客户、合同、摆位和当前实摆汇总的项目级 ADS，适合回答项目经营 TOP、项目清单、项目状态和实摆规模；adminweb 对账字段对齐 ProjectSummary listPage 当前运营口径。",
+      "keyDimensions": ["project_name", "customer_name", "project_status_label", "contract_title", "project_address"],
+      "keyMeasures": ["position_count", "green_row_count", "placed_row_count", "effective_good_number_sum", "rent_amount_raw_sum", "cost_amount_raw_sum", "rent_amount_adminweb_sum", "cost_amount_adminweb_sum", "real_good_number_adminweb_sum"],
+      "commonFilters": ["project_status_code", "customer_name", "project_name"],
+      "defaultTimeField": "imported_at"
+    },
+    {
+      "name": "项目实摆月度",
+      "view": "public.xycyl_dws_project_green_monthly",
+      "description": "项目 x 月粒度的实摆行数、数量、租金和成本汇总；同时保留 raw 合计和 adminweb ProjectSummary 对账口径。",
+      "keyDimensions": ["project_name", "customer_name", "stat_month"],
+      "keyMeasures": ["green_row_count", "placed_row_count", "effective_good_number_sum", "rent_amount_raw_sum", "cost_amount_raw_sum", "rent_amount_adminweb_sum", "cost_amount_adminweb_sum", "real_good_number_adminweb_sum"],
+      "commonFilters": ["project_name", "customer_name", "stat_month"],
+      "defaultTimeField": "stat_month"
+    },
+    {
+      "name": "项目实摆明细",
+      "view": "public.xycyl_dwd_project_green_snapshot",
+      "description": "实摆绿植明细事实，包含项目、摆位、物品、状态、数量、租金、成本、adminweb 对账字段和软外键质量标记。",
+      "keyDimensions": ["project_name", "position_full_name", "goods_name", "status_label", "import_status_code"],
+      "keyMeasures": ["good_number", "total_number", "effective_good_number", "rent_amount_raw", "cost_amount_raw", "rent_amount_adminweb", "cost_amount_adminweb", "real_good_number_adminweb"],
+      "commonFilters": ["project_name", "position_full_name", "goods_name", "status_code"],
+      "defaultTimeField": "pose_time"
+    },
+    {
+      "name": "摆位调整",
+      "view": "public.xycyl_dwd_position_adjustment",
+      "description": "摆位调整主表和明细打宽后的 DWD，适合回答调整状态、调整数量、调整类型和异常摆位。",
+      "keyDimensions": ["project_name", "adjustment_status_label", "adjustment_type_raw", "old_position_full_name", "new_position_full_name"],
+      "keyMeasures": ["adjustment_number", "rent_amount_raw", "cost_amount_raw", "total_adjustment_number"],
+      "commonFilters": ["project_name", "adjustment_status_code", "apply_time"],
+      "defaultTimeField": "apply_time"
+    },
+    {
+      "name": "合同到期预警",
+      "view": "public.xycyl_ads_contract_expiry_alert",
+      "description": "合同状态、结束日期和到期预警 ADS，适合回答 30/60/90 天内到期合同。",
+      "keyDimensions": ["contract_code", "contract_title", "customer_name", "contract_status_label", "expiry_alert_label"],
+      "keyMeasures": ["days_to_end_date", "month_settlement_money", "amount_including_tax"],
+      "commonFilters": ["contract_status_code", "expiry_alert_code", "customer_name"],
+      "defaultTimeField": "end_date"
+    },
+    {
+      "name": "项目状态分布",
+      "view": "public.xycyl_ads_project_status_dist",
+      "description": "项目状态和实摆状态的统一分布 ADS。",
+      "keyDimensions": ["status_subject", "status_code", "status_label"],
+      "keyMeasures": ["row_count"],
+      "commonFilters": ["status_subject", "status_code"],
+      "defaultTimeField": "imported_at"
+    }
+  ],
+  "synonyms": [
+    {"term": "项目点", "field": "project_name", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dwd_project_green_snapshot"]},
+    {"term": "客户", "field": "customer_name", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "实摆", "field": "real_good_number_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "在摆", "field": "placed_row_count", "views": ["public.xycyl_ads_project_overview"]},
+    {"term": "绿植数量", "field": "real_good_number_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "租金", "field": "rent_amount_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "成本", "field": "cost_amount_adminweb_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "租金raw", "field": "rent_amount_raw_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "成本raw", "field": "cost_amount_raw_sum", "views": ["public.xycyl_ads_project_overview", "public.xycyl_dws_project_green_monthly"]},
+    {"term": "正常项目", "field": "project_status_code = 'PRJ-ACTIVE'", "views": ["public.xycyl_ads_project_overview"]},
+    {"term": "停用项目", "field": "project_status_code = 'PRJ-INACTIVE'", "views": ["public.xycyl_ads_project_overview"]},
+    {"term": "合同到期", "field": "days_to_end_date", "views": ["public.xycyl_ads_contract_expiry_alert"]}
+  ],
+  "fewShots": [
+    {
+      "question": "项目经营 TOP 怎么样？",
+      "sql": "SELECT project_name AS 项目, customer_name AS 客户, green_row_count AS 实摆行数, real_good_number_adminweb_sum AS 实摆数量, ROUND(rent_amount_adminweb_sum::numeric, 2) AS 月租金 FROM public.xycyl_ads_project_overview ORDER BY green_row_count DESC LIMIT 10"
+    },
+    {
+      "question": "XX 项目当前有多少实摆绿植？",
+      "sql": "SELECT project_name AS 项目, green_row_count AS 实摆行数, real_good_number_adminweb_sum AS 实摆数量, position_count AS 摆位数 FROM public.xycyl_ads_project_overview WHERE project_name ILIKE '%' || :project_name || '%'"
+    },
+    {
+      "question": "哪些合同 90 天内到期？",
+      "sql": "SELECT contract_code AS 合同编码, contract_title AS 合同名称, customer_name AS 客户, end_date AS 到期日, days_to_end_date AS 剩余天数 FROM public.xycyl_ads_contract_expiry_alert WHERE days_to_end_date BETWEEN 0 AND :days ORDER BY days_to_end_date ASC"
+    },
+    {
+      "question": "项目状态和实摆状态分布",
+      "sql": "SELECT status_subject AS 对象, status_label AS 状态, row_count AS 数量 FROM public.xycyl_ads_project_status_dist ORDER BY status_subject, row_count DESC"
+    },
+    {
+      "question": "XX 项目最近月度实摆趋势",
+      "sql": "SELECT stat_month AS 月份, green_row_count AS 实摆行数, real_good_number_adminweb_sum AS 实摆数量, ROUND(rent_amount_adminweb_sum::numeric, 2) AS 月租金 FROM public.xycyl_dws_project_green_monthly WHERE project_name ILIKE '%' || :project_name || '%' ORDER BY stat_month DESC LIMIT 12"
+    },
+    {
+      "question": "摆位调整完成情况",
+      "sql": "SELECT adjustment_status_label AS 状态, COUNT(*) AS 明细数, SUM(adjustment_number) AS 调整数量 FROM public.xycyl_dwd_position_adjustment GROUP BY adjustment_status_label ORDER BY 明细数 DESC"
+    }
+  ]
+}

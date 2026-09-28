@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- EL-06: Seed 10 mart-layer query templates (TPL-21 ~ TPL-30)  -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-011-mart-query-templates-seed" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.nl2sql_query_template WHERE template_code IN ('TPL-21','TPL-22','TPL-23','TPL-24','TPL-25','TPL-26','TPL-27','TPL-28','TPL-29','TPL-30')
+            </sqlCheck>
+        </preConditions>
+
+        <sql splitStatements="false">
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority)
+VALUES
+-- TPL-21: 项目绿植数月度趋势
+('TPL-21', 'project', NULL,
+ '["(项目).*(绿植|花).*(趋势|变化|走势|月度)"]',
+ '["XX项目最近3个月绿植数量趋势"]',
+ 'SELECT snapshot_date, project_name, green_count FROM mart_project_fulfillment_daily WHERE project_name LIKE CONCAT(''%'', :project_name, ''%'') AND snapshot_date >= CURRENT_DATE - INTERVAL '':months months'' ORDER BY snapshot_date',
+ '{"project_name":{"type":"string","required":true},"months":{"type":"integer","default":3}}',
+ 'mart_project_fulfillment_daily', '项目绿植数月度趋势', 10),
+
+-- TPL-22: 各项目加花次数月度对比
+('TPL-22', 'flowerbiz', NULL,
+ '["(项目|各项目).*(加花|报花).*(月度|对比|每月|各月)"]',
+ '["各项目最近3个月加花次数对比"]',
+ 'SELECT project_name, event_month, count(*) as 加花次数, sum(plant_number) as 加花总量 FROM fact_field_operation_event WHERE biz_type_name = ''加花'' AND event_date >= CURRENT_DATE - INTERVAL '':months months'' GROUP BY project_name, event_month ORDER BY project_name, event_month',
+ '{"months":{"type":"integer","default":3}}',
+ 'fact_field_operation_event', '各项目加花次数月度对比', 10),
+
+-- TPL-23: 月度应收环比
+('TPL-23', 'settlement', NULL,
+ '["(应收|租金).*(环比|月度对比|对比)"]',
+ '["各项目上月和本月应收对比"]',
+ 'SELECT project_name, settlement_month, monthly_receivable FROM mart_project_fulfillment_daily WHERE settlement_month IS NOT NULL GROUP BY project_name, settlement_month, monthly_receivable ORDER BY project_name, settlement_month DESC',
+ '{}',
+ 'mart_project_fulfillment_daily', '月度应收环比', 10),
+
+-- TPL-24: 项目经营综合排名
+('TPL-24', 'project', NULL,
+ '["(项目).*(经营|综合).*(排名|排行)"]',
+ '["本月项目经营综合排名"]',
+ 'SELECT project_name, AVG(green_count) as 平均绿植数, SUM(change_flower_count) as 换花总次数, SUM(curing_count) as 养护总次数, SUM(add_flower_count) as 加花总次数 FROM mart_project_fulfillment_daily WHERE snapshot_date >= DATE_TRUNC(''month'', CURRENT_DATE) GROUP BY project_name ORDER BY 平均绿植数 DESC',
+ '{}',
+ 'mart_project_fulfillment_daily', '项目经营综合排名', 10),
+
+-- TPL-25: 养护覆盖率月度趋势
+('TPL-25', 'curing', NULL,
+ '["(养护).*(覆盖率|覆盖).*(趋势|变化|月度)"]',
+ '["各项目养护覆盖率月度变化"]',
+ 'SELECT project_name, snapshot_date, curing_count, curing_positions FROM mart_project_fulfillment_daily WHERE snapshot_date >= CURRENT_DATE - INTERVAL '':months months'' ORDER BY project_name, snapshot_date',
+ '{"months":{"type":"integer","default":3}}',
+ 'mart_project_fulfillment_daily', '养护覆盖率月度趋势', 10),
+
+-- TPL-26: 加花月度趋势
+('TPL-26', 'flowerbiz', NULL,
+ '["(加花).*(趋势|月度|变化|走势|近.*月)"]',
+ '["最近半年各月加花次数趋势"]',
+ 'SELECT event_month, count(*) as 加花次数, sum(plant_number) as 加花总量 FROM fact_field_operation_event WHERE biz_type_name = ''加花'' AND event_date >= CURRENT_DATE - INTERVAL '':months months'' GROUP BY event_month ORDER BY event_month',
+ '{"months":{"type":"integer","default":6}}',
+ 'fact_field_operation_event', '加花月度趋势', 10),
+
+-- TPL-27: 各类型业务月度分布趋势
+('TPL-27', 'flowerbiz', NULL,
+ '["(各类|各类型|业务类型).*(月度|趋势|分布|变化)"]',
+ '["最近3个月各类型报花业务趋势"]',
+ 'SELECT event_month, biz_type_name, count(*) as 单数 FROM fact_field_operation_event WHERE event_date >= CURRENT_DATE - INTERVAL '':months months'' AND biz_status_name NOT IN (''作废'',''驳回'',''草稿'') GROUP BY event_month, biz_type_name ORDER BY event_month, 单数 DESC',
+ '{"months":{"type":"integer","default":3}}',
+ 'fact_field_operation_event', '各类型业务月度分布趋势', 10),
+
+-- TPL-28: 紧急业务占比趋势
+('TPL-28', 'flowerbiz', NULL,
+ '["(紧急).*(占比|比例|趋势|变化)"]',
+ '["各月紧急报花单占比变化"]',
+ 'SELECT event_month, count(*) as 总单数, SUM(CASE WHEN is_urgent=''是'' THEN 1 ELSE 0 END) as 紧急单数, ROUND(SUM(CASE WHEN is_urgent=''是'' THEN 1 ELSE 0 END)::numeric / NULLIF(count(*),0), 2) as 紧急占比 FROM fact_field_operation_event WHERE event_date >= CURRENT_DATE - INTERVAL '':months months'' GROUP BY event_month ORDER BY event_month',
+ '{"months":{"type":"integer","default":6}}',
+ 'fact_field_operation_event', '紧急业务占比趋势', 10),
+
+-- TPL-29: 项目报花成本月度趋势
+('TPL-29', 'flowerbiz', NULL,
+ '["(项目|XX).*(报花|花卉).*(成本|费用).*(趋势|月度|变化)"]',
+ '["XX项目最近半年报花成本趋势"]',
+ 'SELECT event_month, project_name, sum(total_cost) as 月度成本, count(*) as 单数 FROM fact_field_operation_event WHERE (:project_name IS NULL OR project_name LIKE CONCAT(''%'', :project_name, ''%'')) AND event_date >= CURRENT_DATE - INTERVAL '':months months'' GROUP BY event_month, project_name ORDER BY project_name, event_month',
+ '{"project_name":{"type":"string"},"months":{"type":"integer","default":6}}',
+ 'fact_field_operation_event', '项目报花成本月度趋势', 10),
+
+-- TPL-30: 项目绿植变化日趋势
+('TPL-30', 'project', NULL,
+ '["(绿植).*(日|每天|日趋势|日变化)"]',
+ '["XX项目绿植数量每天变化"]',
+ 'SELECT snapshot_date, green_count, add_flower_count, cut_flower_count, change_flower_count FROM mart_project_fulfillment_daily WHERE project_name LIKE CONCAT(''%'', :project_name, ''%'') AND snapshot_date >= CURRENT_DATE - INTERVAL '':days days'' ORDER BY snapshot_date',
+ '{"project_name":{"type":"string","required":true},"days":{"type":"integer","default":30}}',
+ 'mart_project_fulfillment_daily', '项目绿植变化日趋势', 10);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -5,23 +5,27 @@
 
 ## Five Iron Laws (五条铁律 — 最高优先级)
 
-1. **人工随时可接管** — 关掉 AI 系统照样能用。Python 服务全部可降级，Java 层独立运行。
+1. **人工随时可接管** — 关掉 AI 系统照样能用。AI 引擎可降级，业务 App 与数据平台独立运行。
 2. **核心安全不可绕过** — 所有请求必经 dts-gateway 认证，无旁路直连，AppPack 无特权。
-3. **数据安全是基因** — 所有数据出口必经 dts-data-security（含 AI RAG 检索），AI 只看授权数据。
+3. **数据安全是基因** — 所有数据出口必经受控数据边界（含 AI RAG 检索），AI 只看授权数据；实现归属以当前 ADR-009 为准。
 4. **全操作可追溯** — 人和 AI 的操作 → Kafka → dts-audit-log，append-only 不可篡改。
 5. **能力先于界面** — API-first，每个服务先有完整 API + 测试，再做前端。
 
 ## Architecture
 
-- **Python** (AI Core, 10 services): dts-agent, dts-intent-engine, dts-ontology-engine, dts-data-connector, dts-data-quality, dts-query-ai, dts-ai-eval, dts-observability, dts-scheduler, dts-perception(P2)
-- **Java** (Business Platform, 10 services): dts-platform, dts-gateway, dts-ontology-store, dts-query-service, dts-governance, dts-asset, dts-data-security, dts-workflow, dts-audit-log, dts-data-service
-- **Go** (Infrastructure, 2 services): dts-operator, dts-cli
-- **Frontend** (3 apps): dts-admin-webapp, dts-cortex-webapp, dts-pilot-webapp
-- **Communication**: gRPC (control plane) + Kafka KRaft (data plane)
-- **Storage**: PostgreSQL + ClickHouse + Neo4j CE + pgvector + MinIO
-- **Auth**: Keycloak + JWT propagation
-- **Observability**: OpenTelemetry + Grafana (Tempo/Prometheus/Loki)
-- **Deployment**: All-in-K8s, online/offline unified architecture
+- **Authority**: `dts-rdc/worklog/v1.0.0/sprint-5-202610/`, F1 and its linked ADR/task status.
+- **Studio**: Java AI brain imported under `engine/engine-ai`; preserve existing packages and APIs during F1.
+- **Analytics**: `engine/engine-analytics` is a transitional baseline, pending BI consolidation into Stack.
+- **Stack**: sibling lakehouse/data platform, canonical metrics and governed data execution.
+- **App Stack**: sibling business applications and industry assets, consumed through AppPack contracts.
+- **Console**: new UI/BFF under F6/BL-C; the legacy Copilot webapp is not imported.
+- **Deployment**: K8s/offline delivery belongs to Infra F7; `engine/deploy/legacy` is reference material only.
+- **Verification**: root `build.sh verify` runs backend verification in `/data/dts-studio`; no runtime acceptance is implied.
+
+The inherited March rules describe a historical target. Their Python/25-service
+decomposition does not override the current Java migration or current Feature boundaries.
+Do not introduce parallel data access or metric definitions while resolving the
+existing imported code's boundary debt. No new libraries are required for F1.
 
 ## Rules & Skills
 

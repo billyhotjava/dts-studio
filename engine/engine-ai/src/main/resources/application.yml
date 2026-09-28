@@ -1,0 +1,87 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: dts-copilot-ai
+  mvc:
+    async:
+      request-timeout: ${COPILOT_STREAM_ASYNC_TIMEOUT:10m}
+  datasource:
+    url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DB:copilot}?currentSchema=copilot_ai&searchpath=copilot_ai,public
+    username: ${PG_USER:copilot}
+    password: ${PG_PASSWORD:copilot_dev}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: copilot_ai
+  liquibase:
+    change-log: classpath:config/liquibase/master.xml
+    default-schema: copilot_ai
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-components: always
+      show-details: when-authorized
+
+dts:
+  copilot:
+    # 默认 LLM 配置（通过环境变量覆盖，支持公有云和本地）
+    llm:
+      provider: ${LLM_PROVIDER:deepseek}
+      base-url: ${LLM_BASE_URL:https://api.deepseek.com/v1}
+      model: ${LLM_MODEL:deepseek-chat}
+      api-key: ${LLM_API_KEY:}
+      max-tokens: ${LLM_MAX_TOKENS:4096}
+      temperature: ${LLM_TEMPERATURE:0.3}
+      timeout-seconds: ${LLM_TIMEOUT:60}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      default-model: ${OLLAMA_DEFAULT_MODEL:qwen2.5-coder:7b}
+      timeout-seconds: 60
+    ai:
+      config-path: ${DTS_AI_CONFIG_PATH:/opt/dts/upload/ai-copilot-config.json}
+
+copilot:
+  chat:
+    planner:
+      mode: ${COPILOT_CHAT_PLANNER_MODE:asset}
+  admin-secret: ${COPILOT_ADMIN_SECRET:change-me-in-production}
+  finance:
+    reconciliation:
+      authority-base-url: ${FINANCE_RECONCILIATION_AUTHORITY_BASE_URL:${FINANCE_RECONCILIATION_ORACLE_BASE_URL:}}
+      oracle-base-url: ${FINANCE_RECONCILIATION_ORACLE_BASE_URL:}
+      analytics-base-url: ${FINANCE_RECONCILIATION_ANALYTICS_BASE_URL:}
+      authorization: ${FINANCE_RECONCILIATION_AUTHORIZATION:}
+      cookie: ${FINANCE_RECONCILIATION_COOKIE:}
+      authority-authorization: ${FINANCE_RECONCILIATION_AUTHORITY_AUTHORIZATION:${FINANCE_RECONCILIATION_ORACLE_AUTHORIZATION:${FINANCE_RECONCILIATION_AUTHORIZATION:}}}
+      authority-cookie: ${FINANCE_RECONCILIATION_AUTHORITY_COOKIE:${FINANCE_RECONCILIATION_ORACLE_COOKIE:${FINANCE_RECONCILIATION_COOKIE:}}}
+      oracle-authorization: ${FINANCE_RECONCILIATION_ORACLE_AUTHORIZATION:${FINANCE_RECONCILIATION_AUTHORIZATION:}}
+      oracle-cookie: ${FINANCE_RECONCILIATION_ORACLE_COOKIE:${FINANCE_RECONCILIATION_COOKIE:}}
+      analytics-authorization: ${FINANCE_RECONCILIATION_ANALYTICS_AUTHORIZATION:${FINANCE_RECONCILIATION_AUTHORIZATION:}}
+      analytics-cookie: ${FINANCE_RECONCILIATION_ANALYTICS_COOKIE:${FINANCE_RECONCILIATION_COOKIE:}}
+  platform:
+    indicator:
+      base-url: ${DTS_PLATFORM_BASE_URL:}
+      token-url: ${DTS_PLATFORM_TOKEN_URL:}
+      client-id: ${DTS_PLATFORM_CLIENT_ID:}
+      client-secret: ${DTS_PLATFORM_CLIENT_SECRET:}
+      auth-token: ${DTS_PLATFORM_AUTH_TOKEN:}
+      service-name: ${DTS_PLATFORM_SERVICE_NAME:dts-copilot}
+      service-token: ${DTS_PLATFORM_SERVICE_TOKEN:${DTS_INBOUND_FROM_COPILOT:${DTS_INBOUND_FROM_ANALYTICS:${DTS_ADMIN_SERVICE_TOKEN:}}}}
+      active-dept: ${DTS_PLATFORM_ACTIVE_DEPT:}
+      timeout-seconds: ${DTS_PLATFORM_TIMEOUT_SECONDS:10}
+      sync:
+        enabled: ${PLATFORM_INDICATOR_SYNC_ENABLED:true}
+        interval-ms: ${PLATFORM_INDICATOR_SYNC_INTERVAL:3600000}
+        initial-delay-ms: ${PLATFORM_INDICATOR_SYNC_INITIAL_DELAY:15000}
+        page-size: ${PLATFORM_INDICATOR_SYNC_PAGE_SIZE:100}
+        max-pages: ${PLATFORM_INDICATOR_SYNC_MAX_PAGES:200}

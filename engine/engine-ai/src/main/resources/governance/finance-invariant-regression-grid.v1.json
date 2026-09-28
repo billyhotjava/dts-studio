@@ -1,0 +1,140 @@
+{
+  "version": "v1",
+  "cases": [
+    {
+      "id": "voucher-balance-2026q1-posted",
+      "invariantId": "FIN-INV-01-VOUCHER-BALANCE",
+      "filter": {
+        "project": "ALL",
+        "month": "2026-Q1",
+        "dateRange": "2026-01-01..2026-03-31",
+        "bizType": "voucher",
+        "status": "posted"
+      },
+      "source": "voucher-ledger representative posted subset",
+      "observedData": {
+        "rows": [
+          {"voucher_code": "V-2026-Q1-001", "debit_amount": 800.00, "credit_amount": 0.00},
+          {"voucher_code": "V-2026-Q1-001", "debit_amount": 0.00, "credit_amount": 800.00}
+        ]
+      }
+    },
+    {
+      "id": "amount-tier-project-p101-202601",
+      "invariantId": "FIN-INV-02-AMOUNT-TIER-ORDER",
+      "filter": {
+        "project": "P-101",
+        "month": "2026-01",
+        "dateRange": "2026-01-01..2026-01-31",
+        "bizType": "rent",
+        "status": "settled"
+      },
+      "source": "month-settlement amount tier representative row",
+      "observedData": {
+        "rows": [
+          {"project_id": 101, "nominal_amount": 1200.00, "receivable_before_discount": 1000.00, "discounted_receivable": 900.00}
+        ]
+      }
+    },
+    {
+      "id": "payment-order-project-p101-202601",
+      "invariantId": "FIN-INV-03-PAYMENT-NOT-EXCEED-DISCOUNTED",
+      "filter": {
+        "project": "P-101",
+        "month": "2026-01",
+        "dateRange": "2026-01-01..2026-01-31",
+        "bizType": "rent",
+        "status": "received"
+      },
+      "source": "month-settlement payment representative row",
+      "observedData": {
+        "rows": [
+          {"project_id": 101, "discounted_receivable": 900.00, "paid_amount": 700.00}
+        ]
+      }
+    },
+    {
+      "id": "additivity-year-p101-partition-by-month",
+      "invariantId": "FIN-INV-04-ADDITIVITY",
+      "filter": {
+        "project": "P-101",
+        "month": "2026",
+        "dateRange": "2026-01-01..2026-12-31",
+        "bizType": "rent",
+        "status": "settled"
+      },
+      "source": "year total equals complete month partitions",
+      "observedData": {
+        "total": {"amount": 300.00},
+        "partitions": [
+          {"partition": "2026-01", "amount": 120.00},
+          {"partition": "2026-02", "amount": 180.00}
+        ]
+      }
+    },
+    {
+      "id": "monotonicity-project-p101-received-subset",
+      "invariantId": "FIN-INV-05-MONOTONICITY",
+      "filter": {
+        "project": "P-101",
+        "month": "2026-02",
+        "dateRange": "2026-02-01..2026-02-28",
+        "bizType": "rent",
+        "status": "received"
+      },
+      "source": "received subset must not exceed settled base",
+      "observedData": {
+        "base": {"row_count": 10, "amount": 1000.00},
+        "subset": {"row_count": 4, "amount": 360.00}
+      }
+    },
+    {
+      "id": "sql-chain-not-mixed-positive",
+      "invariantId": "FIN-INV-06-SETTLEMENT-CHAIN-NOT-MIXED",
+      "filter": {
+        "project": "P-102",
+        "month": "2026-03",
+        "dateRange": "2026-03-01..2026-03-31",
+        "bizType": "rent",
+        "status": "generated-sql"
+      },
+      "source": "generated SQL chain guardrail positive sample",
+      "observedData": {
+        "sql": "SELECT SUM(m.receivable_total_amount) AS amount FROM a_month_accounting m WHERE m.project_id = 102"
+      }
+    },
+    {
+      "id": "bad-debt-income-project-p102",
+      "invariantId": "FIN-INV-07-BAD-DEBT-EXCLUDED-FROM-INCOME",
+      "filter": {
+        "project": "P-102",
+        "month": "2026-03",
+        "dateRange": "2026-03-01..2026-03-31",
+        "bizType": "bad-debt",
+        "status": "approved"
+      },
+      "source": "sale-account bad-debt representative rows",
+      "observedData": {
+        "rows": [
+          {"biz_id": 201, "biz_type": 7, "income_amount": 100.00},
+          {"biz_id": 202, "biz_type": 6, "income_amount": 0.00}
+        ]
+      }
+    },
+    {
+      "id": "sql-source-type-8-dedup-positive",
+      "invariantId": "FIN-INV-08-SOURCE-TYPE-8-DEDUP",
+      "filter": {
+        "project": "P-103",
+        "month": "2026-04",
+        "dateRange": "2026-04-01..2026-04-30",
+        "bizType": "sale",
+        "status": "generated-sql"
+      },
+      "source": "generated SQL source_type=8 dedup positive sample",
+      "observedData": {
+        "sql": "SELECT SUM(m.sale_total_amount) AS amount FROM a_month_accounting m JOIN a_green_accounting g ON g.month_accounting_id = m.id WHERE g.source_type = 8"
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-007-data-source-description" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = 'copilot_ai' AND table_name = 'data_source' AND column_name = 'description'
+            </sqlCheck>
+        </preConditions>
+        <addColumn schemaName="copilot_ai" tableName="data_source">
+            <column name="description" type="TEXT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

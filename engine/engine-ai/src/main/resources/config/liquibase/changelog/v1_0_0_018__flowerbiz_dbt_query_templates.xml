@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-018-flowerbiz-dbt-query-templates" author="dts-copilot-prs">
+        <comment>Move flowerbiz NL2SQL templates from the legacy detail view and MySQL syntax to dbt PostgreSQL marts.</comment>
+        <sql splitStatements="true" stripComments="false"><![CDATA[
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT s."项目", SUM(s."加摆单数") AS "加摆单数", SUM(s."撤摆单数") AS "撤摆单数", ROUND(SUM(s."租金净额全口径")::numeric, 2) AS "租金净额" FROM public.xycyl_ads_flowerbiz_lease_summary s WHERE s."业务月份" = :month AND s."业务大类" = 'lease' GROUP BY s."项目" ORDER BY "租金净额" DESC$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_lease_summary',
+    description = '加摆撤摆净增减汇总（dbt mart）'
+WHERE template_code = 'TPL-34';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT d."报花单号", d."业务类型", d."状态", d."项目", d."客户", d."摆位", d."绿植名", d."规格", d."数量", d."行租金合计", d."养护人", d."业务时间" FROM public.xycyl_ads_flowerbiz_lease_detail d WHERE d."项目" ILIKE '%' || :project_name || '%' ORDER BY d."业务时间" DESC, d."报花单号" LIMIT :top_n$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_lease_detail',
+    description = 'XX 项目最近报花单列表（dbt mart）'
+WHERE template_code = 'TPL-35';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT p."报花单号", p."业务类型", p."状态", p."项目", p."客户", p."申请人", p."养护人", p."项目经理", p."已挂起天数", p."是否超期", p."业务时间" FROM public.xycyl_ads_flowerbiz_pending p WHERE p."状态" = :status_name AND p."已挂起天数" > :over_days ORDER BY p."已挂起天数" DESC LIMIT 200$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_pending',
+    description = '审核中超期报花单（dbt mart）'
+WHERE template_code = 'TPL-36';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT s."项目", ROUND(SUM(s."销售金额全口径")::numeric, 2) AS "销售金额", SUM(s."销售单数") AS "销售单数", SUM(s."赠送单数") AS "赠送单数" FROM public.xycyl_ads_flowerbiz_sale_summary s WHERE s."业务月份" = :month GROUP BY s."项目" ORDER BY "销售金额" DESC LIMIT :top_n$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_sale_summary',
+    description = '销售金额前 N 项目（dbt mart）'
+WHERE template_code = 'TPL-37';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT b."项目", b."客户", ROUND(SUM(b."坏账成本全口径")::numeric, 2) AS "坏账成本", ROUND(SUM(b."坏账租金损失全口径")::numeric, 2) AS "坏账租金损失", SUM(b."坏账单数") AS "坏账单数" FROM public.xycyl_ads_flowerbiz_baddebt_summary b WHERE b."业务月份" = :month GROUP BY b."项目", b."客户" ORDER BY "坏账成本" DESC LIMIT 50$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_baddebt_summary',
+    description = '坏账项目客户排行（dbt mart）'
+WHERE template_code = 'TPL-38';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT c."养护人", c."业务大类", SUM(c."经手单数") AS "经手单数", SUM(c."已结束单数") AS "已结束单数", SUM(c."在途单数") AS "在途单数", ROUND(SUM(c."租金净额全口径")::numeric, 2) AS "租金净额" FROM public.xycyl_ads_flowerbiz_curing_workload c WHERE c."养护人" ILIKE '%' || :curing_user_name || '%' AND c."业务月份" = :month GROUP BY c."养护人", c."业务大类" ORDER BY "经手单数" DESC$tpl$,
+    parameters = '{"curing_user_name":{"type":"string","required":true},"month":{"type":"string","default":"CURRENT_MONTH"}}',
+    target_view = 'public.xycyl_ads_flowerbiz_curing_workload',
+    description = '养护人本月报花工作量（dbt mart）'
+WHERE template_code = 'TPL-39';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT m.project_name AS "项目", m.apply_user_name AS "申请人", ROUND(SUM(m.sale_amount)::numeric, 2) AS "内购金额", COUNT(DISTINCT m.biz_id) AS "单数" FROM public.xycyl_dwd_flowerbiz_main m WHERE m.biz_type_label = '内购' AND m.biz_month = :month AND m.is_finished = true GROUP BY m.project_name, m.apply_user_name ORDER BY "内购金额" DESC$tpl$,
+    target_view = 'public.xycyl_dwd_flowerbiz_main',
+    description = '内购金额汇总（dbt DWD）'
+WHERE template_code = 'TPL-40';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT m.biz_code AS "报花单号", m.biz_type_label AS "业务类型", m.status_label AS "状态", m.project_name AS "项目", m.apply_user_name AS "申请人", m.apply_time AS "申请时间", ROUND(m.rent_amount::numeric, 2) AS "租金净额" FROM public.xycyl_dwd_flowerbiz_main m WHERE COALESCE(m.urgent_raw, '') <> '' AND m.apply_time >= current_date - (:recent_days * interval '1 day') ORDER BY m.apply_time DESC LIMIT 100$tpl$,
+    target_view = 'public.xycyl_dwd_flowerbiz_main',
+    description = '近 N 天加急报花单（dbt DWD）'
+WHERE template_code = 'TPL-41';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT p."状态", COUNT(DISTINCT p."报花单id") AS "单数", ROUND(SUM(p."租金净额")::numeric, 2) AS "租金净额" FROM public.xycyl_ads_flowerbiz_pending p WHERE p."业务月份" = :month GROUP BY p."状态" ORDER BY "单数" DESC$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_pending',
+    description = '各状态在途报花单数（dbt mart）'
+WHERE template_code = 'TPL-42';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT s."项目", SUM(s."加摆单数") AS "加摆单数", ROUND(SUM(s."租金净额全口径")::numeric, 2) AS "租金净额" FROM public.xycyl_ads_flowerbiz_lease_summary s WHERE s."业务月份" = to_char(current_date - interval '1 month', 'YYYY-MM') AND s."业务大类" = 'lease' GROUP BY s."项目" ORDER BY "租金净额" DESC LIMIT :top_n$tpl$,
+    target_view = 'public.xycyl_ads_flowerbiz_lease_summary',
+    description = '上月加摆 TOP 项目（dbt mart）'
+WHERE template_code = 'TPL-43';
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,38 @@
+【重要约束 - 报花域隔离与口径规则】
+
+1. 报花单业务事实表是 t_flower_biz_info（主表）+ t_flower_biz_item（明细），统一通过 v_flower_biz_detail 视图查询，不要直连物理表
+
+2. 报花单 11 种业务类型（biz_type_name）业务语义不同，禁止跨 biz_type 直接 SUM(biz_total_rent)：
+   - 加花 / 加摆：租金增加
+   - 减花 / 撤摆：租金减少（金额本身可能为正数，但语义是冲减）
+   - 换花：同摆位替换品种
+   - 调花 / 调拨：跨摆位转移
+   - 售花 / 销售：销售收入（独立结算链路）
+   - 内购：内部使用
+   - 坏账：客户欠款核销（取 ABS）
+   - 辅料：附加成本
+   - 加盆架 / 减盆架：盆架辅助物品
+
+3. 报花单 8 种状态（biz_status_name）：草稿 / 审核中 / 驳回 / 备货中 / 核算中 / 待结算 / 已完成 / 作废
+   - 汇总类问句默认仅含'已完成'状态
+   - 'XX 超期 N 天'类问句必须按对应状态过滤 + DATEDIFF(CURDATE(), apply_time) > N
+
+4. 销售类（biz_type_name IN ('售花','销售')）和租赁变更类（'加花','减花','换花','调花'）业务语义不同
+   - '本月所有报花收入'问句应明确口径，默认拆分而非合并
+
+5. 业务时间统一用 apply_time 字段；视图内 biz_month 字段已做月份归口（DATE_FORMAT(apply_time,'%Y-%m')）
+
+6. 金额聚合必须 ROUND(...,2)；金额展示用 ROUND(biz_total_rent, 2)，不直接展示原值
+
+7. 粒度陷阱：v_flower_biz_detail 是 '报花单 × 明细项' 粒度
+   - COUNT(*) 是明细数
+   - COUNT(DISTINCT biz_id) 是报花单数
+   - 问'多少报花单'用后者
+
+8. 字符串匹配规则：
+   - project_name / curing_user_name / apply_user_name → LIKE '%X%' 模糊
+   - biz_type_name / biz_status_name → 精确等值（已是中文）
+
+9. 不要把月度结算（v_monthly_settlement）当报花数据源
+   - 月结是结算域（settlement domain）
+   - 报花是 flowerbiz 域，走 v_flower_biz_detail

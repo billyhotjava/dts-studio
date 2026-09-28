@@ -1,0 +1,45 @@
+{
+  "version": "2026-07-sprint33-finance-amount-column-alignment-v1",
+  "tiers": [
+    {
+      "id": "nominal-rent",
+      "semanticName": "名义租金",
+      "sourceColumn": "receivable_total_amount",
+      "apiField": "receivableTotalAmount",
+      "martField": "名义租金",
+      "labels": ["名义", "名义租金", "总租金"],
+      "ambiguousTerms": [],
+      "notes": "adminapi MonthAccounting.receivableTotalAmount，前端展示为总租金；不能当作应收折前、折后实收或已回款。"
+    },
+    {
+      "id": "receivable-before-discount",
+      "semanticName": "应收折前",
+      "sourceColumn": "net_receipt_total_amount",
+      "apiField": "netReceiptTotalAmount",
+      "martField": "应收折前",
+      "labels": ["应收折前", "折前应收"],
+      "ambiguousTerms": ["应收"],
+      "notes": "adminapi MonthAccounting.netReceiptTotalAmount，代表折扣前应收金额。"
+    },
+    {
+      "id": "discounted-receivable",
+      "semanticName": "折后实收",
+      "sourceColumn": "folding_after_total_amount",
+      "apiField": "foldingAfterTotalAmount",
+      "martField": "折后实收",
+      "labels": ["折后实收", "折后应收", "实收"],
+      "ambiguousTerms": ["应收"],
+      "notes": "adminapi MonthAccounting.foldingAfterTotalAmount，代表折扣后应收/业务常说的实收口径。"
+    },
+    {
+      "id": "paid-amount",
+      "semanticName": "已回款",
+      "sourceColumn": "total_amount",
+      "apiField": "totalAmount",
+      "martField": "已回款",
+      "labels": ["已回款", "回款", "已收款"],
+      "ambiguousTerms": ["应收"],
+      "notes": "adminapi MonthAccounting.totalAmount，代表已经完成付款/回款金额。"
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- ============================================================ -->
+    <!-- BG-03: biz_enum_dictionary table                             -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-008-biz-enum-dictionary" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists schemaName="copilot_ai" tableName="biz_enum_dictionary"/>
+            </not>
+        </preConditions>
+        <createTable schemaName="copilot_ai" tableName="biz_enum_dictionary">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="source_db" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="table_name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="field_name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(256)"/>
+            <column name="sort_order" type="INT" defaultValueNumeric="0"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+        <addUniqueConstraint schemaName="copilot_ai" tableName="biz_enum_dictionary"
+                             columnNames="source_db, table_name, field_name, code"
+                             constraintName="uk_biz_enum_dict_src_tbl_fld_code"/>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- Seed data for rs_cloud_flower enums                          -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-008-biz-enum-seed-data" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary WHERE source_db = 'rs_cloud_flower'
+            </sqlCheck>
+        </preConditions>
+
+        <!-- p_project.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_project', 'status', '1', '正常', 1),
+  ('rs_cloud_flower', 'p_project', 'status', '2', '停用', 2);
+        </sql>
+
+        <!-- p_project.type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_project', 'type', '1', '租摆', 1),
+  ('rs_cloud_flower', 'p_project', 'type', '2', '节日摆', 2);
+        </sql>
+
+        <!-- p_project.check_cycle -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_project', 'check_cycle', '1', '每月', 1),
+  ('rs_cloud_flower', 'p_project', 'check_cycle', '2', '双月', 2),
+  ('rs_cloud_flower', 'p_project', 'check_cycle', '3', '季度', 3),
+  ('rs_cloud_flower', 'p_project', 'check_cycle', '6', '半年', 4),
+  ('rs_cloud_flower', 'p_project', 'check_cycle', '12', '年度', 5);
+        </sql>
+
+        <!-- p_contract.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_contract', 'status', '1', '草稿', 1),
+  ('rs_cloud_flower', 'p_contract', 'status', '2', '执行中', 2),
+  ('rs_cloud_flower', 'p_contract', 'status', '3', '已结束', 3);
+        </sql>
+
+        <!-- p_contract.settlement_type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_contract', 'settlement_type', '1', '按实摆结算', 1),
+  ('rs_cloud_flower', 'p_contract', 'settlement_type', '2', '固定月租', 2);
+        </sql>
+
+        <!-- p_position.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_position', 'status', '0', '正常', 1),
+  ('rs_cloud_flower', 'p_position', 'status', '1', '停用', 2);
+        </sql>
+
+        <!-- p_position.type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_position', 'type', '1', '室内', 1),
+  ('rs_cloud_flower', 'p_position', 'type', '2', '室外', 2);
+        </sql>
+
+        <!-- p_project_green.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'p_project_green', 'status', '1', '摆放中', 1),
+  ('rs_cloud_flower', 'p_project_green', 'status', '2', '换花中', 2),
+  ('rs_cloud_flower', 'p_project_green', 'status', '3', '加花中', 3),
+  ('rs_cloud_flower', 'p_project_green', 'status', '4', '减花中', 4),
+  ('rs_cloud_flower', 'p_project_green', 'status', '5', '调花中', 5),
+  ('rs_cloud_flower', 'p_project_green', 'status', '6', '坏账处理中', 6),
+  ('rs_cloud_flower', 'p_project_green', 'status', '7', '已结束', 7);
+        </sql>
+
+        <!-- t_flower_biz_info.biz_type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '1', '换花', 1),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '2', '加花', 2),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '3', '减花', 3),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '4', '调花', 4),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '5', '售花', 5),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '6', '坏账', 6),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '7', '销售', 7),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '8', '内购', 8),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '11', '加盆架', 9),
+  ('rs_cloud_flower', 't_flower_biz_info', 'biz_type', '12', '减盆架', 10);
+        </sql>
+
+        <!-- t_flower_biz_info.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '-1', '作废', 1),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '1', '审核中', 2),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '2', '备货中', 3),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '3', '核算中', 4),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '4', '待结算', 5),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '5', '已完成', 6),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '20', '草稿', 7),
+  ('rs_cloud_flower', 't_flower_biz_info', 'status', '21', '驳回', 8);
+        </sql>
+
+        <!-- t_flower_biz_info.bear_cost_type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_flower_biz_info', 'bear_cost_type', '1', '养护人', 1),
+  ('rs_cloud_flower', 't_flower_biz_info', 'bear_cost_type', '2', '领导', 2),
+  ('rs_cloud_flower', 't_flower_biz_info', 'bear_cost_type', '3', '公司', 3),
+  ('rs_cloud_flower', 't_flower_biz_info', 'bear_cost_type', '4', '客户', 4);
+        </sql>
+
+        <!-- i_pendulum_info.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 'i_pendulum_info', 'status', '1', '草稿', 1),
+  ('rs_cloud_flower', 'i_pendulum_info', 'status', '2', '待审批', 2),
+  ('rs_cloud_flower', 'i_pendulum_info', 'status', '3', '初摆中', 3),
+  ('rs_cloud_flower', 'i_pendulum_info', 'status', '4', '已完成', 4),
+  ('rs_cloud_flower', 'i_pendulum_info', 'status', '5', '审批驳回', 5),
+  ('rs_cloud_flower', 'i_pendulum_info', 'status', '6', '已作废', 6);
+        </sql>
+
+        <!-- t_daily_task_info.status -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_daily_task_info', 'status', '-1', '已作废', 1),
+  ('rs_cloud_flower', 't_daily_task_info', 'status', '1', '待发起', 2),
+  ('rs_cloud_flower', 't_daily_task_info', 'status', '2', '进行中', 3),
+  ('rs_cloud_flower', 't_daily_task_info', 'status', '10', '已结束', 4);
+        </sql>
+
+        <!-- t_daily_task_info.task_type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_daily_task_info', 'task_type', '1', '销售类', 1),
+  ('rs_cloud_flower', 't_daily_task_info', 'task_type', '2', '内购类', 2),
+  ('rs_cloud_flower', 't_daily_task_info', 'task_type', '3', '实摆变更类', 3),
+  ('rs_cloud_flower', 't_daily_task_info', 'task_type', '4', '增值服务类', 4),
+  ('rs_cloud_flower', 't_daily_task_info', 'task_type', '5', '支持类', 5),
+  ('rs_cloud_flower', 't_daily_task_info', 'task_type', '6', '初摆类', 6);
+        </sql>
+
+        <!-- t_curing_record.record_type -->
+        <sql>
+INSERT INTO copilot_ai.biz_enum_dictionary (source_db, table_name, field_name, code, label, sort_order)
+VALUES
+  ('rs_cloud_flower', 't_curing_record', 'record_type', '1', '养护记录', 1),
+  ('rs_cloud_flower', 't_curing_record', 'record_type', '2', '工作日报', 2);
+        </sql>
+    </changeSet>
+
+    <!-- ============================================================ -->
+    <!-- BG-11: ai_chat_feedback table                                -->
+    <!-- ============================================================ -->
+    <changeSet id="v1.0.0-008-ai-chat-feedback" author="dts-copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists schemaName="copilot_ai" tableName="ai_chat_feedback"/>
+            </not>
+        </preConditions>
+        <createTable schemaName="copilot_ai" tableName="ai_chat_feedback">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="session_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(64)"/>
+            <column name="user_name" type="VARCHAR(128)"/>
+            <column name="rating" type="VARCHAR(8)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="VARCHAR(32)"/>
+            <column name="detail" type="TEXT"/>
+            <column name="generated_sql" type="TEXT"/>
+            <column name="corrected_sql" type="TEXT"/>
+            <column name="routed_domain" type="VARCHAR(32)"/>
+            <column name="target_view" type="VARCHAR(128)"/>
+            <column name="template_code" type="VARCHAR(64)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+        <createIndex schemaName="copilot_ai" tableName="ai_chat_feedback" indexName="idx_feedback_rating">
+            <column name="rating"/>
+        </createIndex>
+        <createIndex schemaName="copilot_ai" tableName="ai_chat_feedback" indexName="idx_feedback_reason">
+            <column name="reason"/>
+        </createIndex>
+        <createIndex schemaName="copilot_ai" tableName="ai_chat_feedback" indexName="idx_feedback_created_at">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

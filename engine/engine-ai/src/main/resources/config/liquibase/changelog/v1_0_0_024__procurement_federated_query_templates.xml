@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-024-procurement-federated-query-templates" author="codex">
+        <comment>Route broad procurement green purchase questions to authorized Trino mysql catalog SQL instead of LLM-invented physical catalogs.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority, is_active)
+VALUES
+('TPL-34', 'procurement', NULL,
+ '[".*(\\d{4}年).*(各个|各|所有).*(绿植|产品|物品|商品).*(采购情况|采购统计|采购).*",".*(各个|各|所有).*(绿植|产品|物品|商品).*(采购情况|采购统计|采购).*"]',
+ '["看下2026年各个绿植的采购情况","统计2026年各绿植采购金额和数量","今年所有绿植采购情况"]',
+ $tpl$SELECT
+  a.good_name AS "绿植",
+  COALESCE(NULLIF(a.good_specs, ''), '未填') AS "规格",
+  COUNT(*) AS "采购明细行数",
+  COUNT(DISTINCT b.id) AS "采购单数",
+  SUM(COALESCE(c.real_purchase_number, 0)) AS "采购数量",
+  ROUND(SUM(COALESCE(c.real_purchase_number, 0) * COALESCE(a.parchase_price, 0)), 2) AS "采购金额",
+  MIN(a.purchase_time) AS "最早采购时间",
+  MAX(a.purchase_time) AS "最近采购时间"
+FROM mysql.rs_cloud_flower.t_purchase_price_item a
+LEFT JOIN mysql.rs_cloud_flower.t_purchase_info b ON a.purchase_info_id = b.id
+LEFT JOIN mysql.rs_cloud_flower.t_plan_purchase_item c ON c.purchase_price_id = a.id
+LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_item d ON d.id = c.flower_item_id
+LEFT JOIN mysql.rs_cloud_flower.t_flower_biz_info f ON f.id = d.flower_biz_id
+WHERE d.status <> -1
+  AND d.id IS NOT NULL
+  AND c.status <> -1
+  AND a.purchase_time >= TIMESTAMP ':year-01-01 00:00:00'
+  AND a.purchase_time < TIMESTAMP ':year-01-01 00:00:00' + INTERVAL '1' YEAR
+GROUP BY a.good_name, COALESCE(NULLIF(a.good_specs, ''), '未填')
+ORDER BY "采购金额" DESC
+LIMIT 100$tpl$,
+ '{"year":{"type":"integer","required":true}}',
+ 'mysql.rs_cloud_flower.t_purchase_price_item', '全年各绿植采购情况（Trino 联邦 MySQL）', 45, true)
+ON CONFLICT (template_code) DO UPDATE
+SET domain = EXCLUDED.domain,
+    role_hint = EXCLUDED.role_hint,
+    intent_patterns = EXCLUDED.intent_patterns,
+    question_samples = EXCLUDED.question_samples,
+    sql_template = EXCLUDED.sql_template,
+    parameters = EXCLUDED.parameters,
+    target_view = EXCLUDED.target_view,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,43 @@
+version: 2
+
+sources:
+  - name: "xycyl_project_ods"
+    schema: "public"
+    description: |
+      馨懿诚项目管理域 ODS 源表声明。
+      物理表遵循本地 DTS 数据湖约定：schema=public，表名使用 ods_ptr_mysql_* 前缀，
+      并保留 _dts_source_system / _dts_import_time 等入湖元数据。
+    tables:
+      - name: "p_customer"
+        identifier: "ods_ptr_mysql_p_customer"
+        description: "客户主数据。"
+      - name: "p_project"
+        identifier: "ods_ptr_mysql_p_project"
+        description: "项目点主数据。"
+      - name: "p_contract"
+        identifier: "ods_ptr_mysql_p_contract"
+        description: "合同主数据。"
+      - name: "p_position"
+        identifier: "ods_ptr_mysql_p_position"
+        description: "摆位主数据。"
+      - name: "p_floor_layer"
+        identifier: "ods_ptr_mysql_p_floor_layer"
+        description: "楼层维度源表。"
+      - name: "p_floor_number"
+        identifier: "ods_ptr_mysql_p_floor_number"
+        description: "楼号维度源表。"
+      - name: "b_goods"
+        identifier: "ods_ptr_mysql_b_goods"
+        description: "物品主数据。"
+      - name: "b_goods_price"
+        identifier: "ods_ptr_mysql_b_goods_price"
+        description: "物品价格维度。"
+      - name: "p_project_green"
+        identifier: "ods_ptr_mysql_p_project_green"
+        description: "项目实摆事实源表。"
+      - name: "p_position_adjustment"
+        identifier: "ods_ptr_mysql_p_position_adjustment"
+        description: "摆位调整主表。"
+      - name: "p_position_adjustment_item"
+        identifier: "ods_ptr_mysql_p_position_adjustment_item"
+        description: "摆位调整明细。"

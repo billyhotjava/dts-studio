@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-030-finance-year-summary-query-template" author="codex">
+        <comment>Route broad yearly finance summary questions to executable ADS finance templates instead of generic datasource-free agent workflow.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority, is_active)
+VALUES
+('TPL-56', 'finance', NULL,
+ '[".*(20\\d{2}|\\d{4}年|今年|去年).*(财务|收款|回款|应收|实收).*(数据|情况|统计|汇总|总览).*",".*(财务|收款|回款|应收|实收).*(20\\d{2}|\\d{4}年|今年|去年).*(数据|情况|统计|汇总|总览).*"]',
+ '["2026年财务数据统计下","看下2026年财务数据统计","今年财务数据汇总"]',
+$tpl$
+WITH settlement AS (
+  SELECT
+    f."业务月份" AS "财务月份",
+    COUNT(DISTINCT f."项目") AS "结算项目数",
+    ROUND(SUM(CAST(NULLIF(CAST(f."应收折前" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "应收折前",
+    ROUND(SUM(CAST(NULLIF(CAST(f."折后实收" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "折后实收",
+    ROUND(SUM(CAST(NULLIF(CAST(f."已回款" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "已回款",
+    ROUND(SUM(CAST(NULLIF(CAST(f."未回款" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "未回款",
+    ROUND(AVG(CAST(NULLIF(CAST(f."回款进度" AS VARCHAR), '') AS DECIMAL(18,4))), 4) AS "平均回款进度"
+  FROM public.xycyl_ads_finance_month_settlement f
+  WHERE f."业务月份" LIKE CAST(:year AS VARCHAR) || '-%'
+  GROUP BY f."业务月份"
+),
+collection AS (
+  SELECT
+    c."收款月份" AS "财务月份",
+    ROUND(SUM(CAST(NULLIF(CAST(c."收款金额" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "收款金额",
+    ROUND(SUM(CAST(NULLIF(CAST(c."收款单数" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "收款单数",
+    COUNT(DISTINCT c."项目") AS "收款项目数"
+  FROM public.xycyl_ads_finance_collection c
+  WHERE c."收款月份" LIKE CAST(:year AS VARCHAR) || '-%'
+  GROUP BY c."收款月份"
+)
+SELECT
+  COALESCE(s."财务月份", c."财务月份") AS "财务月份",
+  COALESCE(s."结算项目数", 0) AS "结算项目数",
+  COALESCE(s."应收折前", 0) AS "应收折前",
+  COALESCE(s."折后实收", 0) AS "折后实收",
+  COALESCE(s."已回款", 0) AS "已回款",
+  COALESCE(s."未回款", 0) AS "未回款",
+  COALESCE(s."平均回款进度", 0) AS "平均回款进度",
+  COALESCE(c."收款金额", 0) AS "收款金额",
+  COALESCE(c."收款单数", 0) AS "收款单数",
+  COALESCE(c."收款项目数", 0) AS "收款项目数"
+FROM settlement s
+FULL OUTER JOIN collection c ON s."财务月份" = c."财务月份"
+ORDER BY "财务月份"
+$tpl$,
+ '{"year":{"type":"integer","required":true}}',
+ 'public.xycyl_ads_finance_month_settlement', '年度财务数据统计', 40, true)
+ON CONFLICT (template_code) DO UPDATE
+SET domain = EXCLUDED.domain,
+    role_hint = EXCLUDED.role_hint,
+    intent_patterns = EXCLUDED.intent_patterns,
+    question_samples = EXCLUDED.question_samples,
+    sql_template = EXCLUDED.sql_template,
+    parameters = EXCLUDED.parameters,
+    target_view = EXCLUDED.target_view,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

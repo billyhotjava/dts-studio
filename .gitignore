@@ -15,6 +15,16 @@
 # Node (if any tooling)
 node_modules/
 
+# Runtime configuration and Java build output
+.env
+.env.*
+!.env.example
+target/
+*.class
+*.jar
+.dev-logs/
+.dev-pids/
+
 # Python
 __pycache__/
 *.pyc

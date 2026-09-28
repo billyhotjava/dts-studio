@@ -1,0 +1,360 @@
+{
+  "domain": "flowerbiz",
+  "description": "馨懿诚 PRS 报花 / 绿植租摆主题域。当前运行口径基于 dbt 后的 PostgreSQL mart 表，默认使用 public.xycyl_ads_flowerbiz_* 与 public.xycyl_dws_flowerbiz_*；ODS 仅用于血缘和问题排查，不作为 NL2SQL 默认查询面。",
+
+  "objects": [
+    {
+      "name": "客户",
+      "view": "public.xycyl_dim_customer",
+      "description": "Sprint-25 共享客户维度，作为报花对象图的客户主轴。客户维度源系统关联存在缺失风险，回答客户级结论时需要提示数据质量。",
+      "keyDimensions": ["customer_id", "customer_code", "customer_name", "customer_abbreviation"],
+      "keyMeasures": [],
+      "commonFilters": ["customer_code", "customer_name"],
+      "defaultTimeField": ""
+    },
+    {
+      "name": "项目",
+      "view": "public.xycyl_dim_project",
+      "description": "Sprint-25 共享项目维度，连接客户、合同和报花明细，是报花对象图的项目主轴。",
+      "keyDimensions": ["project_id", "project_code", "project_name", "customer_id", "customer_code", "customer_name"],
+      "keyMeasures": [],
+      "commonFilters": ["project_code", "project_name", "customer_name"],
+      "defaultTimeField": ""
+    },
+    {
+      "name": "租赁经营汇总",
+      "view": "public.xycyl_ads_flowerbiz_lease_summary",
+      "description": "项目、客户、业务月份维度的租赁类报花汇总，覆盖加摆、撤摆、换花、调花及租金净额。",
+      "keyDimensions": ["业务月份", "项目", "客户", "业务大类"],
+      "keyMeasures": ["报花单数", "加摆单数", "撤摆单数", "换花单数", "调花单数", "租金净额全口径", "处理成本全口径"],
+      "commonFilters": ["业务月份", "项目", "客户", "业务大类"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "租赁报花明细",
+      "view": "public.xycyl_ads_flowerbiz_lease_detail",
+      "description": "单据级租赁报花明细，用于报花单钻取、申请时间、状态、项目、客户、养护人和金额明细追踪。",
+      "keyDimensions": ["报花单id", "报花单号", "项目id", "业务类型", "项目", "客户", "状态", "养护人", "申请人", "明细id"],
+      "keyMeasures": ["行租金合计", "行成本合计", "数量"],
+      "commonFilters": ["业务时间", "业务月份", "报花单id", "项目id", "项目", "客户", "状态", "业务类型"],
+      "defaultTimeField": "业务时间"
+    },
+    {
+      "name": "采购明细",
+      "view": "authority.procurement.purchase_item_detail",
+      "description": "采购明细对象，复用采购域 authority 取数面。用于从报花明细沿 flower_item_id 追溯采购计划和采购金额。",
+      "keyDimensions": ["flower_item_id", "purchase_user_name", "purchase_time", "good_name", "supply_name", "biz_code", "project_name"],
+      "keyMeasures": ["parchase_number", "parchase_price", "total_amount", "purchase_amount"],
+      "commonFilters": ["flower_item_id", "good_name", "purchase_user_name", "purchase_time", "biz_code", "project_name"],
+      "defaultTimeField": "purchase_time"
+    },
+    {
+      "name": "结算单",
+      "view": "public.ods_ptr_mysql_f_settlement",
+      "description": "财务结算源对象，用于通过 biz_ids_json 从报花单追溯结算单。经营金额、应收和欠款类问句仍优先走财务 ADS/DWS 或固定报表。",
+      "keyDimensions": ["id", "code", "biz_ids_json", "status", "settle_type", "settle_time", "apply_name", "settle_name"],
+      "keyMeasures": ["income", "rent_income", "cost", "supply_cost", "storehouse_cost", "cash_cost"],
+      "commonFilters": ["code", "status", "settle_time", "apply_name", "settle_name"],
+      "defaultTimeField": "settle_time"
+    },
+    {
+      "name": "在途审批与待处理",
+      "view": "public.xycyl_ads_flowerbiz_pending",
+      "description": "未结束报花单的在途状态、停留天数和操作监控。待审批、备货中、待结算等进行中问题优先使用此表。",
+      "keyDimensions": ["状态", "项目", "客户", "业务类型", "申请人", "养护人", "项目经理"],
+      "keyMeasures": ["租金净额", "处理成本", "销售金额", "额外费用", "已挂起天数"],
+      "commonFilters": ["申请时间", "项目", "状态", "已挂起天数"],
+      "defaultTimeField": "申请时间"
+    },
+    {
+      "name": "销售汇总",
+      "view": "public.xycyl_ads_flowerbiz_sale_summary",
+      "description": "售花、赠送等销售类报花的项目、客户、月份汇总。销售与租赁净增不要默认混合。",
+      "keyDimensions": ["业务月份", "项目", "客户", "业务大类"],
+      "keyMeasures": ["销售金额全口径", "销售成本全口径", "赠送成本全口径", "销售单数"],
+      "commonFilters": ["业务月份", "项目", "客户"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "坏账汇总",
+      "view": "public.xycyl_ads_flowerbiz_baddebt_summary",
+      "description": "坏账类报花的项目、客户、月份汇总。坏账是损失口径，不应解释为收入。",
+      "keyDimensions": ["业务月份", "项目", "客户"],
+      "keyMeasures": ["坏账成本全口径", "坏账租金损失全口径", "坏账单数"],
+      "commonFilters": ["业务月份", "项目", "客户"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "额外费用汇总",
+      "view": "public.xycyl_ads_flowerbiz_extra_cost_summary",
+      "description": "额外费用、处理费用、含税金额的项目、客户、月份汇总。",
+      "keyDimensions": ["业务月份", "项目", "客户", "费用类型"],
+      "keyMeasures": ["含税金额合计", "费用单数"],
+      "commonFilters": ["业务月份", "项目", "客户", "费用类型"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "变更与租期调整",
+      "view": "public.xycyl_ads_flowerbiz_change_log",
+      "description": "金额、起租、减租、规格等变更日志。该链路依赖 change_info，当前数据质量一般，回答时需要提示覆盖度风险。",
+      "keyDimensions": ["业务月份", "项目", "客户", "变更类型", "操作人"],
+      "keyMeasures": ["变更次数", "影响金额"],
+      "commonFilters": ["业务月份", "项目", "客户", "变更类型"],
+      "defaultTimeField": "变更时间"
+    },
+    {
+      "name": "回收撤摆明细",
+      "view": "public.xycyl_ads_flowerbiz_recovery_detail",
+      "description": "撤摆、调拨触发的回收明细和回收去向。当前 recovery 覆盖度偏低，适合做明细排查和趋势参考，不宜作为唯一经营结论。",
+      "keyDimensions": ["业务月份", "项目", "客户", "回收类型", "回收状态", "入库库房"],
+      "keyMeasures": ["计划回收数", "实际回收数", "实际或计划回收数", "回收成本金额"],
+      "commonFilters": ["业务月份", "业务时间", "项目", "客户", "回收类型", "回收状态"],
+      "defaultTimeField": "业务时间"
+    },
+    {
+      "name": "养护人工作量",
+      "view": "public.xycyl_ads_flowerbiz_curing_workload",
+      "description": "养护人、业务月份、业务大类维度的经手单数、在途单数、租赁和销售工作量。",
+      "keyDimensions": ["业务月份", "养护人", "业务大类"],
+      "keyMeasures": ["经手单数", "已结束单数", "在途单数", "租赁单数", "销售单数", "租金净额全口径"],
+      "commonFilters": ["业务月份", "养护人", "业务大类"],
+      "defaultTimeField": "业务月份"
+    },
+    {
+      "name": "客户月度汇总",
+      "view": "public.xycyl_dws_flowerbiz_customer_monthly",
+      "description": "客户维度月度经营汇总。由于源系统客户关联存在缺失，客户级排行应展示数据质量提示。",
+      "keyDimensions": ["业务月份", "客户"],
+      "keyMeasures": ["单据数", "租金净额全口径", "销售金额全口径", "坏账成本全口径"],
+      "commonFilters": ["业务月份", "客户"],
+      "defaultTimeField": "业务月份"
+    }
+  ],
+
+  "links": [
+    {
+      "name": "客户_项目",
+      "from": "客户",
+      "to": "项目",
+      "fromKey": "customer_code",
+      "toKey": "customer_code",
+      "cardinality": "1:N",
+      "joinHint": "可能孤儿",
+      "note": "复用 Sprint-25 xycyl_dim_customer/xycyl_dim_project 共享维度；历史项目可能缺客户编码，必须 LEFT JOIN 并保留孤儿提示。"
+    },
+    {
+      "name": "项目_报花",
+      "from": "项目",
+      "to": "租赁报花明细",
+      "fromKey": "project_id",
+      "toKey": "项目id",
+      "cardinality": "1:N",
+      "joinHint": "",
+      "note": "项目维度连接租赁报花明细，报花 ADS 透传项目id。"
+    },
+    {
+      "name": "报花_采购",
+      "from": "租赁报花明细",
+      "to": "采购明细",
+      "fromKey": "明细id",
+      "toKey": "flower_item_id",
+      "cardinality": "1:N",
+      "joinHint": "采购 flower_item_id 软外键",
+      "note": "采购计划明细通过 flower_item_id 软外键回到报花明细；需保留未触发采购或采购关联缺失的报花行。"
+    },
+    {
+      "name": "报花_结算",
+      "from": "租赁报花明细",
+      "to": "结算单",
+      "fromKey": "报花单id",
+      "toKey": "biz_ids_json",
+      "cardinality": "N:1",
+      "joinHint": "biz_ids_json 多报花 JSON 数组需展开",
+      "note": "f_settlement.biz_ids_json 以 JSON/数组文本记录多个报花单 id；JOIN 时必须展开匹配，不能简单等值比较。"
+    }
+  ],
+  "metrics": [
+    {
+      "name": "租金净额",
+      "object": "租赁经营汇总",
+      "expr": "SUM(\"租金净额全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:rent；租赁口径，沿用 dim_biztype 加摆正向/撤摆负向符号约定，已结状态优先。"
+    },
+    {
+      "name": "处理成本",
+      "object": "租赁经营汇总",
+      "expr": "SUM(\"处理成本全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:cost；租赁处理成本口径，按报花业务类型符号归集。"
+    },
+    {
+      "name": "销售金额",
+      "object": "销售汇总",
+      "expr": "SUM(\"销售金额全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:sale；销售/售花收入口径，赠送成本单列不并入销售金额。"
+    },
+    {
+      "name": "额外费用",
+      "object": "额外费用汇总",
+      "expr": "SUM(\"含税金额合计\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:extra_cost；额外费用含税金额口径，对应费用类型维度。"
+    },
+    {
+      "name": "坏账租金损失",
+      "object": "坏账汇总",
+      "expr": "SUM(\"坏账租金损失全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:rent；坏账导致的租金损失，按坏账汇总 ADS 已归集口径。"
+    },
+    {
+      "name": "项目坏账率",
+      "object": "坏账汇总",
+      "expr": "SUM(\"坏账租金损失全口径\") / NULLIF(SUM(\"坏账成本全口径\") + SUM(\"坏账租金损失全口径\"), 0)",
+      "unit": "%",
+      "format": "percent",
+      "caliber": "dbt_amount:rent + dbt_amount:cost；项目维度坏账风险比例，分母为坏账成本与租金损失合计。"
+    },
+    {
+      "name": "客户在租金额",
+      "object": "客户月度汇总",
+      "expr": "SUM(\"租金净额全口径\")",
+      "unit": "CNY",
+      "format": "currency",
+      "caliber": "dbt_amount:rent；客户月度在租经营金额，客户关联缺失时需保留数据质量提示。"
+    }
+  ],
+  "signals": [
+    {
+      "name": "坏账风险",
+      "object": "坏账汇总",
+      "severity": "high",
+      "when": "项目坏账率 > 0.15 AND 坏账租金损失 > 0",
+      "advice": "项目坏账率超过 15% 且存在租金损失，建议核对坏账明细并发起坏账处理单草稿。",
+      "linkedActions": ["创建坏账处理单"]
+    },
+    {
+      "name": "欠费预警",
+      "object": "客户月度汇总",
+      "severity": "medium",
+      "when": "客户在租金额 > 50000 AND 坏账租金损失 > 0",
+      "advice": "客户在租金额较高且存在坏账租金损失，建议跟进回款状态并复核客户侧未结风险。",
+      "linkedActions": []
+    }
+  ],
+  "actions": [
+    {
+      "name": "创建坏账处理单",
+      "object": "租赁报花明细",
+      "intent": "基于坏账风险命中的报花明细生成坏账处理单草稿，正式提交仍由 adminweb 人工确认。",
+      "endpoint": {
+        "service": "adminapi",
+        "draft": "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt",
+        "commit": "/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt"
+      },
+      "params": [
+        { "name": "projectId", "source": "租赁报花明细.项目id", "required": true },
+        { "name": "draftItemJson", "source": "租赁报花明细.明细id", "required": true },
+        { "name": "badDebtType", "source": "租赁报花明细.业务类型", "required": true }
+      ],
+      "approval": "human",
+      "audit": true,
+      "guard": "flowerbiz:baddebt:draft"
+    }
+  ],
+
+  "synonyms": [
+    { "term": "报花", "field": "报花单号 / 报花单id", "views": ["public.xycyl_ads_flowerbiz_lease_detail", "public.xycyl_ads_flowerbiz_pending"] },
+    { "term": "报花单", "field": "报花单号", "views": ["public.xycyl_ads_flowerbiz_lease_detail"] },
+    { "term": "租赁", "field": "业务大类='lease'", "views": ["public.xycyl_ads_flowerbiz_lease_summary", "public.xycyl_ads_flowerbiz_lease_detail"] },
+    { "term": "加摆", "field": "业务类型 / 加摆单数 / 租金净额全口径", "views": ["public.xycyl_ads_flowerbiz_lease_summary", "public.xycyl_ads_flowerbiz_lease_detail"] },
+    { "term": "加花", "field": "加摆", "views": ["public.xycyl_ads_flowerbiz_lease_summary"] },
+    { "term": "撤摆", "field": "业务类型 / 撤摆单数 / 租金净额全口径", "views": ["public.xycyl_ads_flowerbiz_lease_summary", "public.xycyl_ads_flowerbiz_recovery_detail"] },
+    { "term": "撤花", "field": "撤摆", "views": ["public.xycyl_ads_flowerbiz_lease_summary"] },
+    { "term": "换花", "field": "业务类型='换花'", "views": ["public.xycyl_ads_flowerbiz_lease_detail", "public.xycyl_ads_flowerbiz_change_log"] },
+    { "term": "调花", "field": "业务类型='调花'", "views": ["public.xycyl_ads_flowerbiz_lease_detail", "public.xycyl_ads_flowerbiz_recovery_detail"] },
+    { "term": "销售", "field": "销售金额全口径", "views": ["public.xycyl_ads_flowerbiz_sale_summary"] },
+    { "term": "售花", "field": "销售", "views": ["public.xycyl_ads_flowerbiz_sale_summary"] },
+    { "term": "赠送", "field": "赠送成本全口径", "views": ["public.xycyl_ads_flowerbiz_sale_summary"] },
+    { "term": "坏账", "field": "坏账成本全口径 / 坏账租金损失全口径", "views": ["public.xycyl_ads_flowerbiz_baddebt_summary"] },
+    { "term": "费用", "field": "含税金额合计", "views": ["public.xycyl_ads_flowerbiz_extra_cost_summary"] },
+    { "term": "额外费用", "field": "含税金额合计", "views": ["public.xycyl_ads_flowerbiz_extra_cost_summary"] },
+    { "term": "待审批", "field": "状态", "views": ["public.xycyl_ads_flowerbiz_pending"] },
+    { "term": "审核中", "field": "状态", "views": ["public.xycyl_ads_flowerbiz_pending"] },
+    { "term": "在途", "field": "状态 / 已挂起天数", "views": ["public.xycyl_ads_flowerbiz_pending"] },
+    { "term": "待处理", "field": "状态 / 申请人 / 项目经理", "views": ["public.xycyl_ads_flowerbiz_pending"] },
+    { "term": "养护人", "field": "养护人", "views": ["public.xycyl_ads_flowerbiz_curing_workload", "public.xycyl_ads_flowerbiz_lease_detail"] },
+    { "term": "养护师傅", "field": "养护人", "views": ["public.xycyl_ads_flowerbiz_curing_workload"] },
+    { "term": "师傅", "field": "养护人", "views": ["public.xycyl_ads_flowerbiz_curing_workload"] },
+    { "term": "项目", "field": "项目", "views": ["public.xycyl_ads_flowerbiz_lease_summary", "public.xycyl_dws_flowerbiz_project_monthly"] },
+    { "term": "客户", "field": "客户", "views": ["public.xycyl_dws_flowerbiz_customer_monthly", "public.xycyl_ads_flowerbiz_lease_summary"] },
+    { "term": "变更", "field": "变更类型 / 变更时间", "views": ["public.xycyl_ads_flowerbiz_change_log"] },
+    { "term": "租期调整", "field": "变更类型", "views": ["public.xycyl_ads_flowerbiz_change_log"] },
+    { "term": "回收", "field": "实际或计划回收数 / 回收类型", "views": ["public.xycyl_ads_flowerbiz_recovery_detail"] },
+    { "term": "报损", "field": "回收类型='报损'", "views": ["public.xycyl_ads_flowerbiz_recovery_detail"] },
+    { "term": "回购", "field": "回收类型='回购'", "views": ["public.xycyl_ads_flowerbiz_recovery_detail"] },
+    { "term": "留用", "field": "回收类型='留用'", "views": ["public.xycyl_ads_flowerbiz_recovery_detail"] }
+  ],
+
+  "fewShots": [
+    {
+      "question": "本月各项目加摆撤摆净增减多少？",
+      "sql": "SELECT s.\"项目\", SUM(s.\"加摆单数\") AS \"加摆单数\", SUM(s.\"撤摆单数\") AS \"撤摆单数\", ROUND(SUM(s.\"租金净额全口径\")::numeric, 2) AS \"租金净额\" FROM public.xycyl_ads_flowerbiz_lease_summary s WHERE s.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY s.\"项目\" ORDER BY \"租金净额\" DESC LIMIT 20"
+    },
+    {
+      "question": "万象城最近的报花单",
+      "sql": "SELECT d.\"报花单号\", d.\"业务类型\", d.\"项目\", d.\"客户\", d.\"状态\", d.\"养护人\", d.\"业务时间\", ROUND(d.\"行租金合计\"::numeric, 2) AS \"行租金合计\" FROM public.xycyl_ads_flowerbiz_lease_detail d WHERE d.\"项目\" ILIKE '%万象城%' ORDER BY d.\"业务时间\" DESC LIMIT 30"
+    },
+    {
+      "question": "审核中超过 7 天的报花单",
+      "sql": "SELECT p.\"报花单号\", p.\"业务类型\", p.\"项目\", p.\"客户\", p.\"状态\", p.\"申请人\", p.\"项目经理\", p.\"已挂起天数\", p.\"申请时间\" FROM public.xycyl_ads_flowerbiz_pending p WHERE p.\"状态\" = '审核中' AND p.\"已挂起天数\" > 7 ORDER BY p.\"已挂起天数\" DESC LIMIT 100"
+    },
+    {
+      "question": "本月销售金额前 10",
+      "sql": "SELECT s.\"项目\", ROUND(SUM(s.\"销售金额全口径\")::numeric, 2) AS \"销售金额\", SUM(s.\"销售单数\") AS \"销售单数\" FROM public.xycyl_ads_flowerbiz_sale_summary s WHERE s.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY s.\"项目\" ORDER BY \"销售金额\" DESC LIMIT 10"
+    },
+    {
+      "question": "本月坏账项目排行",
+      "sql": "SELECT b.\"项目\", ROUND(SUM(b.\"坏账成本全口径\")::numeric, 2) AS \"坏账成本\", ROUND(SUM(b.\"坏账租金损失全口径\")::numeric, 2) AS \"坏账租金损失\", SUM(b.\"坏账单数\") AS \"坏账单数\" FROM public.xycyl_ads_flowerbiz_baddebt_summary b WHERE b.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY b.\"项目\" ORDER BY \"坏账成本\" DESC LIMIT 20"
+    },
+    {
+      "question": "李师傅本月经手多少报花单",
+      "sql": "SELECT c.\"养护人\", SUM(c.\"经手单数\") AS \"经手单数\", SUM(c.\"已结束单数\") AS \"已结束单数\", SUM(c.\"在途单数\") AS \"在途单数\" FROM public.xycyl_ads_flowerbiz_curing_workload c WHERE c.\"业务月份\" = to_char(current_date, 'YYYY-MM') AND c.\"养护人\" ILIKE '%李师傅%' GROUP BY c.\"养护人\" ORDER BY \"经手单数\" DESC"
+    },
+    {
+      "question": "近三个月变更类型分布",
+      "sql": "SELECT l.\"变更类型\", COUNT(*) AS \"变更次数\" FROM public.xycyl_ads_flowerbiz_change_log l WHERE l.\"业务月份\" >= to_char(current_date - interval '3 month', 'YYYY-MM') GROUP BY l.\"变更类型\" ORDER BY \"变更次数\" DESC"
+    },
+    {
+      "question": "本月回收去向分布",
+      "sql": "SELECT r.\"回收类型\", SUM(r.\"实际或计划回收数\") AS \"回收数量\", ROUND(SUM(r.\"回收成本金额\")::numeric, 2) AS \"回收成本金额\" FROM public.xycyl_ads_flowerbiz_recovery_detail r WHERE r.\"业务月份\" = to_char(current_date, 'YYYY-MM') GROUP BY r.\"回收类型\" ORDER BY \"回收数量\" DESC"
+    }
+  ],
+
+  "guardrails": [
+    "默认只用 PostgreSQL 语法。时间月份用 to_char(date, 'YYYY-MM')，模糊匹配用 ILIKE 或 LIKE，不要使用 MySQL 日期函数。",
+    "NL2SQL 默认查询 public.xycyl_ads_flowerbiz_*、public.xycyl_dws_flowerbiz_*、public.xycyl_dim_flowerbiz_*。不要默认查询 ods_ptr_mysql_*，除非用户明确要求排查源表或血缘。",
+    "租赁、销售、坏账、额外费用是不同经营口径。用户问'收入'或'金额'但未指定类型时，应拆分口径或追问，不要直接混合 SUM。",
+    "租赁汇总优先使用 public.xycyl_ads_flowerbiz_lease_summary；明细钻取使用 public.xycyl_ads_flowerbiz_lease_detail；待审批/在途使用 public.xycyl_ads_flowerbiz_pending。",
+    "客户维度数据存在源系统关联缺失风险。客户排行、客户经营结论需要提示'客户关联可能不完整'。",
+    "变更日志依赖 t_change_info.biz_id，覆盖度一般。变更趋势可做参考，不能作为唯一审计结论。",
+    "回收数据覆盖度偏低。回收/报损/回购/留用分析必须提示覆盖度风险，必要时回到明细列表核对。",
+    "金额聚合使用 ROUND(SUM(...)::numeric, 2)，单据数优先使用模型中的单据数字段或 COUNT(DISTINCT 报花单id)。",
+    "[CAL-BIZTYPE-SCOPE] 标签: biz_type_scope; 适用: t_flower_biz_info.biz_type/t_flower_biz_item.biz_type/编号生成函数/a_invoice_item.biz_type/a_collection_item.biz_type/仓储出入库类型/a_green_accounting.source_type; 规则: 同名 biz_type 在不同表中是独立枚举,跨表 JOIN 或过滤前必须声明表字段和枚举来源,不能把主表、明细、编号、开票、收款、仓储枚举互相套用。",
+    "[CAL-SETTLEMENT-CHAIN] 标签: settlement_chain; 适用: a_month_accounting+a_green_accounting 与 a_sale_account+a_invoice_info; 规则: 租摆链不含增值税且含折扣,售赠坏链含增值税,两链不可直接混 SUM; 坏账 receivable 是损失,不能作为收入。",
+    "[CAL-MONTH-AMOUNT-TIER] 标签: month_amount_tier; 适用: a_month_accounting; 规则: 每个 period/add/cut/adjust/sale 分项都要区分 *_total_amount 名义租金、*_receivable_total_amount 应收折前、*_net_receipt_total_amount/folding_after_total_amount 折后实收和 total_amount 已回款,问句未说明金额层级时必须追问或拆分。",
+    "[CAL-SALE-IN-RENT] 标签: sale_in_rent_double_count; 适用: a_green_accounting.source_type=8 与 a_sale_account; 规则: 售花摊入租摆后同一金额同时存在销售账单和月对账 saleTotalAmount,跨链汇总必须剔除或标注 source_type=8,避免双重计数。",
+    "[CAL-RENT-HISTORY] 标签: rent_history; 适用: p_project_green/p_project_green_sett; 规则: saverentfeeandapply 会覆盖 p_project_green.rent,历史租金必须读取 p_project_green_sett 或 mart 历史快照,不能用当前 green.rent 回推历史。",
+    "[CAL-INVENTORY-COST] 标签: inventory_cost_sku; 适用: s_stock_info/b_goods_price/采购/出库; 规则: 库存成本是加权平均 out_cost,不是 FIFO,也不是 b_goods_price.cost_price 指导价; 库存、采购、出库必须按 good_price_id/SKU 关联,不能只按 good_name 聚合。",
+    "[CAL-JSON-EXPAND] 标签: json_expand_join; 适用: f_settlement.biz_ids_json/t_*.draft_item_json; 规则: JSON 文本多值列 JOIN 必须先展开再匹配,不能用报花单 id 与 JSON 字符串等值 JOIN。",
+    "[CAL-VARCHAR-AMOUNT-CAST] 标签: varchar_amount_cast; 适用: a_sale_account_rent_item.rent; 规则: rent 是 varchar 金额列,参与 SUM/AVG/比较前必须过滤空值并 CAST 为 numeric,不能直接字符串聚合或排序。",
+    "[CAL-EXTRA-COST-VS-EXPENSE] 标签: extra_cost_vs_expense_voucher; 适用: t_flower_extra_cost/f_expense_account_info/f_voucher/rs.spelrule; 规则: 额外费用是花单向客户收取或承担的附加费,费用报销是公司支出报销,两者不可合并; SpEL 开关关闭时结算可能无凭证,分析凭证缺失必须检查 rs.spelrule.enabled/autorun。"
+  ]
+}

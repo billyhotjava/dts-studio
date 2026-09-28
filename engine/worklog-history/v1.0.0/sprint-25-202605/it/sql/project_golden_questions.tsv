@@ -1,0 +1,18 @@
+# 项目域 Golden Questions（Sprint-25 F3/T01）
+# 用途：验证项目域 NL2SQL 是否优先命中 Sprint-25 dbt mart/query_template，并保留 P0 口径护栏。
+# 列：id	question	domain	expected_route	expected_target	template_code	expected_source_refs	note
+PG01	项目经营 TOP 10 是哪些	project	MART_FAST_PATH	public.xycyl_ads_project_overview	TPL-44	dbt-model:public.xycyl_ads_project_overview|semantic-pack:project	项目经营总览排行，使用 raw rent/cost 字段说明
+PG02	绿植数量最多的项目有哪些	project	MART_FAST_PATH	public.xycyl_ads_project_overview	TPL-44	dbt-model:public.xycyl_ads_project_overview|semantic-pack:project	项目实摆排行，验证 overview mart
+PG03	哪些合同 90 天内到期	project	MART_FAST_PATH	public.xycyl_ads_contract_expiry_alert	TPL-45	dbt-model:public.xycyl_ads_contract_expiry_alert|semantic-pack:project	合同到期预警，覆盖合同 ADS
+PG04	即将过期的合同清单	project	MART_FAST_PATH	public.xycyl_ads_contract_expiry_alert	TPL-45	dbt-model:public.xycyl_ads_contract_expiry_alert|semantic-pack:project	合同过期/快到期同义问法
+PG05	项目状态和实摆状态分布	project	MART_FAST_PATH	public.xycyl_ads_project_status_dist	TPL-46	dbt-model:public.xycyl_ads_project_status_dist|semantic-pack:project	状态分布 ADS，覆盖正常/停用项目与实摆状态
+PG06	正常项目和停用项目各多少	project	MART_FAST_PATH	public.xycyl_ads_project_status_dist	TPL-46	dbt-model:public.xycyl_ads_project_status_dist|semantic-pack:project	状态分布同义问法
+PG07	项目绿植加减调换月报	project	MART_FAST_PATH	public.xycyl_ads_project_green_change_monthly	TPL-47	dbt-model:public.xycyl_ads_project_green_change_monthly|semantic-pack:project	月度加减调换 ADS
+PG08	实摆月度变化趋势	project	MART_FAST_PATH	public.xycyl_ads_project_green_change_monthly	TPL-47	dbt-model:public.xycyl_ads_project_green_change_monthly|semantic-pack:project	月报/变化同义问法
+PG09	某项目最近 12 个月绿植趋势	project	MART_FAST_PATH	public.xycyl_dws_project_green_monthly	TPL-48	dbt-model:public.xycyl_dws_project_green_monthly|semantic-pack:project	项目月度 DWS，要求 project_name 参数
+PG10	某项目月度实摆数量趋势	project	MART_FAST_PATH	public.xycyl_dws_project_green_monthly	TPL-48	dbt-model:public.xycyl_dws_project_green_monthly|semantic-pack:project	趋势同义问法，覆盖 months 参数
+PG11	摆位调整完成情况	project	MART_FAST_PATH	public.xycyl_dwd_position_adjustment	TPL-49	dbt-model:public.xycyl_dwd_position_adjustment|semantic-pack:project	摆位调整状态统计
+PG12	某客户有哪些项目点	project	MART_FAST_PATH	public.xycyl_ads_project_overview	TPL-50	dbt-model:public.xycyl_ads_project_overview|semantic-pack:project	客户项目清单，要求 customer_name 参数
+PG13	某项目当前实摆绿植有哪些	project	MART_FAST_PATH	public.xycyl_dwd_project_green_snapshot	TPL-51	dbt-model:public.xycyl_dwd_project_green_snapshot|semantic-pack:project	项目实摆绿植明细，要求 project_name 参数
+PG14	项目实摆绿植数据画像	project	OBJECT_PROFILE	business-object:prs.project.green_snapshot	-	business-object:prs.project.green_snapshot|dbt-model:public.xycyl_dwd_project_green_snapshot	未指定项目名时走业务对象画像，不强行拼明细 SQL
+PG15	这个项目租金总额是多少	project	CLARIFICATION_GUARD	business-object:prs.project.green_snapshot	-	business-object:prs.project.green_snapshot|semantic-pack:project	金额聚合口径未 RESOLVED，必须提示 raw/乘数量口径差异

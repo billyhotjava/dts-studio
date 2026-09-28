@@ -1,0 +1,228 @@
+# RC-05 固定报表模板模型与目录种子
+
+**状态**: IN_PROGRESS
+**目标**: 为固定报表中心、Dashboard、Screen、Report Factory 和 Copilot 提供统一模板资产。
+
+## 模板字段
+
+- `templateCode`
+- `name`
+- `domain`
+- `category`
+- `sourceType`
+- `queryMode`
+- `targetObject`
+- `sqlTemplate`
+- `parameterSchema`
+- `metricDefinition`
+- `refreshPolicy`
+- `permissionPolicy`
+- `presentationSchema`
+
+## 首批目录种子
+
+优先生成三大域，并直接贴合现网页面：
+
+- 财务
+- 采购
+- 仓库
+
+模板编码建议：
+
+- `FIN-*`
+- `PROC-*`
+- `WH-*`
+
+## 当前种子问题
+
+当前 `0040_seed_finance_procurement_templates.xml` 已有 `16` 个种子，但存在两类问题：
+
+1. 模板名和现网页面心智不一致
+   - 例如 `FIN-AR-OVERVIEW`、`FIN-CUSTOMER-AR-RANK` 更像分析抽象名，不是现网用户正在使用的页面/报表名
+2. `targetObject` 多为占位目标
+   - `authority.finance.*`
+   - `authority.procurement.*`
+   - `authority.inventory.*`
+   - `mart.finance.customer_ar_rank_daily`
+   - `fact.procurement.order_event`
+
+## 本轮已完成
+
+1. `0040_seed_finance_procurement_templates.xml`
+   - 当前 16 个 `FIN/PROC/WH` 种子已经全部显式标记 `placeholderReviewRequired=true`
+2. `0041_refresh_fixed_report_page_labels.xml`
+   - 已新增目录名称刷新，将固定报表目录名称贴近现网页面心智，例如：
+     - `FIN-AR-OVERVIEW` -> `财务结算汇总`
+     - `PROC-SUPPLIER-AMOUNT-RANK` -> `采购汇总`
+     - `WH-STOCK-OVERVIEW` -> `库存现量`
+3. `TemplateMatcherService`
+   - 已补页面化 alias，让 `财务结算汇总 / 采购汇总 / 库存现量 / 预支申请 / 日常报销 / 开票管理` 这类现网页面语言可以直接命中固定模板
+4. `FixedReportsPage / FixedReportRunPage`
+   - 已显式展示“待补数据面”，避免目录和运行页误导用户
+5. 现网页面锚点
+   - 目录详情和运行接口已开始暴露 `legacyPageTitle / legacyPagePath`
+   - `FixedReportRunPage` 可先回落到 `app.xycyl.com` 的真实业务页，而不是只停在占位运行页
+6. 首个真实 backing promotion
+   - 已新增 `0044_promote_procurement_summary_fixed_report.xml`
+   - `PROC-SUPPLIER-AMOUNT-RANK`
+     - 页面名称已固化为 `采购汇总`
+     - `queryContract.targetObject` 已提升为 `authority.procurement.purchase_summary`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面筛选：
+     - `purchaseUserId`
+     - `startDate`
+     - `endDate`
+7. 第二个真实 backing promotion
+   - 已新增 `0045_promote_stock_overview_fixed_report.xml`
+   - `WH-STOCK-OVERVIEW`
+     - 页面名称已固化为 `库存现量`
+     - `queryContract.targetObject` 已提升为 `authority.inventory.stock_overview`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面筛选：
+     - `storehouseInfoId`
+     - `status`
+     - `goodType`
+     - `goodName`
+     - `goodSpecs`
+     - `passNumber`
+     - `underNumber`
+8. 第三个真实 backing promotion
+   - 已新增 `0046_promote_finance_settlement_summary_fixed_report.xml`
+   - `FIN-AR-OVERVIEW`
+     - 页面名称已固化为 `财务结算汇总`
+     - `queryContract.targetObject` 已提升为 `authority.finance.settlement_summary`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `accountPeriod`
+     - `projectId`
+     - `feeUserId`
+     - `status`
+9. 第四个真实 backing promotion
+   - 已新增 `0047_promote_low_stock_alert_fixed_report.xml`
+   - `WH-LOW-STOCK-ALERT`
+     - 页面名称已固化为 `库存现量-低库存预警`
+     - `queryContract.targetObject` 已提升为 `authority.inventory.low_stock_alert`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `storehouseInfoId`
+     - `goodType`
+     - `goodName`
+     - `goodSpecs`
+     - `underNumber`
+     - `status`
+10. 第五个真实 backing promotion
+   - 已新增 `0048_promote_finance_advance_request_fixed_report.xml`
+   - `FIN-ADVANCE-REQUEST-STATUS`
+     - 页面名称已固化为 `预支申请`
+     - `queryContract.targetObject` 已提升为 `authority.finance.advance_request_status`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `code`
+     - `status`
+     - `applyUserId`
+11. 第六个真实 backing promotion
+   - 已新增 `0049_promote_procurement_detail_fixed_report.xml`
+   - `PROC-ORDER-EXECUTION-PROGRESS`
+     - 页面名称已固化为 `采购明细-执行进度`
+     - `queryContract.targetObject` 已提升为 `authority.procurement.order_execution_progress`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `projectId`
+     - `purchaseUserId`
+     - `payType`
+     - `startTime`
+     - `endTime`
+     - `goodName`
+     - `goodSpecs`
+     - `supplyName`
+     - `bizCode`
+12. 第七个真实 backing promotion
+   - 已新增 `0050_promote_finance_reimbursement_fixed_report.xml`
+   - `FIN-REIMBURSEMENT-STATUS`
+     - 页面名称已固化为 `日常报销`
+     - `queryContract.targetObject` 已提升为 `authority.finance.reimbursement_status`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `code`
+     - `status`
+     - `applyUserId`
+     - `collectName`
+     - `payType`
+     - `remark`
+13. 第八个真实 backing promotion
+   - 已新增 `0051_promote_finance_invoice_fixed_report.xml`
+   - `FIN-INVOICE-RECONCILIATION`
+     - 页面名称已固化为 `开票管理`
+     - `queryContract.targetObject` 已提升为 `authority.finance.invoice_reconciliation`
+     - `databaseName` 已固定为 `园林业务库`
+     - `placeholderReviewRequired=false`
+   - 参数 schema 已对齐现网页面核心筛选：
+     - `projectId`
+     - `status`
+     - `billType`
+     - `code`
+     - `itemTitle`
+     - `applyUserId`
+     - `applyStartTime`
+     - `applyEndTime`
+     - `invoiceStartTime`
+     - `invoiceEndTime`
+
+## 当前仍未完成
+
+- 还没有把当前 `FIN/PROC/WH` 模板编码整体换成完全页面化的新编码
+- 目前只有 `财务结算汇总`、`日常报销`、`开票管理`、`预支申请`、`采购汇总`、`采购明细-执行进度`、`库存现量` 和 `库存现量-低库存预警` 完成真实 backing，其他 page-aligned 模板仍未与真实 L0/L1 backing 一一接通
+- 还没有把 Dashboard / Screen / Report Factory 复用接到这批 page-aligned 模板上
+
+## 首批建议 seed 包
+
+### 财务
+
+- `FIN-SETTLEMENT-LIST`
+- `FIN-SETTLEMENT-SUMMARY`
+- `FIN-MONTHLY-REPORT`
+- `FIN-INVOICE-LIST`
+- `FIN-EXPENSE-LIST`
+- `FIN-ADVANCE-LIST`
+- `FIN-PAYMENT-LIST`
+
+### 采购
+
+- `PROC-PURCHASE-SUMMARY`
+- `PROC-PURCHASE-DETAIL`
+- `PROC-PURCHASE-PLAN-DETAIL`
+- `PROC-PURCHASE-REJECT-LIST`
+- `PROC-DELIVERY-RECORD`
+
+### 仓库
+
+- `WH-STOCK-LIST`
+- `WH-INOUT-RECORD`
+- `WH-INBOUND-LIST`
+- `WH-OUTBOUND-LIST`
+- `WH-LOSS-LIST`
+- `WH-ALLOCATION-LIST`
+- `WH-ALLOCATION-DETAIL`
+- `WH-RETURN-LIST`
+
+## Seed 规则
+
+- 第一阶段 templateCode 必须能直接映射回现网页面
+- 第一阶段必须明确 `L0` 或 `L1`
+- 对尚未有真实 backing 的模板，必须显式标记为 `placeholderReviewRequired`
+- 目录页默认优先展示已经过 backing 审计的模板，不继续把“概念模板”当成可运行模板
+- 在真实 backing 缺位时，运行页至少要能回落到对应的现网页面锚点
+
+## 成果要求
+
+- 可被固定报表目录直接展示
+- 可被 Copilot 模板优先命中
+- 可被 Dashboard / Screen / Report Factory 复用
+- 对已接通的模板，运行接口必须直接返回结果预览，而不是只返回执行计划

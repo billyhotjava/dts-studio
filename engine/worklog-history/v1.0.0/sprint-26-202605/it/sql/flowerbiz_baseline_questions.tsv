@@ -1,0 +1,18 @@
+# 报花域 NL2SQL 路由基线对照集（F0/T03）
+# 用途：F1/F2/F3 扩展 planner 决策树后，这些问句的路由分支与目标视图必须不退化。
+# 来源：flowerbiz.json 现有 8 条 fewShots + 2 条护栏问句（口径歧义 / L0 业务对象画像）。
+# 列：id	question	domain	expected_plan_mode	expected_response_kind	expected_primary_view	note
+# 路由口径说明：fewShot 类问句在生产中命中 query_template，走 TEMPLATE_FAST_PATH/TEMPLATE_SQL，
+#   primaryTarget = 该问句对应的 ADS 视图（见 flowerbiz.json objects）。
+# 护栏：B09 口径歧义不得静默 SUM，应走澄清/Agent；B10 单据状态画像走 L0 业务对象画像，
+#   F1 对象图导航不得抢占此分支。
+B01	本月各项目加摆撤摆净增减多少？	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_lease_summary	租赁经营汇总
+B02	万象城最近的报花单	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_lease_detail	租赁报花明细
+B03	审核中超过 7 天的报花单	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_pending	在途审批与待处理
+B04	本月销售金额前 10	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_sale_summary	销售汇总
+B05	本月坏账项目排行	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_baddebt_summary	坏账汇总
+B06	李师傅本月经手多少报花单	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_curing_workload	养护人工作量
+B07	近三个月变更类型分布	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_change_log	变更与租期调整
+B08	本月回收去向分布	flowerbiz	TEMPLATE_FAST_PATH	TEMPLATE_SQL	public.xycyl_ads_flowerbiz_recovery_detail	回收撤摆明细
+B09	本月收入多少	flowerbiz	AGENT_WORKFLOW	BUSINESS_CLARIFICATION	-	护栏：租赁/销售/坏账/额外费用口径不同，未指定口径须澄清不得静默SUM
+B10	报花单据状态分布	flowerbiz	AGENT_WORKFLOW	BUSINESS_INSIGHT	business-object:prs.flowerbiz.biz_order	护栏：L0业务对象画像，F1对象图导航不得抢占

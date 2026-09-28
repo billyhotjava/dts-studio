@@ -1,0 +1,65 @@
+# Sprint-33 F4-T02 reconciliation scorecard local evidence
+
+Date: 2026-06-05
+Scope: F4-T02 持续对账记分卡
+Environment: local Maven test, dts-copilot-ai
+
+## RED
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardServiceTest,FinanceReconciliationScorecardPublisherServiceTest,FinanceReconciliationScorecardScheduledPublisherServiceTest,FinanceReconciliationScorecardSnapshotServiceTest,FinanceReconciliationHealthIndicatorTest test
+```
+
+Result:
+
+- Failed at test compilation because `FinanceReconciliationScorecardService` / `FinanceReconciliationScorecardRegistry` did not exist.
+- This proved F4-T02 scorecard contract was not already implemented.
+- A second RED showed that a check could claim `passed=true` while `maxDifference > maxAllowedDifference`; the scorecard initially trusted the flag and passed incorrectly.
+
+## GREEN
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceReconciliationScorecardServiceTest test
+```
+
+Result:
+
+- PASS
+
+Covered checks:
+
+- `finance-reconciliation-scorecard.v1.json` loads the Sprint-33 daily scorecard policy.
+- Required lanes are F1 detail, F2 summary/voucher, F3 invariants, and F4 differential grid.
+- Scorecard computes total and category pass rates, failed cells, max difference, health status, and failure message.
+- New current failures compared with an empty/older baseline trigger `DRIFT`.
+- Known baseline failures remain `FAIL` without a new drift alert.
+- Unknown categories, missing required lanes, duplicate checks, and max-difference threshold violations fail the gate.
+- Pass rate uses the effective status after the max-difference threshold gate, not only the upstream `passed=true` flag.
+- F4 differential grid reports can be converted into scorecard checks with locatable cell keys.
+- Scorecard snapshots can be persisted by oracle binding and read back as `FinanceReconciliationScorecardSource`.
+- Scorecard publisher writes the latest snapshot only when all required F1/F2/F3/F4 evidence lanes are present.
+- Missing required live evidence returns `PENDING_LIVE_EVIDENCE` and does not overwrite the latest snapshot.
+- Scorecard schedule skips when no evidence provider is registered and delegates registered providers to the publisher.
+- Malformed snapshot JSON returns empty source data, so it cannot fabricate `PASS/DRIFT/FAIL`.
+- Health indicator exposes the policy metadata as `PENDING_LIVE_EVIDENCE`, not as live PASS.
+
+## 2026-06-05 rerun
+
+Command:
+
+```bash
+bash worklog/v1.0.0/sprint-33-202607/it/test_sprint33_reconciliation_scorecard.sh
+```
+
+Result:
+
+- PASS
+
+## Pending live proof
+
+- This is a local contract scorecard; live evidence providers and signed baseline adoption are not wired yet.
+- Real daily scorecard must run against live F1/F2/F3/F4 evidence before Sprint-33 can be marked DONE.

@@ -1,0 +1,466 @@
+# v1.0.0 Sprint Queue
+
+## Queue Rules
+
+1. 同一时间最多一个 `IN_PROGRESS`。
+2. `DONE` 必须附带可复现验证命令或报告链接。
+3. sprint-1 为基础设施，必须最先完成。
+4. sprint-2/3 为 AI 引擎主线，sprint-5 为 BI 主线，两条主线在 sprint-4（认证）后汇合。
+
+## Sprint-1: 项目脚手架与基础设施 (SC)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| SC-01 | Maven 多模块项目骨架搭建 | READY | - |
+| SC-02 | copilot_ai schema Liquibase 基线 | READY | SC-01 |
+| SC-03 | copilot_analytics schema Liquibase 基线 | READY | SC-01 |
+| SC-04 | Docker Compose 编排 | READY | SC-01 |
+| SC-05 | Ollama 容器集成与健康检查 | READY | SC-04 |
+| SC-06 | 证书生成脚本与本地 CA | READY | - |
+| SC-07 | Traefik 反向代理与 TLS 终止 | READY | SC-04, SC-06 |
+| SC-08 | CI 构建脚本与冒烟验证 | READY | SC-01~07 |
+
+**统计**: READY=8, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-2: AI 引擎核心抽取 (AE)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| AE-01 | OpenAI 兼容客户端抽取 | READY | SC-01 |
+| AE-02 | LLM Gateway 服务（多 Provider + 熔断降级） | READY | AE-01 |
+| AE-03 | AI 配置管理服务（Provider 模板 + 持久化） | READY | AE-01 |
+| AE-04 | AiCopilotService 核心抽取（complete/stream/explain/optimize） | READY | AE-02, AE-03 |
+| AE-05 | NL2SQL 服务抽取（语义增强） | READY | AE-04 |
+| AE-06 | AI REST API 端点 | READY | AE-04, AE-05 |
+| AE-07 | AI 引擎集成测试 | READY | AE-01~06 |
+
+**统计**: READY=7, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-3: AI 高级能力抽取 (AA)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| AA-01 | pgvector schema + Embedding 服务迁移 | READY | AE-01 |
+| AA-02 | RAG 向量存储与混合检索抽取 | READY | AA-01 |
+| AA-03 | ReAct Agent 引擎抽取 | READY | AE-04 |
+| AA-04 | Tool 注册与执行管线抽取（裁剪治理专用 Tool） | READY | AA-03 |
+| AA-05 | 安全防护抽取（SQL 沙箱 + 权限过滤 + 审计） | READY | AA-03, AA-04 |
+| AA-06 | Agent Chat 会话管理（持久化 + 流式） | READY | AA-03 |
+| AA-07 | AI 高级能力集成测试 | READY | AA-01~06 |
+
+**统计**: READY=7, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-4: API Key 认证与安全体系 (AK)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| AK-01 | API Key 数据模型与管理服务 | READY | SC-02 |
+| AK-02 | API Key 认证过滤器（copilot-ai） | READY | AK-01 |
+| AK-03 | 用户身份传递与会话建立 | READY | AK-02 |
+| AK-04 | API Key 认证集成到 copilot-analytics | READY | AK-02, SC-03 |
+| AK-05 | 认证体系集成测试 | READY | AK-01~04 |
+
+**统计**: READY=5, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-5: BI 分析引擎抽取 (BA)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| BA-01 | dts-analytics 核心代码 fork 与包名重构 | READY | SC-03 |
+| BA-02 | 数据源管理独立化（从 copilot-ai 获取） | READY | BA-01, AE-06 |
+| BA-03 | 认证层替换（PlatformTrustedUser → ApiKeyAuth） | READY | BA-01, AK-04 |
+| BA-04 | AI 屏幕生成对接 copilot-ai | READY | BA-01, AE-06 |
+| BA-05 | SQL Workbench + 仪表盘 + 报表功能验证 | READY | BA-01~04 |
+| BA-06 | 公开链接与嵌入式分析 | READY | BA-05 |
+| BA-07 | BI 引擎集成测试 | READY | BA-01~06 |
+
+**统计**: READY=7, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-6: 前端 Webapp 抽取与整合 (FE)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| FE-01 | dts-analytics-webapp fork 与品牌重构 | READY | BA-01 |
+| FE-02 | AI 聊天面板组件合并（从 dts-platform-webapp） | READY | FE-01 |
+| FE-03 | API 客户端适配（指向 copilot-ai + copilot-analytics） | READY | FE-01, FE-02 |
+| FE-04 | iframe 嵌入模式支持 | READY | FE-03 |
+| FE-05 | Dockerfile 与静态资源打包 | READY | FE-01~04 |
+| FE-06 | 前端集成测试 | READY | FE-01~05 |
+
+**统计**: READY=6, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-7: 园林平台集成与端到端验证 (IN)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| IN-01 | 园林平台 Gateway 路由配置（转发到 copilot 服务） | READY | AK-05 |
+| IN-02 | adminweb 嵌入 copilot-webapp（iframe / 菜单集成） | READY | FE-04 |
+| IN-03 | 园林平台数据源注册（MySQL 业务库接入 copilot） | READY | BA-02 |
+| IN-04 | 园林业务 Tool 扩展示例（查询项目/花卉/财务数据） | READY | AA-04, IN-03 |
+| IN-05 | 端到端集成测试（登录→AI 对话→BI 查询→仪表盘） | READY | IN-01~04 |
+
+**统计**: READY=5, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-8: NL2SQL 聊天到可视化闭环 (NV)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| NV-01 | 默认数据源自动注册 | READY | BA-02 |
+| NV-02 | Agent Chat 透传 datasourceId | READY | AA-06 |
+| NV-03 | NL2SQL Agent 系统提示词优化 | READY | NV-02 |
+| NV-04 | CopilotChat 数据源选择器 | READY | NV-01, FE-02 |
+| NV-05 | CopilotChat "创建可视化" 按钮 | READY | NV-03 |
+| NV-06 | CardEditorPage autorun 支持 | READY | FE-03 |
+| NV-07 | 同义词字典可配置化 | READY | NV-03 |
+| NV-08 | 端到端冒烟测试与评测用例 | READY | NV-01~06 |
+
+**统计**: READY=8, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-9: Copilot 系统配置中心 (CS)
+
+| ID | 任务 | 状态 | 依赖 |
+|----|------|------|------|
+| CS-01 | AI Provider 安全 DTO 与更新语义 | DONE | AE-03 |
+| CS-02 | Analytics 聚合配置接口（站点设置 + Provider 代理） | DONE | CS-01, BA-03 |
+| CS-03 | Analytics 聚合 API Key 管理接口 | DONE | AK-01, CS-02 |
+| CS-04 | Webapp 配置 API 客户端 | DONE | CS-02, CS-03, FE-03 |
+| CS-05 | Webapp 系统配置页面与导航入口 | DONE | CS-04 |
+| CS-06 | 联调验证与回归测试 | IN_PROGRESS | CS-01~05 |
+| CS-07 | Provider 模板目录增强（国际/国内主流 + 推荐模板元数据） | DONE | AE-03, CS-01 |
+| CS-08 | Webapp Provider Type 下拉与推荐模板联动 | DONE | CS-04, CS-05, CS-07 |
+| CS-09 | Provider 模板化交互回归验证 | DONE | CS-07, CS-08 |
+| CS-10 | 数据源表单收敛与错误透传 | DONE | CS-06 |
+| CS-11 | Copilot 动态数据源绑定 | DONE | CS-10 |
+
+**统计**: READY=0, IN_PROGRESS=1, DONE=10, BLOCKED=0
+
+## Sprint-10: 园林业务语义层与 NL2SQL 落地 (BG)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| BG-01 | 业务域盘点与高频问句清单 | P0 | READY | IN-03, NV-07 |
+| BG-02 | 业务视图层建设 | P0 | READY | BG-01 |
+| BG-03 | 状态码与业务枚举词典 | P0 | READY | BG-01 |
+| BG-04 | 预制查询模板 TOP 20 | P0 | READY | BG-02, BG-03 |
+| BG-05 | 语义模型基线与视图元数据标注 | P1 | READY | BG-02 |
+| BG-06 | 业务语义包（项目履约 + 现场业务） | P1 | READY | BG-05 |
+| BG-07 | 意图路由规则引擎 | P1 | READY | BG-02, BG-03 |
+| BG-08 | 结算域指标直查对齐 | P2 | READY | BG-02 |
+| BG-09 | 查询权限桥接 | P2 | READY | BG-02, BG-07 |
+| BG-10 | IT 集成测试与验收矩阵 | P2 | READY | BG-01~09, BG-11 |
+| BG-11 | Copilot 交互体验增强 | P0 | READY | BG-04, BG-07 |
+
+**统计**: READY=11, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-11: 轻量 ELT 主题层与增量同步 (EL)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| EL-01 | 主题层表结构设计 | P0 | READY | BG-02 |
+| EL-02 | 增量同步引擎 | P0 | READY | EL-01 |
+| EL-03 | 项目履约日维度主题表 | P0 | READY | EL-01, EL-02 |
+| EL-04 | 现场业务事件事实表 | P0 | READY | EL-01, EL-02 |
+| EL-05 | 意图路由扩展（视图层 vs 主题层判定） | P1 | READY | EL-03, EL-04 |
+| EL-06 | 主题层预制查询模板补充 | P1 | READY | EL-03, EL-04 |
+| EL-07 | 同步监控与告警 | P2 | READY | EL-02 |
+| EL-08 | IT 集成测试与性能基准 | P2 | READY | EL-01~07 |
+
+**统计**: READY=8, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-13: ELT 主题层收口与数仓分层整改 (ER)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| ER-01 | ELT 物理表与同步 SQL 对齐 | P0 | DONE | EL-01, EL-03, EL-04 |
+| ER-02 | Watermark 模型与状态机收口 | P0 | DONE | EL-02, EL-07 |
+| ER-03 | 项目履约主题表同步链修复 | P0 | DONE | ER-01, ER-02 |
+| ER-04 | 现场业务事实表同步链修复 | P0 | DONE | ER-01, ER-02 |
+| ER-05 | Data-layer 路由接入 Copilot 主链 | P1 | DONE | EL-05, ER-03, ER-04 |
+| ER-06 | 主题层健康检查与自动降级 | P1 | DONE | ER-02, ER-05 |
+| ER-07 | 监控、手动触发与编排服务统一 | P2 | DONE | ER-02, ER-03, ER-04 |
+| ER-08 | IT 验收与性能基线补齐 | P2 | DONE | ER-03~ER-07 |
+| ER-09 | 数仓分层策略与落库核验 | P1 | DONE | ER-03, ER-04 |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=9, BLOCKED=0
+
+## Sprint-14: 已知报表优先化与 Copilot 探索兜底 (RF)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| RF-01 | 初始报表目录锁定与候选清单 | P0 | DONE | 2026-03-20 known report fastpath plan |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=1, BLOCKED=0
+
+## Sprint-15: Copilot 语音输入支持 (VI)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| VI-01 | useVoiceInput Hook 实现 | P0 | READY | - |
+| VI-02 | VoiceInputButton 组件 | P0 | READY | VI-01 |
+| VI-03 | CopilotChat 集成 | P0 | READY | VI-02 |
+| VI-04 | 移动端适配与手势处理 | P1 | READY | VI-03 |
+| VI-05 | 后端 ASR 降级接口（可选） | P2 | READY | VI-03 |
+| VI-06 | IT 测试与兼容性验证 | P2 | READY | VI-01~04 |
+
+**统计**: READY=2, IN_PROGRESS=2, DONE=5, BLOCKED=0
+
+## Sprint-16: 业务页面盘点、数据库对照与固定报表实施基线 (RC)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| RC-01 | 现网页面盘点与 `adminweb/app` 报表型页面识别 | P0 | DONE | 真实登录态 |
+| RC-02 | 业务库扫描与 `adminapi/adminweb/app` 对照 | P0 | DONE | RC-01 |
+| RC-03 | 固定报表 Top 30 候选目录 | P0 | DONE | RC-01, RC-02 |
+| RC-04 | 受控取数面策略（L0 / L1） | P0 | DONE | RC-02, RC-03 |
+| RC-05 | 固定报表模板模型与目录种子 | P1 | IN_PROGRESS | RC-03, RC-04 |
+| RC-06 | 模板优先 Copilot 路由接入 | P1 | IN_PROGRESS | RC-05 |
+| RC-07 | Dashboard / Screen / Report Factory 模板复用 | P2 | DONE | RC-05 |
+| RC-08 | IT 验收与性能基线 | P2 | DONE | RC-04~RC-07 |
+| RC-09 | 固定报表 backing 审计与占位模板退役 | P0 | DONE | RC-03, RC-04 |
+
+**统计**: READY=0, IN_PROGRESS=2, DONE=7, BLOCKED=0
+
+## Sprint-17: 主数据优先治理与业务锚点收口 (MD)
+
+| ID | 任务 | 优先级 | 状态 | 依赖 |
+|----|------|--------|------|------|
+| MD-01 | 主数据盘点与归属审计 | P0 | DONE | `adminapi/adminweb/app`、业务库 |
+| MD-02 | 项目轴 canonical model | P0 | DONE | MD-01 |
+| MD-03 | 物品轴 canonical model | P0 | DONE | MD-01 |
+| MD-04 | 共享参考主数据模型 | P1 | DONE | MD-01 |
+| MD-05 | 主数据与交易事实边界表 | P0 | DONE | MD-01~04 |
+| MD-06 | 主数据消费规则（固定报表 / Copilot） | P1 | DONE | MD-02~05 |
+| MD-07 | 迁移顺序与验收基线 | P1 | DONE | MD-01~06 |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=7, BLOCKED=0
+
+## Sprint-19: Copilot 与查询资产中心协同工作流 (202603)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-分析草稿模型与接口 | 3 | DONE |
+| F2-查询资产中心承接草稿 | 3 | DONE |
+| F3-Copilot到查询的协同动作 | 3 | DONE |
+| F4-草稿晋升与IT验证 | 3 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=4, BLOCKED=0
+
+## Sprint-20: 分析工作台双入口产品化 (202603)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-分析来源上下文组件化 | 3 | DONE |
+| F2-查询资产中心交互深化 | 3 | DONE |
+| F3-Copilot与查询往返协同 | 3 | DONE |
+| F4-多端晋升与来源追溯 | 3 | DONE |
+| F5-IT验证与真人联调基线 | 3 | DONE |
+| F6-采购域语义与查询可靠性收口 | 4 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=6, BLOCKED=0
+
+## Sprint-21: 剩余固定报表数据面收口 (202603)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-剩余固定报表数据面收口 | 5 | READY |
+
+**统计**: READY=1, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-22: 报花域语义化收口 + dts-stack 治理层试点 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F0-业务发现与口径决策 | 5 | READY |
+| F1-报花域语义资产基线 | 4 | READY |
+| F2-报花NL2SQL快路径与planner直达 | 3 | READY |
+| F3-报花域回归与验收 | 3 | READY |
+| F4-dts-stack治理层试点 | 5 | READY |
+
+**统计**: READY=5, IN_PROGRESS=0, DONE=0, BLOCKED=0
+
+## Sprint-23: 基于现有业务优势的 Agent BI 报表 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-现有业务系统优势资产化 | 2 | DONE |
+| F2-Agent-BI语义与报表目录 | 3 | DONE |
+| F3-自然语言导报表闭环 | 3 | DONE |
+| F4-PRS租赁首个验收场景 | 3 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=4, BLOCKED=0
+
+## Sprint-24: 报表资产生产器 + 业务对象问答器 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-资产生产与业务对象路由 | 5 | IN_PROGRESS |
+| F2-候选ADS生产器 | 4 | READY |
+| F3-ODS业务对象问答器 | 4 | READY |
+| F4-资产晋升与验收闭环 | 3 | READY |
+
+**统计**: READY=3, IN_PROGRESS=1, DONE=0, BLOCKED=0
+
+## Sprint-25: 项目管理域 + 共享维度数据面 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F0-项目域P0数据画像与口径决策 | 4 | IN_PROGRESS |
+| F1-共享维度与项目域dbt建模 | 4 | DONE |
+| F2-项目域NL2SQL接入 | 3 | DONE |
+| F3-项目域回归与验收 | 3 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=1, DONE=3, BLOCKED=0
+
+## Sprint-26: 报花域本体化垂直切片 (202605)
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F0-本体运行时骨架与schema扩展 | 3 | DONE |
+| F1-Tier1对象图与导航 | 4 | DONE |
+| F2-Tier2指标与预警 | 4 | DONE |
+| F3-Tier3写回Action闭环 | 4 | DONE |
+| F4-本体范式固化与验收 | 2 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=5, BLOCKED=0
+
+## Sprint-27: Agent-First 单入口前端重构 · P1 核心骨架 (202605)
+
+> 前端彻底重构新方向。设计依据 `docs/superpowers/specs/2026-05-30-agent-first-ui-design.md`。
+> P2/P3(智能增强 / 主动洞察)待后续 Sprint 展开。
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-应用骨架与导航重构 | 5 | DONE |
+| F2-冷启动首屏 | 4 | DONE |
+| F3-对话脊柱 | 6 | DONE |
+| F4-活产物画布 | 4 | DONE |
+| F5-乐观NL2SQL回答 | 4 | DONE |
+| F6-溯源信任 | 3 | DONE |
+| F7-资产沉淀 | 4 | DONE |
+| F8-后台契约与降级联调 | 4 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=34, BLOCKED=0
+
+## Sprint-28: Agent-First 收口与缺陷修复 (202605)
+
+> 修复 Sprint-27 重构后暴露的运行时接线、资产入口、跨域信号和状态簿记缺口。任何 DONE 都必须有 live/browser 或可复现证据。
+
+| Feature | Task 数 | 状态 |
+|---------|---------|------|
+| F1-工作台路由接线 | 4 | DONE |
+| F2-资产库入口收口 | 3 | DONE |
+| F3-信号与跨域能力接入 | 3 | DONE |
+| F4-状态簿记与证据校准 | 4 | DONE |
+| F5-清理与防回归 | 3 | DONE |
+| F6-单窗口结果面收口 | 1 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=18, BLOCKED=0
+
+## Sprint-29: dts-platform 指标联邦接入 copilot (202605)
+
+> 从 dts-platform 取治理指标,用 copilot 自己的 echarts 渲染 + 指标优先路由。设计依据 `docs/superpowers/specs/2026-05-31-dts-platform-indicator-federation-design.md`。dts-platform 指标业务零改动;服务认证只读白名单最小改动;试用期单机器账号。
+
+| Feature | Task 数 | 优先级 | 阶段 | 状态 |
+|---------|---------|--------|------|------|
+| F1-跨服务接入与指标目录同步(后端) | 5 | P0 | P1 | DONE |
+| F2-指标产物与渲染(前端) | 4 | P0 | P1 | DONE |
+| F3-指标优先路由(后端) | 3 | P0 | P2 | DONE |
+| F4-路由结果接入agent-first-UI(前端) | 3 | P1 | P2 | DONE |
+| F5-下钻与增强健壮性(全栈) | 4 | P2 | P3 | DONE |
+| F6-PRS固定报表资产库收口(前端+数据面) | 3 | P0 | P1b/P1c | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=22, BLOCKED=0
+
+> Code DONE / Live Auth DONE / PRS Asset F6 DONE / Platform Business Metric Sample BLOCKED:服务头访问真实 dts-platform `/api/governance/indicators*` 已 200,analytics BFF `degraded=false`;PRS 固定报表资产库入口、旧模板死链降级、12 个 v1 大屏原型落成 `analytics_screen` 均已收口;平台真实已发布指标样本仍等待平台侧补齐。
+
+## Sprint-30: 业务域数据面补全地基（风险清除·血缘补全·口径固化·财务回款开票垂直切片） (202606)
+
+> 把 2026-06-01 业务域全景勘探(`docs/business/xycyl-operational-domain-map.md`)落成工程:先清安全红线、补 ODS 血缘断点、把口径铁律固化为机器可检护栏,再以财务回款/开票链走完整垂直切片建模,沉淀空白域复用范式。前缀 DF。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-安全红线清除与配置治理 | 3 | P0 | DONE |
+| F2-ODS血缘断点补全 | 4 | P0 | DONE |
+| F3-口径铁律固化为护栏与回归 | 3 | P1 | DONE |
+| F4-财务回款开票链垂直切片建模 | 5 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=17(F1/F2/F3/F4/F5), BLOCKED=0 (5 Feature / 17 Task)
+
+> 依赖链:F1(安全)→F2(ODS血缘)/F3(口径护栏)→F4(财务垂直切片)→F5(范式+IT)。本 sprint 不一次性建模全部空白域,库存/督导/薪资顺延复用范式。F1 代码侧已清除 Airflow DAG 明文密码,生产侧轮换按资产台账跟进。
+
+## Sprint-31: 语义口径单一事实源收口（治理债先还） (202606)
+
+> 北极星:让 agent 在多场景下可靠 NL2SQL 拿到口径正确的业务数据、新场景可复制。本 sprint 是地基——先消除 pack/dbt/glossary 三源口径漂移,确立治理层为口径 SoT,建 pack⇄治理 sync 与本体草稿晋升闭环,9 条口径铁律机器规则化。前缀 SG。先收 finance/procurement 两域。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-口径事实源对账与定源 | 4 | P0 | IN_PROGRESS |
+| F2-pack与治理层sync管线 | 3 | P0 | DONE |
+| F3-本体指标草稿晋升闭环 | 3 | P1 | DONE |
+| F4-跨源口径回归网 | 2 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | READY |
+
+**统计**: READY=5, IN_PROGRESS=0, DONE=9, BLOCKED=0 (5 Feature / 14 Task)
+
+> 依赖链:F1(对账定源)→F2(sync下发)/F3(草稿晋升)→F4(回归网)→F5(范式+IT)。不抽 dts-platform modeling 微服务(架构判断 ROI 差)。
+
+## Sprint-32: Agent 数据访问路由阶梯与多场景接入套件 (202607)
+
+> 承接 Sprint-31:解决"怎么取数(路由)"与"怎么复制到新场景(套件)"。把取数固化为口径安全强度从强到弱的 5 层阶梯(指标→mart→对象图→guardrail联邦→直连)、治理 Trino 联邦层、把场景接入范式产品化为可复制套件并用一个空白域端到端验证。前缀 RK。依赖 Sprint-31 完成。子 task 已在各 Feature README「Task 明细」给出,转 IN_PROGRESS 时拆独立任务文件。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-五层路由阶梯与telemetry | 3 | P0 | DONE |
+| F2-Trino联邦层访问治理 | 3 | P0 | DONE |
+| F3-场景接入套件产品化 | 3 | P1 | DONE |
+| F4-新场景端到端验证 | 2 | P1 | DONE |
+| F5-范式固化与IT证据 | 2 | P2 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=13, BLOCKED=0 (5 Feature / 13 Task)
+
+> 依赖链:Sprint-31(口径SoT)→F1(路由阶梯)+F2(Trino治理)→F3(接入套件)→F4(新场景验证)→F5(范式+IT)。多场景硬隔离走 deploy-per-scenario,不做多租户行隔离改造。
+
+## Sprint-33: 财务可证明正确性（对账保证） (202607)
+
+> 财务是口径最敏感、错一分都不行的域。回答两个硬要求:①应用系统里查的数 copilot 必须一致;②copilot 汇总/各种自定义查询条件数据如何**证明**正确。手段=保证阶梯 L0-L4:权威基准注册(`oracle`=测试/对账语境的权威答案源,不是 Oracle 数据库;应用库仍是 MySQL)、明细级对账、复式凭证 tie-out(借=贷)、口径不变量/形变测试(对任意过滤条件成立)、差分抽样+持续对账记分卡、可审计溯源+财务签字。前缀 FA。依赖 Sprint-31 口径 SoT;复用 Sprint-30 财务对账(基准 L1→L2/L3)、Sprint-32 路由 telemetry。先收 月对账/售账/凭证 三张核心表。
+
+| Feature | Task 数 | 优先级 | 状态 | 阶梯/解决 |
+|---------|---------|--------|------|-----------|
+| F1-权威基准注册与明细级一致性 | 3 | P0 | IN_PROGRESS | L0+L1 / req#1 一致性 |
+| F2-复式凭证tie-out与汇总双路对账 | 3 | P0 | IN_PROGRESS | L2+L3 / req#2 汇总 |
+| F3-财务口径不变量形变测试网 | 3 | P0 | DONE | L3 / req#2 自定义条件 |
+| F4-差分抽样与持续对账记分卡 | 3 | P1 | IN_PROGRESS | L4 / 持续可证明 |
+| F5-可审计溯源与财务签字基线 | 2 | P1 | IN_PROGRESS | L4 / 业务可信 |
+
+**统计**: READY=0, IN_PROGRESS=8, DONE=6, BLOCKED=0 (5 Feature / 14 Task)
+
+> 依赖链:Sprint-31(口径SoT/不变量)→F1(明细对账)+F2(凭证tie-out)→F3(不变量网)→F4(差分+记分卡)→F5(溯源+签字)。不改 adminapi 财务逻辑(应用 MySQL/应用报表端点是只读权威基准,只做对账不回写)。核心灵魂=F3 口径不变量:对任意过滤条件成立 → 证明自定义条件正确性而非穷举抽查。
+
+## Sprint-34: NL2SQL 数据准确性证据链产品化 (202607)
+
+> 承接 Sprint-31 口径 SoT、Sprint-32 路由阶梯和 Sprint-33 财务可证明正确性,把“意图正确 + 口径正确 + 数据层正确 + 模型正确 + 结果可对账”产品化为通用 `accuracyEvidence` 证据链。前缀 QA。目标是让每次 NL2SQL 回答都能给出 HIGH/MEDIUM/LOW/UNTRUSTED 等级、证据原因、缺失证明和下一步建议,避免 L0 profile/应用库直连/未构建 ADS 被误标为可信统计。
+
+| Feature | Task 数 | 优先级 | 状态 |
+|---------|---------|--------|------|
+| F1-准确性证据契约与评分 | 3 | P0 | DONE |
+| F2-路由数据层与SQL护栏 | 3 | P0 | DONE |
+| F3-数据新鲜度血缘与对账执行 | 3 | P0 | DONE |
+| F4-黄金集形变与持续评估 | 3 | P1 | DONE |
+| F5-可信解释与低可信交互 | 3 | P1 | DONE |
+
+**统计**: READY=0, IN_PROGRESS=0, DONE=15, BLOCKED=0 (5 Feature / 15 Task)
+
+> 依赖链:F1(证据契约)→F2(路由/SQL 护栏)→F3(freshness/lineage/tie-out)→F4(黄金集/scorecard)→F5(用户侧可信解释)。不提交 dts-stack dbt 模型源码;dbt 交付物仍放 `worklog/prs/v1`。
+
+## Backlog
+
+| ID | 任务 | 状态 | 说明 |
+|----|------|------|------|
+| BL-01 | Join Contract 与 Allowed Tables 编译 | DEFERRED | 视图层已替代其核心功能，降为补充手段 |
+
+## 总体统计
+
+**总体统计待历史 Sprint 全量重算。** Sprint-25~28 已完成本轮局部校准:S25 仅 F0 业务口径仍在推进,S26/S27 与证据一致,Sprint-28 当前 READY=0, IN_PROGRESS=0, DONE=18, BLOCKED=0。
+
+> Sprint-27(前端 Agent-First 重构)已完成 F3-T00/T01 测试护栏、F1 应用骨架/导航重构、F2 冷启动首屏、F3-T02 对话脊柱拆分、F3-T03 流式 hook 验证、F3-T04 输入器整合、F3-T05 会话状态收口、F4 活产物画布、F5 乐观 NL2SQL 回答、F6 溯源信任面板、F7 资产沉淀与 F8 后台契约联调,当前 0 个 READY 任务、34 个 DONE 任务。

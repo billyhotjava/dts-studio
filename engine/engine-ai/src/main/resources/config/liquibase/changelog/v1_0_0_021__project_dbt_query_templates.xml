@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-021-project-dbt-routing-and-query-templates" author="dts-copilot-prs">
+        <comment>Move project-domain NL2SQL routing and templates to Sprint-25 dbt PostgreSQL marts.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+UPDATE copilot_ai.nl2sql_routing_rule
+SET primary_view = 'public.xycyl_ads_project_overview',
+    secondary_views = '["public.xycyl_dws_project_green_monthly","public.xycyl_ads_project_status_dist","public.xycyl_ads_contract_expiry_alert"]',
+    updated_at = now()
+WHERE domain = 'project';
+
+UPDATE copilot_ai.nl2sql_routing_rule
+SET primary_view = 'public.xycyl_dwd_project_green_snapshot',
+    secondary_views = '["public.xycyl_ads_project_overview","public.xycyl_dws_project_green_monthly"]',
+    updated_at = now()
+WHERE domain = 'green';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET is_active = false,
+    updated_at = now()
+WHERE domain = 'project'
+  AND target_view IN ('v_project_overview', 'v_project_green_current', 'mart_project_fulfillment_daily');
+
+INSERT INTO copilot_ai.nl2sql_query_template
+  (template_code, domain, role_hint, intent_patterns, question_samples, sql_template, parameters, target_view, description, priority, is_active)
+VALUES
+('TPL-44', 'project', NULL,
+ '[".*(项目经营|项目总览|项目).*?(TOP|top|排行|排名).*", ".*(实摆|绿植).*?(TOP|top|排行|排名).*"]',
+ '["项目经营 TOP","项目实摆排行","绿植数量最多的项目"]',
+ $tpl$SELECT project_name AS "项目", customer_name AS "客户", green_row_count AS "实摆行数", effective_good_number_sum AS "实摆数量", ROUND(rent_amount_raw_sum::numeric, 2) AS "租金raw合计", ROUND(cost_amount_raw_sum::numeric, 2) AS "成本raw合计" FROM public.xycyl_ads_project_overview ORDER BY green_row_count DESC LIMIT :top_n$tpl$,
+ '{"top_n":{"type":"integer","default":10}}',
+ 'public.xycyl_ads_project_overview', '项目经营 TOP（dbt mart）', 50, true),
+
+('TPL-45', 'project', NULL,
+ '[".*合同.*(到期|快到期|即将到期|过期).*", ".*(30天|60天|90天).*合同.*"]',
+ '["哪些合同90天内到期","即将到期的合同有哪些"]',
+ $tpl$SELECT contract_code AS "合同编码", contract_title AS "合同名称", customer_name AS "客户", contract_status_label AS "合同状态", end_date AS "到期日", days_to_end_date AS "剩余天数", expiry_alert_label AS "预警" FROM public.xycyl_ads_contract_expiry_alert WHERE days_to_end_date BETWEEN 0 AND :days ORDER BY days_to_end_date ASC LIMIT :top_n$tpl$,
+ '{"days":{"type":"integer","default":90},"top_n":{"type":"integer","default":100}}',
+ 'public.xycyl_ads_contract_expiry_alert', '合同到期预警（dbt mart）', 50, true),
+
+('TPL-46', 'project', NULL,
+ '[".*(项目状态|实摆状态|状态分布).*", ".*(正常项目|停用项目|摆放中).*"]',
+ '["项目状态和实摆状态分布","正常项目和停用项目各多少"]',
+ $tpl$SELECT status_subject AS "对象", status_label AS "状态", row_count AS "数量" FROM public.xycyl_ads_project_status_dist ORDER BY status_subject, row_count DESC$tpl$,
+ '{}',
+ 'public.xycyl_ads_project_status_dist', '项目/实摆状态分布（dbt mart）', 45, true),
+
+('TPL-47', 'project', NULL,
+ '[".*(项目|绿植|实摆).*(月报|月度|变化|加减调换).*", ".*(加摆|撤摆|调换).*月.*"]',
+ '["项目绿植月报","实摆月度变化","加减调换月报"]',
+ $tpl$SELECT project_name AS "项目", customer_name AS "客户", stat_month AS "月份", status_label AS "实摆状态", green_row_count AS "实摆行数", effective_good_number_sum AS "实摆数量", ROUND(rent_amount_raw_sum::numeric, 2) AS "租金raw合计" FROM public.xycyl_ads_project_green_change_monthly WHERE (:project_name IS NULL OR project_name ILIKE '%' || :project_name || '%') ORDER BY stat_month DESC, green_row_count DESC LIMIT :top_n$tpl$,
+ '{"project_name":{"type":"string"},"top_n":{"type":"integer","default":100}}',
+ 'public.xycyl_ads_project_green_change_monthly', '绿植加减调换月报（dbt mart）', 45, true),
+
+('TPL-48', 'project', NULL,
+ '[".*(项目|XX).*(实摆|绿植).*(趋势|近.*月|月度).*"]',
+ '["XX项目最近月度实摆趋势","某项目近12个月绿植趋势"]',
+ $tpl$SELECT stat_month AS "月份", project_name AS "项目", green_row_count AS "实摆行数", effective_good_number_sum AS "实摆数量", ROUND(rent_amount_raw_sum::numeric, 2) AS "租金raw合计", ROUND(cost_amount_raw_sum::numeric, 2) AS "成本raw合计" FROM public.xycyl_dws_project_green_monthly WHERE project_name ILIKE '%' || :project_name || '%' ORDER BY stat_month DESC LIMIT :months$tpl$,
+ '{"project_name":{"type":"string","required":true},"months":{"type":"integer","default":12}}',
+ 'public.xycyl_dws_project_green_monthly', '项目月度实摆趋势（dbt mart）', 45, true),
+
+('TPL-49', 'project', NULL,
+ '[".*(摆位调整|调整绿植|调整状态).*", ".*(调位|移位).*"]',
+ '["摆位调整完成情况","调整绿植按状态统计"]',
+ $tpl$SELECT adjustment_status_label AS "状态", COUNT(*) AS "明细数", SUM(adjustment_number) AS "调整数量", ROUND(SUM(rent_amount_raw)::numeric, 2) AS "租金raw合计" FROM public.xycyl_dwd_position_adjustment WHERE (:project_name IS NULL OR project_name ILIKE '%' || :project_name || '%') GROUP BY adjustment_status_label ORDER BY "明细数" DESC$tpl$,
+ '{"project_name":{"type":"string"}}',
+ 'public.xycyl_dwd_position_adjustment', '摆位调整状态统计（dbt DWD）', 40, true),
+
+('TPL-50', 'project', NULL,
+ '[".*客户.*(项目|项目点).*(几个|多少|哪些|清单).*"]',
+ '["XX客户有哪些项目","某客户项目清单"]',
+ $tpl$SELECT customer_name AS "客户", project_name AS "项目", project_status_label AS "项目状态", green_row_count AS "实摆行数", effective_good_number_sum AS "实摆数量" FROM public.xycyl_ads_project_overview WHERE customer_name ILIKE '%' || :customer_name || '%' ORDER BY project_name$tpl$,
+ '{"customer_name":{"type":"string","required":true}}',
+ 'public.xycyl_ads_project_overview', '客户项目清单（dbt mart）', 40, true),
+
+('TPL-51', 'project', NULL,
+ '[".*(项目|XX).*(有哪些|明细|清单).*(实摆绿植|绿植|植物).*"]',
+ '["XX项目当前实摆绿植有哪些","某项目绿植明细"]',
+ $tpl$SELECT project_name AS "项目", position_full_name AS "摆位", goods_name AS "绿植", goods_norms AS "规格", status_label AS "状态", effective_good_number AS "实摆数量", ROUND(rent_amount_raw::numeric, 2) AS "租金raw" FROM public.xycyl_dwd_project_green_snapshot WHERE project_name ILIKE '%' || :project_name || '%' ORDER BY position_full_name, goods_name LIMIT :top_n$tpl$,
+ '{"project_name":{"type":"string","required":true},"top_n":{"type":"integer","default":200}}',
+ 'public.xycyl_dwd_project_green_snapshot', '项目实摆绿植明细（dbt DWD）', 40, true)
+ON CONFLICT (template_code) DO UPDATE
+SET domain = EXCLUDED.domain,
+    role_hint = EXCLUDED.role_hint,
+    intent_patterns = EXCLUDED.intent_patterns,
+    question_samples = EXCLUDED.question_samples,
+    sql_template = EXCLUDED.sql_template,
+    parameters = EXCLUDED.parameters,
+    target_view = EXCLUDED.target_view,
+    description = EXCLUDED.description,
+    priority = EXCLUDED.priority,
+    is_active = EXCLUDED.is_active,
+    updated_at = now();
+        ]]></sql>
+    </changeSet>
+
+</databaseChangeLog>

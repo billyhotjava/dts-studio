@@ -1,0 +1,18 @@
+Command:
+mvn -q -pl dts-copilot-ai -Dtest=CaliberRuleRegistryTest test
+
+Result:
+exit code 0
+
+Relevant output:
+Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+
+Coverage:
+- load 9 governance caliber rules in fixed order
+- reject CAL-BIZTYPE-SCOPE static SQL violation
+- reject CAL-SETTLEMENT-CHAIN static SQL violation
+- reject CAL-SALE-IN-RENT static SQL violation
+- reject CAL-JSON-EXPAND static SQL violation
+- reject CAL-VARCHAR-AMOUNT-CAST static SQL violation
+- allow compliant static finance examples
+- generate finance/procurement guardrail text from governance rules

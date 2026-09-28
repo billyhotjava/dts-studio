@@ -1,0 +1,206 @@
+# Planner-First Chat Orchestration Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Replace the current clarification-first chat entry with a planner-first orchestration flow where direct responses only come from business assets and the planner policy can later switch to LLM-backed orchestration.
+
+**Architecture:** Introduce a dedicated conversation planner that delegates to a configurable planner policy (`asset|llm|hybrid`). Start with an asset-backed policy that only uses structured business assets for direct response or routing hints, while sending all other requests into the agent/tool pipeline. Persist a structured `responseKind` so the frontend no longer depends on brittle clarification strings.
+
+**Tech Stack:** Java 21, Spring Boot 3.4, Liquibase, JUnit 5, React 19, TypeScript, node:test
+
+---
+
+### Task 1: Planner Policy Contract
+
+**Files:**
+- Create: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/copilot/ConversationPlannerService.java`
+- Create: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/copilot/PlannerPolicy.java`
+- Create: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/copilot/AssetBackedPlannerPolicy.java`
+- Create: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/copilot/ConversationPlannerServiceTest.java`
+
+**Step 1: Write the failing test**
+
+Cover:
+- business asset direct response -> `DIRECT_RESPONSE`
+- metadata exploration -> `AGENT_WORKFLOW`
+- ambiguous business question -> `AGENT_WORKFLOW`
+- exact template -> `TEMPLATE_FAST_PATH`
+
+**Step 2: Run test to verify it fails**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=ConversationPlannerServiceTest test`
+
+**Step 3: Write minimal implementation**
+
+Introduce:
+- `PlanMode`
+- `ResponseKind`
+- `ConversationPlan`
+- `PlannerPolicy`
+- `AssetBackedPlannerPolicy`
+- `ConversationPlannerService`
+
+No Java keyword tables. Reuse existing router/template/semantic collaborators.
+
+**Step 4: Run test to verify it passes**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=ConversationPlannerServiceTest test`
+
+**Step 5: Commit**
+
+`git commit -m "feat: add planner policy contract"`
+
+### Task 2: Replace Clarification Hard Gate
+
+**Files:**
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/agent/AgentExecutionService.java`
+- Modify: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/chat/AgentChatServiceTest.java`
+- Create or Modify: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/agent/AgentExecutionServiceTest.java`
+
+**Step 1: Write the failing test**
+
+Add tests proving:
+- business asset direct response bypasses engine
+- ambiguous business question reaches agent workflow
+- metadata exploration reaches agent workflow
+
+**Step 2: Run test to verify it fails**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest test`
+
+**Step 3: Write minimal implementation**
+
+Change `AgentExecutionService` to:
+- use `ConversationPlan`
+- only short-circuit asset-backed `DIRECT_RESPONSE`
+- keep template fast path
+- send all other cases through ReAct
+
+**Step 4: Run test to verify it passes**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest test`
+
+**Step 5: Commit**
+
+`git commit -m "refactor: remove clarification hard gate from chat execution"`
+
+### Task 3: Persist Structured Response Kind
+
+**Files:**
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/domain/AiChatMessage.java`
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/chat/AgentChatService.java`
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/web/rest/InternalAgentChatResource.java`
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/web/rest/AgentChatResource.java`
+- Create: `dts-copilot-ai/src/main/resources/config/liquibase/changelog/v1_0_0_014__chat_message_response_kind.xml`
+
+**Step 1: Write the failing test**
+
+Add tests that assert assistant messages expose `responseKind` in session detail payloads.
+
+**Step 2: Run test to verify it fails**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=InternalAgentChatResourceTest test`
+
+**Step 3: Write minimal implementation**
+
+Persist and serialize `responseKind`. Do not serialize legacy clarification text as protocol state.
+
+**Step 4: Run test to verify it passes**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=InternalAgentChatResourceTest test`
+
+**Step 5: Commit**
+
+`git commit -m "feat: persist structured chat response kind"`
+
+### Task 4: Frontend Session Restore Decoupling
+
+**Files:**
+- Modify: `dts-copilot-webapp/src/api/analyticsApi.ts`
+- Modify: `dts-copilot-webapp/src/components/copilot/copilotSessionBootstrap.ts`
+- Modify: `dts-copilot-webapp/tests/copilotSessionBootstrap.test.ts`
+
+**Step 1: Write the failing test**
+
+Add a test showing that greeting guidance is identified by `responseKind` even when the legacy clarification prefix is absent.
+
+**Step 2: Run test to verify it fails**
+
+Run: `node --test dts-copilot-webapp/tests/copilotSessionBootstrap.test.ts`
+
+**Step 3: Write minimal implementation**
+
+Add `responseKind` to frontend chat types and prefer it in bootstrap restore logic.
+
+**Step 4: Run test to verify it passes**
+
+Run: `node --test dts-copilot-webapp/tests/copilotSessionBootstrap.test.ts`
+
+**Step 5: Commit**
+
+`git commit -m "refactor: use structured response kinds in session restore"`
+
+### Task 5: Configurable Planner Mode
+
+**Files:**
+- Modify: `dts-copilot-ai/src/main/resources/application.yml`
+- Modify: `dts-copilot-ai/src/main/java/com/yuzhi/dts/copilot/ai/service/copilot/ConversationPlannerService.java`
+- Create or Modify: planner policy wiring tests
+
+**Step 1: Write the failing test**
+
+Add a test proving planner mode defaults to `asset` and can route through an alternate policy when configured.
+
+**Step 2: Run test to verify it fails**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=ConversationPlannerServiceTest test`
+
+**Step 3: Write minimal implementation**
+
+Add `copilot.chat.planner.mode=asset|llm|hybrid` wiring and keep non-asset policies behind interface seams.
+
+**Step 4: Run test to verify it passes**
+
+Run: `mvn -pl dts-copilot-ai -Dtest=ConversationPlannerServiceTest test`
+
+**Step 5: Commit**
+
+`git commit -m "feat: add configurable planner mode"`
+
+### Task 6: Full Regression
+
+**Files:**
+- Create: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/copilot/AssetBackedPlannerPolicyTest.java`
+- Modify: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/copilot/IntentRouterServiceTest.java`
+- Modify: `dts-copilot-ai/src/test/java/com/yuzhi/dts/copilot/ai/service/chat/AgentChatServiceTest.java`
+- Modify: `dts-copilot-webapp/tests/copilotSessionBootstrap.test.ts`
+
+**Step 1: Write the failing test**
+
+Add or update regression tests for:
+- metadata exploration
+- ambiguous business question
+- greeting
+- template fast path
+- legacy session fallback
+
+**Step 2: Run test to verify it fails**
+
+Run:
+- `mvn -pl dts-copilot-ai -Dtest=ConversationPlannerServiceTest,AssetBackedPlannerPolicyTest,AgentExecutionServiceTest,AgentChatServiceTest,InternalAgentChatResourceTest test`
+- `pnpm --dir dts-copilot-webapp test`
+
+**Step 3: Write minimal implementation**
+
+Finalize names, remove dead clarification-only branches, keep compatibility wrappers only where necessary.
+
+**Step 4: Run test to verify it passes**
+
+Run:
+- `mvn -pl dts-copilot-ai -Dtest=ConversationPlannerServiceTest,AssetBackedPlannerPolicyTest,AgentExecutionServiceTest,AgentChatServiceTest,InternalAgentChatResourceTest test`
+- `pnpm --dir dts-copilot-webapp run typecheck`
+- `pnpm --dir dts-copilot-webapp run build:modern`
+
+**Step 5: Commit**
+
+`git commit -m "refactor: complete planner-first chat orchestration"`

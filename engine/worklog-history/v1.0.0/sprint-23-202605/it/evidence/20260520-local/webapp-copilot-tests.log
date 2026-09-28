@@ -1,0 +1,13 @@
+
+> @dts/copilot-webapp@1.0.0 test /opt/prod/prs/source/dts-copilot/dts-copilot-webapp
+> vitest run src/components/copilot/copilotAnalysisDraft.test.ts src/components/copilot/copilotAnalysisDraftLinks.test.ts src/components/copilot/copilotGeneratedReportMessage.test.ts
+
+
+ RUN  v4.1.0 /opt/prod/prs/source/dts-copilot/dts-copilot-webapp
+
+
+ Test Files  3 passed (3)
+      Tests  9 passed (9)
+   Start at  23:33:17
+   Duration  1.19s (transform 171ms, setup 319ms, import 120ms, tests 28ms, environment 2.57s)
+

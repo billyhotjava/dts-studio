@@ -1,0 +1,306 @@
+package com.yuzhi.dts.copilot.ai.domain;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import org.hibernate.annotations.ColumnTransformer;
+
+import java.time.Instant;
+
+/**
+ * JPA entity for the ai_chat_message table.
+ * Represents a single message in a chat session.
+ */
+@Entity
+@Table(name = "ai_chat_message")
+public class AiChatMessage {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id", referencedColumnName = "id", nullable = false)
+    private AiChatSession session;
+
+    @NotBlank
+    @Column(name = "role", nullable = false, length = 16)
+    private String role;
+
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "tool_calls", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String toolCalls;
+
+    @Column(name = "tool_call_id", length = 128)
+    private String toolCallId;
+
+    @Column(name = "tokens_used")
+    private Integer tokensUsed;
+
+    @Column(name = "generated_sql", columnDefinition = "TEXT")
+    private String generatedSql;
+
+    @Column(name = "reasoning_content", columnDefinition = "TEXT")
+    private String reasoningContent;
+
+    @Column(name = "routed_domain", length = 32)
+    private String routedDomain;
+
+    @Column(name = "target_view", length = 128)
+    private String targetView;
+
+    @Column(name = "template_code", length = 64)
+    private String templateCode;
+
+    @Column(name = "response_kind", length = 64)
+    private String responseKind;
+
+    @Column(name = "data_surface", length = 64)
+    private String dataSurface;
+
+    @Column(name = "quality_level", length = 32)
+    private String qualityLevel;
+
+    @Column(name = "quality_notes", columnDefinition = "TEXT")
+    private String qualityNotes;
+
+    @Column(name = "suggested_display", length = 64)
+    private String suggestedDisplay;
+
+    @Column(name = "report_code", length = 128)
+    private String reportCode;
+
+    @Column(name = "source_refs", columnDefinition = "TEXT")
+    private String sourceRefs;
+
+    @Column(name = "assumptions", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String assumptions;
+
+    @Column(name = "confidence")
+    private Double confidence;
+
+    @Column(name = "clarifications", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String clarifications;
+
+    @Column(name = "trace", columnDefinition = "JSONB")
+    @ColumnTransformer(write = "cast(? as jsonb)")
+    private String trace;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    public AiChatMessage() {
+    }
+
+    // Getters and setters
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public AiChatSession getSession() {
+        return session;
+    }
+
+    public void setSession(AiChatSession session) {
+        this.session = session;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public String getToolCalls() {
+        return toolCalls;
+    }
+
+    public void setToolCalls(String toolCalls) {
+        this.toolCalls = toolCalls;
+    }
+
+    public String getToolCallId() {
+        return toolCallId;
+    }
+
+    public void setToolCallId(String toolCallId) {
+        this.toolCallId = toolCallId;
+    }
+
+    public Integer getTokensUsed() {
+        return tokensUsed;
+    }
+
+    public void setTokensUsed(Integer tokensUsed) {
+        this.tokensUsed = tokensUsed;
+    }
+
+    public String getGeneratedSql() {
+        return generatedSql;
+    }
+
+    public void setGeneratedSql(String generatedSql) {
+        this.generatedSql = generatedSql;
+    }
+
+    public String getReasoningContent() {
+        return reasoningContent;
+    }
+
+    public void setReasoningContent(String reasoningContent) {
+        this.reasoningContent = reasoningContent;
+    }
+
+    public String getRoutedDomain() {
+        return routedDomain;
+    }
+
+    public void setRoutedDomain(String routedDomain) {
+        this.routedDomain = routedDomain;
+    }
+
+    public String getTargetView() {
+        return targetView;
+    }
+
+    public void setTargetView(String targetView) {
+        this.targetView = targetView;
+    }
+
+    public String getTemplateCode() {
+        return templateCode;
+    }
+
+    public void setTemplateCode(String templateCode) {
+        this.templateCode = templateCode;
+    }
+
+    public String getResponseKind() {
+        return responseKind;
+    }
+
+    public void setResponseKind(String responseKind) {
+        this.responseKind = responseKind;
+    }
+
+    public String getDataSurface() {
+        return dataSurface;
+    }
+
+    public void setDataSurface(String dataSurface) {
+        this.dataSurface = dataSurface;
+    }
+
+    public String getQualityLevel() {
+        return qualityLevel;
+    }
+
+    public void setQualityLevel(String qualityLevel) {
+        this.qualityLevel = qualityLevel;
+    }
+
+    public String getQualityNotes() {
+        return qualityNotes;
+    }
+
+    public void setQualityNotes(String qualityNotes) {
+        this.qualityNotes = qualityNotes;
+    }
+
+    public String getSuggestedDisplay() {
+        return suggestedDisplay;
+    }
+
+    public void setSuggestedDisplay(String suggestedDisplay) {
+        this.suggestedDisplay = suggestedDisplay;
+    }
+
+    public String getReportCode() {
+        return reportCode;
+    }
+
+    public void setReportCode(String reportCode) {
+        this.reportCode = reportCode;
+    }
+
+    public String getSourceRefs() {
+        return sourceRefs;
+    }
+
+    public void setSourceRefs(String sourceRefs) {
+        this.sourceRefs = sourceRefs;
+    }
+
+    public String getAssumptions() {
+        return assumptions;
+    }
+
+    public void setAssumptions(String assumptions) {
+        this.assumptions = assumptions;
+    }
+
+    public Double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(Double confidence) {
+        this.confidence = confidence;
+    }
+
+    public String getClarifications() {
+        return clarifications;
+    }
+
+    public void setClarifications(String clarifications) {
+        this.clarifications = clarifications;
+    }
+
+    public String getTrace() {
+        return trace;
+    }
+
+    public void setTrace(String trace) {
+        this.trace = trace;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = Instant.now();
+    }
+}

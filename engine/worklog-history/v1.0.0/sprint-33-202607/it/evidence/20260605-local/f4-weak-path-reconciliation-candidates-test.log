@@ -1,0 +1,45 @@
+# Sprint-33 F4-T03 weak-path reconciliation candidates local evidence
+
+Date: 2026-06-05
+Scope: F4-T03 telemetry 接入弱路径财务问题
+Environment: local Maven test, dts-copilot-ai
+
+## RED
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceWeakPathReconciliationCandidateServiceTest test
+```
+
+Result:
+
+- Failed at test compilation because `FinanceWeakPathReconciliationCandidateService` / `FinanceWeakPathReconciliationCandidateRegistry` did not exist.
+- This proved the F4-T03 telemetry-to-reconciliation-candidate contract was not already implemented.
+
+## GREEN
+
+Command:
+
+```bash
+mvn -q -pl dts-copilot-ai -Dtest=FinanceWeakPathReconciliationCandidateServiceTest test
+```
+
+Result:
+
+- PASS
+
+Covered checks:
+
+- `finance-weak-path-reconciliation-candidates.v1.json` loads the Sprint-33 finance weak-path policy.
+- Only finance/flowerbiz weak tiers `TIER_4_GUARDRAIL_FEDERATED` and `TIER_5_DIRECT_DETAIL` are eligible.
+- Non-finance domains, strong route tiers, and weak finance signals below `minCount` are ignored.
+- Frequent finance weak-path signals become reconciliation candidates for F1 detail, F3 invariant seed, and F4 differential grid.
+- Candidates at or above `semanticDraftThreshold` request a Sprint-31 F3 semantic draft action.
+- Uncovered candidates are converted into scorecard failures; registered candidates pass without drift.
+- Invalid policies such as duplicate finance domains or missing weak tiers fail with visible reasons.
+
+## Pending live proof
+
+- This is a local contract over `RouteTelemetrySummary`; live telemetry query, candidate persistence, and Sprint-31 F3 draft workflow are not wired yet.
+- Real weak-path finance questions must be observed from runtime telemetry before F4-T03 can be marked DONE.

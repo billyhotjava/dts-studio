@@ -1,0 +1,222 @@
+version: 2
+
+models:
+  - name: inventory_stg_stock_info
+    description: "库存余额主表 STG，类型化 s_stock_info 并过滤逻辑删除记录。"
+    columns:
+      - name: stock_id
+        tests:
+          - not_null:
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+      - name: storehouse_id
+        meta:
+          expected_data_type: text
+      - name: storehouse_name
+        meta:
+          expected_data_type: text
+      - name: good_price_id
+        tests:
+          - not_null:
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+      - name: good_name
+        meta:
+          expected_data_type: text
+      - name: stock_quantity
+        meta:
+          expected_data_type: numeric
+      - name: stock_unit_cost
+        meta:
+          expected_data_type: numeric
+      - name: stock_cost_amount
+        meta:
+          expected_data_type: numeric
+      - name: business_time
+        meta:
+          expected_data_type: timestamp
+    meta:
+      owner: warehouse-team
+      owner_dept: PRS
+      classification: INTERNAL
+      domain: inventory
+      data_layer: STG
+      governed_package: sprint32-inventory
+
+  - name: inventory_stg_goods_price
+    description: "库存 SKU/价格主数据 STG，用于补齐规格、单位、物品分类和成本价。"
+    columns:
+      - name: good_price_id
+        tests:
+          - not_null:
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+      - name: goods_id
+        meta:
+          expected_data_type: text
+      - name: goods_name
+        meta:
+          expected_data_type: text
+      - name: cost_price
+        meta:
+          expected_data_type: numeric
+      - name: unit
+        meta:
+          expected_data_type: text
+    meta:
+      owner: warehouse-team
+      owner_dept: PRS
+      classification: INTERNAL
+      domain: inventory
+      data_layer: STG
+      governed_package: sprint32-inventory
+
+  - name: inventory_dwd_stock_balance
+    description: "库存余额 DWD，按 good_price_id/SKU 归一库存数量、成本和健康状态。"
+    columns:
+      - name: stock_id
+        meta:
+          expected_data_type: text
+      - name: storehouse_name
+        meta:
+          expected_data_type: text
+      - name: good_price_id
+        tests:
+          - not_null:
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+      - name: stock_quantity
+        meta:
+          expected_data_type: numeric
+      - name: effective_cost_amount
+        meta:
+          expected_data_type: numeric
+      - name: stock_health_status
+        tests:
+          - accepted_values:
+              values: ["负库存", "低库存", "零库存", "正常"]
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+      - name: missing_goods_price
+        meta:
+          expected_data_type: boolean
+    meta:
+      owner: warehouse-team
+      owner_dept: PRS
+      classification: INTERNAL
+      domain: inventory
+      data_layer: DWD
+      governed_package: sprint32-inventory
+
+  - name: inventory_dws_stock_monthly
+    description: "库存月度 DWS，按月份、库房、SKU、健康状态汇总库存数量和估算成本。"
+    columns:
+      - name: business_month
+        meta:
+          expected_data_type: timestamp
+      - name: storehouse_name
+        meta:
+          expected_data_type: text
+      - name: good_price_id
+        meta:
+          expected_data_type: text
+      - name: total_stock_quantity
+        meta:
+          expected_data_type: numeric
+      - name: total_stock_cost_amount
+        meta:
+          expected_data_type: numeric
+      - name: source_row_count
+        meta:
+          expected_data_type: bigint
+    meta:
+      owner: warehouse-team
+      owner_dept: PRS
+      classification: INTERNAL
+      domain: inventory
+      data_layer: DWS
+      governed_package: sprint32-inventory
+
+  - name: inventory_ads_overview
+    description: "库存现量 ADS，作为资产库表格和 Agent Tier-2 mart 查询面。"
+    columns:
+      - name: 业务月份
+        meta:
+          expected_data_type: timestamp
+      - name: 库房
+        meta:
+          expected_data_type: text
+      - name: SKU
+        meta:
+          expected_data_type: text
+      - name: 物品名称
+        meta:
+          expected_data_type: text
+      - name: 库存健康状态
+        tests:
+          - accepted_values:
+              values: ["负库存", "低库存", "零库存", "正常"]
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+      - name: 库存数量
+        meta:
+          expected_data_type: numeric
+      - name: 库存成本金额
+        meta:
+          expected_data_type: numeric
+      - name: 缺价格主数据记录数
+        meta:
+          expected_data_type: bigint
+    meta:
+      owner: warehouse-team
+      owner_dept: PRS
+      classification: INTERNAL
+      domain: inventory
+      data_layer: ADS
+      governed_package: sprint32-inventory
+
+  - name: inventory_ads_low_stock_alert
+    description: "低库存预警 ADS，从 inventory_ads_overview 派生，库存数量小于等于 2 或负库存进入清单。"
+    columns:
+      - name: 业务月份
+        meta:
+          expected_data_type: timestamp
+      - name: 库房
+        meta:
+          expected_data_type: text
+      - name: SKU
+        meta:
+          expected_data_type: text
+      - name: 物品名称
+        meta:
+          expected_data_type: text
+      - name: 库存数量
+        meta:
+          expected_data_type: numeric
+      - name: 预警级别
+        tests:
+          - accepted_values:
+              values: ["P0-负库存", "P1-零库存", "P2-低库存"]
+              config:
+                severity: warn
+        meta:
+          expected_data_type: text
+    meta:
+      owner: warehouse-team
+      owner_dept: PRS
+      classification: INTERNAL
+      domain: inventory
+      data_layer: ADS
+      governed_package: sprint32-inventory

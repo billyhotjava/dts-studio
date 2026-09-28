@@ -1,0 +1,51 @@
+以下是报花域查询的正确示例：
+
+Q: 本月各项目加摆撤摆净增减多少？
+正确: SELECT project_name AS 项目, ROUND(SUM(CASE WHEN biz_type_name='加花' THEN biz_total_rent ELSE 0 END), 2) AS 加摆金额, ROUND(SUM(CASE WHEN biz_type_name='减花' THEN biz_total_rent ELSE 0 END), 2) AS 撤摆金额, ROUND(SUM(CASE WHEN biz_type_name='加花' THEN biz_total_rent ELSE 0 END) - SUM(CASE WHEN biz_type_name='减花' THEN biz_total_rent ELSE 0 END), 2) AS 净增金额 FROM v_flower_biz_detail WHERE biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name ORDER BY 净增金额 DESC
+错误: SELECT project_name, SUM(biz_total_rent) FROM v_flower_biz_detail WHERE biz_month = DATE_FORMAT(CURDATE(),'%Y-%m') GROUP BY project_name
+原因: 11 种 biz_type 业务语义不同，必须按 biz_type_name 分组聚合后再相减，且要用 biz_status_name='已完成' 过滤未结束单
+
+Q: 万象城最近的报花单
+正确: SELECT biz_code, biz_type_name, biz_status_name, project_name, position_name, green_name, plant_number, ROUND(biz_total_rent, 2) AS 总租金, apply_user_name, apply_time FROM v_flower_biz_detail WHERE project_name LIKE '%万象城%' ORDER BY apply_time DESC LIMIT 30
+错误: SELECT * FROM t_flower_biz_info WHERE project_name = '万象城'
+原因: 直接读物理表丢了状态/类型中文化和明细联合，且 = 不能模糊匹配项目名
+
+Q: 审核中超过 7 天的报花单
+正确: SELECT biz_code, biz_type_name, project_name, apply_user_name, apply_time, DATEDIFF(CURDATE(), apply_time) AS 已挂起天数, ROUND(biz_total_rent, 2) AS 总租金 FROM v_flower_biz_detail WHERE biz_status_name = '审核中' AND DATEDIFF(CURDATE(), apply_time) > 7 ORDER BY 已挂起天数 DESC
+错误: WHERE status = 1 AND DATEDIFF(NOW(), create_time) > 7
+原因: 用中文 biz_status_name 不用数字 status；业务时间是 apply_time 不是 create_time
+
+Q: 本月销售金额前 10
+正确: SELECT project_name AS 项目, ROUND(SUM(biz_total_rent), 2) AS 销售金额, COUNT(DISTINCT biz_id) AS 销售单数 FROM v_flower_biz_detail WHERE biz_type_name IN ('售花','销售') AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name ORDER BY 销售金额 DESC LIMIT 10
+错误: WHERE biz_type_name='销售' （漏了'售花'）
+原因: 销售类有两个 biz_type：售花(5) 和 销售(7)，要 IN
+
+Q: 本月坏账客户
+正确: SELECT project_name AS 项目, ROUND(SUM(ABS(biz_total_rent)), 2) AS 坏账金额, COUNT(DISTINCT biz_id) AS 坏账单数 FROM v_flower_biz_detail WHERE biz_type_name = '坏账' AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name ORDER BY 坏账金额 DESC
+错误: 不取 ABS()
+原因: 坏账金额对外展示用绝对值更直观
+
+Q: 李师傅本月经手多少报花单
+正确: SELECT biz_type_name AS 类型, COUNT(DISTINCT biz_id) AS 单数, ROUND(SUM(biz_total_rent), 2) AS 总金额 FROM v_flower_biz_detail WHERE curing_user_name LIKE '%李师傅%' AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') GROUP BY biz_type_name ORDER BY 单数 DESC
+错误: COUNT(*)
+原因: COUNT(*) 是明细数（一单可能多明细），COUNT(DISTINCT biz_id) 才是单据数
+
+Q: 各状态报花单数
+正确: SELECT biz_status_name AS 状态, COUNT(DISTINCT biz_id) AS 单数 FROM v_flower_biz_detail WHERE biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') GROUP BY biz_status_name ORDER BY 单数 DESC
+错误: GROUP BY status
+原因: 用中文 biz_status_name 而不是数字 status
+
+Q: 上月加摆 TOP 项目
+正确: SELECT project_name AS 项目, ROUND(SUM(biz_total_rent), 2) AS 加摆金额, COUNT(DISTINCT biz_id) AS 单数 FROM v_flower_biz_detail WHERE biz_type_name = '加花' AND biz_status_name = '已完成' AND biz_month = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m') GROUP BY project_name ORDER BY 加摆金额 DESC LIMIT 10
+错误: WHERE biz_month = '上月'
+原因: 上月需要 DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m') 计算
+
+Q: 本月内购金额
+正确: SELECT project_name AS 项目, apply_user_name AS 申请人, ROUND(SUM(biz_total_rent), 2) AS 内购金额 FROM v_flower_biz_detail WHERE biz_type_name = '内购' AND biz_month = DATE_FORMAT(CURDATE(), '%Y-%m') AND biz_status_name = '已完成' GROUP BY project_name, apply_user_name ORDER BY 内购金额 DESC
+错误: 把内购合并到销售
+原因: 内购 (biz_type=8) 和销售 (biz_type=7) 是不同业务类型，独立统计
+
+Q: 近一周加急报花单
+正确: SELECT biz_code, biz_type_name, biz_status_name, project_name, apply_user_name, apply_time, ROUND(biz_total_rent, 2) AS 总租金 FROM v_flower_biz_detail WHERE is_urgent = '是' AND apply_time >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ORDER BY apply_time DESC
+错误: WHERE urgent = 1
+原因: v_flower_biz_detail 已把 urgent 翻译为 '是'/'否'，用中文判断

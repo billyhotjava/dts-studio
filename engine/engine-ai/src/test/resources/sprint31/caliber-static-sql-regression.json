@@ -1,0 +1,51 @@
+{
+  "fixtures": [
+    {
+      "ruleId": "CAL-BIZTYPE-SCOPE",
+      "rejectedSql": [
+        "SELECT COUNT(*) FROM t_flower_biz_info f JOIN t_flower_biz_item i ON i.flower_biz_id = f.id WHERE biz_type = 1"
+      ],
+      "allowedSql": [
+        "SELECT COUNT(*) FROM t_flower_biz_info f JOIN t_flower_biz_item i ON i.flower_biz_id = f.id WHERE f.biz_type = 1"
+      ]
+    },
+    {
+      "ruleId": "CAL-SETTLEMENT-CHAIN",
+      "rejectedSql": [
+        "SELECT SUM(m.receivable_total_amount) + SUM(s.receivable) AS amount FROM a_month_accounting m JOIN a_sale_account s ON s.project_id = m.project_id",
+        "SELECT SUM(s.receivable_amount) AS income_amount FROM a_sale_account s JOIN t_flower_biz_info b ON b.id = s.biz_id WHERE b.finish_time >= DATE '2026-01-01'"
+      ],
+      "allowedSql": [
+        "SELECT SUM(m.receivable_total_amount) FROM a_month_accounting m",
+        "SELECT SUM(s.receivable_amount) AS sale_income_amount FROM a_sale_account s JOIN t_flower_biz_info b ON b.id = s.biz_id WHERE b.biz_type <> 6"
+      ]
+    },
+    {
+      "ruleId": "CAL-SALE-IN-RENT",
+      "rejectedSql": [
+        "SELECT SUM(m.sale_total_amount) + SUM(s.receivable) AS amount FROM a_month_accounting m JOIN a_green_accounting g ON g.month_accounting_id = m.id JOIN a_sale_account s ON s.id = g.source_id WHERE g.source_type = 8"
+      ],
+      "allowedSql": [
+        "SELECT SUM(m.sale_total_amount) AS rent_sale_amount FROM a_month_accounting m JOIN a_green_accounting g ON g.month_accounting_id = m.id WHERE g.source_type = 8"
+      ]
+    },
+    {
+      "ruleId": "CAL-JSON-EXPAND",
+      "rejectedSql": [
+        "SELECT f.code, s.code FROM t_flower_biz_info f JOIN f_settlement s ON s.biz_ids_json = f.id"
+      ],
+      "allowedSql": [
+        "SELECT f.code, s.code FROM t_flower_biz_info f JOIN f_settlement s ON f.id IN (SELECT CAST(value AS bigint) FROM jsonb_array_elements_text(s.biz_ids_json::jsonb))"
+      ]
+    },
+    {
+      "ruleId": "CAL-VARCHAR-AMOUNT-CAST",
+      "rejectedSql": [
+        "SELECT SUM(r.rent) FROM a_sale_account_rent_item r"
+      ],
+      "allowedSql": [
+        "SELECT SUM(CAST(NULLIF(r.rent, '') AS numeric)) FROM a_sale_account_rent_item r"
+      ]
+    }
+  ]
+}

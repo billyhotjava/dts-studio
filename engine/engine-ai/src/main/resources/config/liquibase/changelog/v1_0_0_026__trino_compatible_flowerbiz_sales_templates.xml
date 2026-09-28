@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="v1.0.0-026-trino-compatible-flowerbiz-sales-templates" author="codex">
+        <comment>Make flowerbiz sales templates executable through the Trino federated entry after PostgreSQL numeric columns are exposed as varchar.</comment>
+        <sql splitStatements="false" stripComments="false"><![CDATA[
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT
+  s."项目",
+  ROUND(SUM(CAST(NULLIF(CAST(s."销售金额全口径" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "销售金额",
+  SUM(CAST(NULLIF(CAST(s."销售单数" AS VARCHAR), '') AS DECIMAL(18,2))) AS "销售单数",
+  SUM(CAST(NULLIF(CAST(s."赠送单数" AS VARCHAR), '') AS DECIMAL(18,2))) AS "赠送单数"
+FROM public.xycyl_ads_flowerbiz_sale_summary s
+WHERE s."业务月份" = :month
+GROUP BY s."项目"
+ORDER BY "销售金额" DESC
+LIMIT :top_n$tpl$,
+    updated_at = now()
+WHERE template_code = 'TPL-37';
+
+UPDATE copilot_ai.nl2sql_query_template
+SET sql_template = $tpl$SELECT
+  s."业务月份",
+  s."项目",
+  ROUND(SUM(CAST(NULLIF(CAST(s."销售金额全口径" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "销售金额",
+  SUM(CAST(NULLIF(CAST(s."销售单数" AS VARCHAR), '') AS DECIMAL(18,2))) AS "销售单数",
+  SUM(CAST(NULLIF(CAST(s."赠送单数" AS VARCHAR), '') AS DECIMAL(18,2))) AS "赠送单数",
+  ROUND(SUM(CAST(NULLIF(CAST(s."赠送成本全口径" AS VARCHAR), '') AS DECIMAL(18,2))), 2) AS "赠送成本"
+FROM public.xycyl_ads_flowerbiz_sale_summary s
+WHERE s."年份" = :year
+GROUP BY s."业务月份", s."项目"
+ORDER BY s."业务月份", "销售金额" DESC
+LIMIT 200$tpl$,
+    updated_at = now()
+WHERE template_code = 'TPL-52';
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>

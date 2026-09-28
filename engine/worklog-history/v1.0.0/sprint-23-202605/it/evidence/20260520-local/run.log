@@ -1,0 +1,33 @@
+[agent-bi-it] START ai-tests: mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest,AssetBackedPlannerPolicyTest,AgentBiReportCatalogServiceTest test
+[agent-bi-it] START ai-tests: mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest,AssetBackedPlannerPolicyTest,AgentBiReportCatalogServiceTest test
+[agent-bi-it] PASS ai-tests
+[agent-bi-it] START analytics-tests: mvn -pl dts-copilot-analytics -Dtest=AnalyticsAnalysisDraftMappingTest,AnalysisDraftSchemaVerificationTest,AnalysisDraftResourceTest test
+[agent-bi-it] PASS analytics-tests
+[agent-bi-it] START webapp-copilot-tests: pnpm --dir dts-copilot-webapp test src/components/copilot/copilotAnalysisDraft.test.ts src/components/copilot/copilotGeneratedReportMessage.test.ts
+[agent-bi-it] PASS webapp-copilot-tests
+[agent-bi-it] SKIP api-smoke: set DTS_COPILOT_BASE_URL and DTS_COPILOT_COOKIE to run live API checks
+[agent-bi-it] Evidence written to /opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-23-202605/it/evidence/20260520-local
+[agent-bi-it] START ai-tests: mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest,AssetBackedPlannerPolicyTest,AgentBiReportCatalogServiceTest test
+[agent-bi-it] PASS ai-tests
+[agent-bi-it] START analytics-tests: mvn -pl dts-copilot-analytics -Dtest=AnalyticsAnalysisDraftMappingTest,AnalysisDraftSchemaVerificationTest,AnalysisDraftResourceTest test
+[agent-bi-it] PASS analytics-tests
+[agent-bi-it] START webapp-copilot-tests: pnpm --dir dts-copilot-webapp test src/components/copilot/copilotAnalysisDraft.test.ts src/components/copilot/copilotGeneratedReportMessage.test.ts
+[agent-bi-it] PASS webapp-copilot-tests
+[agent-bi-it] SKIP api-smoke: set DTS_COPILOT_BASE_URL and DTS_COPILOT_COOKIE to run live API checks
+[agent-bi-it] Evidence written to /opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-23-202605/it/evidence/20260520-local
+[agent-bi-it] START ai-tests: mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest,AssetBackedPlannerPolicyTest,AgentBiReportCatalogServiceTest test
+[agent-bi-it] PASS ai-tests
+[agent-bi-it] START analytics-tests: mvn -pl dts-copilot-analytics -Dtest=AnalyticsAnalysisDraftMappingTest,AnalysisDraftSchemaVerificationTest,AnalysisDraftResourceTest test
+[agent-bi-it] PASS analytics-tests
+[agent-bi-it] START webapp-copilot-tests: pnpm --dir dts-copilot-webapp test src/components/copilot/copilotAnalysisDraft.test.ts src/components/copilot/copilotAnalysisDraftLinks.test.ts src/components/copilot/copilotGeneratedReportMessage.test.ts
+[agent-bi-it] PASS webapp-copilot-tests
+[agent-bi-it] SKIP api-smoke: set DTS_COPILOT_BASE_URL and DTS_COPILOT_COOKIE to run live API checks
+[agent-bi-it] Evidence written to /opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-23-202605/it/evidence/20260520-local
+[agent-bi-it] START ai-tests: mvn -pl dts-copilot-ai -Dtest=AgentExecutionServiceTest,AgentChatServiceTest,AssetBackedPlannerPolicyTest,AgentBiReportCatalogServiceTest test
+[agent-bi-it] PASS ai-tests
+[agent-bi-it] START analytics-tests: mvn -pl dts-copilot-analytics -Dtest=AnalyticsAnalysisDraftMappingTest,AnalysisDraftSchemaVerificationTest,AnalysisDraftResourceTest test
+[agent-bi-it] PASS analytics-tests
+[agent-bi-it] START webapp-copilot-tests: pnpm --dir dts-copilot-webapp test src/components/copilot/copilotAnalysisDraft.test.ts src/components/copilot/copilotAnalysisDraftLinks.test.ts src/components/copilot/copilotGeneratedReportMessage.test.ts
+[agent-bi-it] PASS webapp-copilot-tests
+[agent-bi-it] SKIP api-smoke: set DTS_COPILOT_BASE_URL and DTS_COPILOT_COOKIE to run live API checks
+[agent-bi-it] Evidence written to /opt/prod/prs/source/dts-copilot/worklog/v1.0.0/sprint-23-202605/it/evidence/20260520-local

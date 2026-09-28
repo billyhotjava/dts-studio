@@ -1,0 +1,10 @@
+07:14:42.804 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build what is described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html#0.3
+07:14:53.998 [main] WARN com.yuzhi.dts.copilot.ai.service.copilot.Nl2SqlService -- NL2SQL generated unsafe SQL, blocking: SELECT SUM(m.receivable_total_amount) + SUM(s.receivable) AS amount
+FROM a_month_accounting m
+JOIN a_sale_account s ON s.project_id = m.project_id
+07:14:54.037 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+07:14:54.070 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+07:14:54.081 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+07:14:54.090 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
+07:14:54.111 [main] INFO com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry -- Loaded 9 caliber rule(s) from governance/caliber-rules.v1.json
