@@ -118,12 +118,8 @@ public class CaliberGuardrailSyncService {
     }
 
     private List<String> readGeneratedGuardrails(String domain) {
-        String resource = "semantic-packs/" + domain + ".json";
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resource)) {
-            if (is == null) {
-                return List.of();
-            }
-            JsonNode rules = objectMapper.readTree(is).path("generatedGuardrails").path("rules");
+        try {
+            JsonNode rules = semanticPackService.getDocument(domain).path("generatedGuardrails").path("rules");
             if (!rules.isArray()) {
                 return List.of();
             }
@@ -136,7 +132,7 @@ public class CaliberGuardrailSyncService {
             }
             return List.copyOf(values);
         } catch (Exception e) {
-            return List.of();
+            throw new IllegalStateException("Failed to read active semantic guardrails", e);
         }
     }
 

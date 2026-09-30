@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="v1.1.0-001-pack-registry" author="dts-studio" dbms="postgresql">
+        <sql><![CDATA[
+            CREATE TABLE copilot_ai.studio_pack (
+                id BIGSERIAL PRIMARY KEY, name VARCHAR(64) NOT NULL UNIQUE,
+                vendor VARCHAR(64) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+            CREATE TABLE copilot_ai.studio_pack_version (
+                id BIGSERIAL PRIMARY KEY, pack_id BIGINT NOT NULL REFERENCES copilot_ai.studio_pack(id),
+                version VARCHAR(32) NOT NULL,
+                status VARCHAR(16) NOT NULL CHECK (status IN ('INSTALLED','ACTIVE','SUPERSEDED','FAILED')),
+                manifest JSONB NOT NULL, checksum CHAR(64) NOT NULL, installed_by VARCHAR(128) NOT NULL,
+                installed_at TIMESTAMPTZ NOT NULL DEFAULT now(), activated_at TIMESTAMPTZ,
+                activation_generation BIGINT, UNIQUE(pack_id, version)
+            );
+            CREATE UNIQUE INDEX uq_pack_one_active ON copilot_ai.studio_pack_version(pack_id) WHERE status='ACTIVE';
+            CREATE TABLE copilot_ai.studio_pack_asset (
+                id BIGSERIAL PRIMARY KEY,
+                pack_version_id BIGINT NOT NULL REFERENCES copilot_ai.studio_pack_version(id) ON DELETE CASCADE,
+                kind VARCHAR(32) NOT NULL, key VARCHAR(128) NOT NULL, path TEXT NOT NULL,
+                content JSONB, content_text TEXT NOT NULL, sha256 CHAR(64) NOT NULL,
+                tenant_id BIGINT, UNIQUE(pack_version_id, kind, key)
+            );
+            CREATE INDEX ix_pack_asset_kind ON copilot_ai.studio_pack_asset(pack_version_id, kind);
+            CREATE TABLE copilot_ai.studio_pack_generation (
+                id SMALLINT PRIMARY KEY CHECK(id=1), generation BIGINT NOT NULL DEFAULT 0
+            );
+            INSERT INTO copilot_ai.studio_pack_generation(id, generation) VALUES (1,0);
+            CREATE TABLE copilot_ai.studio_audit_outbox (
+                id UUID PRIMARY KEY, event JSONB NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(), published_at TIMESTAMPTZ
+            );
+            CREATE INDEX ix_studio_audit_unpublished ON copilot_ai.studio_audit_outbox(created_at) WHERE published_at IS NULL;
+        ]]></sql>
+        <rollback>
+            <sql><![CDATA[
+                DROP TABLE copilot_ai.studio_audit_outbox;
+                DROP TABLE copilot_ai.studio_pack_generation;
+                DROP TABLE copilot_ai.studio_pack_asset;
+                DROP TABLE copilot_ai.studio_pack_version;
+                DROP TABLE copilot_ai.studio_pack;
+            ]]></sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

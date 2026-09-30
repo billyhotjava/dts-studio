@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "name",
+    "version",
+    "vendor",
+    "requires",
+    "capabilities"
+  ],
+  "properties": {
+    "apiVersion": {
+      "const": "dts.pack/v1"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "maxLength": 32
+    },
+    "vendor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "requires": {
+      "type": "object",
+      "required": [
+        "dts-studio"
+      ],
+      "properties": {
+        "dts-studio": {
+          "type": "string",
+          "pattern": "^>=[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "maxLength": 35
+        }
+      },
+      "additionalProperties": false
+    },
+    "datasources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "path",
+            "schemaVersion"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "schemaVersion": {
+              "const": 1
+            },
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "domain": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "propertyNames": {
+        "maxLength": 32
+      }
+    }
+  },
+  "additionalProperties": false
+}

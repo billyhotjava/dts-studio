@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
@@ -16,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceInvariantRegressionService {
+public class FinanceInvariantRegressionService extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceInvariantRegressionService.class);
     private static final String REGRESSION_GRID_RESOURCE = "governance/finance-invariant-regression-grid.v1.json";
@@ -33,8 +35,13 @@ public class FinanceInvariantRegressionService {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGRESSION_GRID_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGRESSION_GRID_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance invariant regression grid not found: {}", REGRESSION_GRID_RESOURCE);
                 this.cases = List.of();
@@ -44,18 +51,18 @@ public class FinanceInvariantRegressionService {
             this.cases = List.copyOf(document.cases());
             log.info("Loaded {} finance invariant regression case(s) from {}", cases.size(), REGRESSION_GRID_RESOURCE);
         } catch (Exception e) {
-            log.warn("Failed to load finance invariant regression grid from {}: {}",
-                    REGRESSION_GRID_RESOURCE,
-                    e.getMessage());
-            this.cases = List.of();
+            log.warn("Failed to load finance invariant regression grid from {}: {}", REGRESSION_GRID_RESOURCE, e.getMessage());
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<RegressionCase> cases() {
+    public synchronized List<RegressionCase> cases() {
+        ensurePackResources(this::loadFromPack);
         return cases;
     }
 
-    public RegressionResult runAll() {
+    public synchronized RegressionResult runAll() {
+        ensurePackResources(this::loadFromPack);
         List<CaseResult> results = cases.stream().map(this::runCase).toList();
         List<CaseResult> failures = results.stream()
                 .filter(result -> !result.allowed())
@@ -63,7 +70,8 @@ public class FinanceInvariantRegressionService {
         return new RegressionResult(failures.isEmpty(), results, failures);
     }
 
-    public CaseResult runCase(RegressionCase regressionCase) {
+    public synchronized CaseResult runCase(RegressionCase regressionCase) {
+        ensurePackResources(this::loadFromPack);
         Optional<FinanceInvariantRegistry.FinanceInvariant> invariant = findInvariant(regressionCase.invariantId());
         if (invariant.isEmpty()) {
             String reason = "Unknown finance invariant: " + regressionCase.invariantId();

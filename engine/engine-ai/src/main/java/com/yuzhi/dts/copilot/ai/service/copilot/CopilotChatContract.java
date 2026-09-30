@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.domain.AiChatMessage;
+import com.yuzhi.dts.copilot.ai.service.pack.PackSourceRef;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ConversationPlan;
 import com.yuzhi.dts.copilot.ai.service.copilot.ConversationPlannerService.ResponseKind;
 import org.springframework.util.StringUtils;
@@ -51,13 +52,25 @@ public final class CopilotChatContract {
             String generatedSql,
             CopilotChatRequestContext requestContext,
             FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail) {
+        applyToMessage(message, plan, generatedSql, requestContext, financeAuditTrail, List.of());
+    }
+
+    public static void applyToMessage(
+            AiChatMessage message,
+            ConversationPlan plan,
+            String generatedSql,
+            CopilotChatRequestContext requestContext,
+            FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail,
+            List<PackSourceRef> packSources) {
         if (message == null) {
             return;
         }
         message.setAssumptions(writeJson(buildAssumptions(plan, requestContext)));
         message.setConfidence(resolveConfidence(plan));
         message.setClarifications(writeJson(buildClarifications(plan, requestContext)));
-        message.setTrace(writeJson(buildTrace(plan, generatedSql, requestContext, financeAuditTrail)));
+        var trace = buildTrace(plan, generatedSql, requestContext, financeAuditTrail);
+        trace.put("packRefs", List.copyOf(packSources));
+        message.setTrace(writeJson(trace));
     }
 
     public static void attachFinanceAuditTrail(
@@ -99,6 +112,27 @@ public final class CopilotChatContract {
         putJsonField(target, "clarifications", message.getClarifications());
         putAccuracyEvidenceField(target, message.getTrace());
         putJsonField(target, "trace", message.getTrace());
+        putPersistedPackSources(target, message.getTrace());
+    }
+
+    /** Replays the original execution's evidence; never resolves currently active Pack versions. */
+    private static void putPersistedPackSources(Map<String, Object> target, String rawTrace) {
+        if (!StringUtils.hasText(rawTrace)) return;
+        try {
+            var trace = MAPPER.readTree(rawTrace);
+            if (trace == null) return;
+            var refs = trace.path("packRefs");
+            if (refs.isArray()) target.put("packRefs", MAPPER.convertValue(refs, List.class));
+        } catch (JsonProcessingException ignored) {
+            // Historical messages without structured trace remain readable.
+        }
+    }
+
+    /** Additive SSE contract shared with the persisted message's trace. */
+    public static void putPackSources(ObjectNode done, List<PackSourceRef> packSources) {
+        var refs = MAPPER.valueToTree(List.copyOf(packSources));
+        done.set("packRefs", refs);
+        done.withObject("/trace").set("packRefs", refs.deepCopy());
     }
 
     private static void putStringField(Map<String, Object> target, String key, String value) {

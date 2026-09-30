@@ -1,6 +1,8 @@
 package com.yuzhi.dts.copilot.ai.service.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yuzhi.dts.copilot.ai.service.pack.PackReadScope;
+import com.yuzhi.dts.copilot.ai.service.pack.PackSourceRef;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.yuzhi.dts.copilot.ai.domain.AiProviderConfig;
 import com.yuzhi.dts.copilot.ai.repository.AiDataSourceRepository;
@@ -222,6 +224,19 @@ public class AgentExecutionService {
                                            Map<String, String> freshnessSnapshot,
                                            Map<String, String> assumptionOverrides,
                                            Map<String, String> clarificationAnswers) {
+        try (var scope = PackReadScope.open()) {
+            return executeChatWithPackTrace(sessionId, userId, userMessage, history, dataSourceId,
+                    martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers)
+                    .withPackSources(scope.sources());
+        }
+    }
+
+    private ChatExecutionResult executeChatWithPackTrace(String sessionId, String userId, String userMessage,
+                                           List<Map<String, Object>> history, Long dataSourceId,
+                                           Map<String, Boolean> martHealthSnapshot,
+                                           Map<String, String> freshnessSnapshot,
+                                           Map<String, String> assumptionOverrides,
+                                           Map<String, String> clarificationAnswers) {
         CopilotChatRequestContext requestContext = CopilotChatRequestContext.of(
                 martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers);
         ConversationPlan conversationPlan = planConversation(userMessage, requestContext);
@@ -331,6 +346,20 @@ public class AgentExecutionService {
     }
 
     public ChatExecutionResult executeChatStream(String sessionId, String userId, String userMessage,
+                                                 List<Map<String, Object>> history, Long dataSourceId,
+                                                 Map<String, Boolean> martHealthSnapshot,
+                                                 Map<String, String> freshnessSnapshot,
+                                                 Map<String, String> assumptionOverrides,
+                                                 Map<String, String> clarificationAnswers,
+                                                 OutputStream sseOutput) {
+        try (var scope = PackReadScope.open()) {
+            return executeChatStreamWithPackTrace(sessionId, userId, userMessage, history, dataSourceId,
+                    martHealthSnapshot, freshnessSnapshot, assumptionOverrides, clarificationAnswers, sseOutput)
+                    .withPackSources(scope.sources());
+        }
+    }
+
+    private ChatExecutionResult executeChatStreamWithPackTrace(String sessionId, String userId, String userMessage,
                                                  List<Map<String, Object>> history, Long dataSourceId,
                                                  Map<String, Boolean> martHealthSnapshot,
                                                  Map<String, String> freshnessSnapshot,
@@ -894,6 +923,7 @@ public class AgentExecutionService {
                 String contractSql = StringUtils.hasText(evidenceSql) ? evidenceSql : sql;
                 CopilotChatContract.putDoneFields(done, conversationPlan, contractSql, requestContext, financeAuditTrail);
             }
+            CopilotChatContract.putPackSources(done, PackReadScope.currentSources());
             out.write(("event: done\ndata: " + done + "\n\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
         } catch (IOException e) {
@@ -958,8 +988,30 @@ public class AgentExecutionService {
             String reasoningContent,
             CopilotChatRequestContext requestContext,
             FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail,
-            String evidenceSql
+            String evidenceSql,
+            List<PackSourceRef> packSources
     ) {
+        public ChatExecutionResult {
+            packSources = List.copyOf(packSources);
+        }
+
+        public ChatExecutionResult withPackSources(List<PackSourceRef> sources) {
+            return new ChatExecutionResult(response, generatedSql, conversationPlan, reasoningContent,
+                    requestContext, financeAuditTrail, evidenceSql, sources);
+        }
+
+        public ChatExecutionResult(
+                String response,
+                String generatedSql,
+                ConversationPlan conversationPlan,
+                String reasoningContent,
+                CopilotChatRequestContext requestContext,
+                FinanceAnswerAuditTrailService.AuditTrailReport financeAuditTrail,
+                String evidenceSql) {
+            this(response, generatedSql, conversationPlan, reasoningContent,
+                    requestContext, financeAuditTrail, evidenceSql, List.of());
+        }
+
         public ChatExecutionResult(
                 String response,
                 String generatedSql,

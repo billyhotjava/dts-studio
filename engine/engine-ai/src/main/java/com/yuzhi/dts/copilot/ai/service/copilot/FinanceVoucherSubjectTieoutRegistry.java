@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceVoucherSubjectTieoutRegistry {
+public class FinanceVoucherSubjectTieoutRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceVoucherSubjectTieoutRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-voucher-subject-tieout.v1.json";
@@ -31,8 +33,13 @@ public class FinanceVoucherSubjectTieoutRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance voucher subject tie-out resource not found: {}", REGISTRY_RESOURCE);
                 this.mappings = Map.of();
@@ -48,15 +55,17 @@ public class FinanceVoucherSubjectTieoutRegistry {
             log.info("Loaded {} finance voucher subject tie-out mapping(s) from {}", mappings.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load finance voucher subject tie-out mappings from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.mappings = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<SubjectTieoutMapping> mappings() {
+    public synchronized List<SubjectTieoutMapping> mappings() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(mappings.values());
     }
 
-    public Optional<SubjectTieoutMapping> mapping(String id) {
+    public synchronized Optional<SubjectTieoutMapping> mapping(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(mappings.get(id));
     }
 

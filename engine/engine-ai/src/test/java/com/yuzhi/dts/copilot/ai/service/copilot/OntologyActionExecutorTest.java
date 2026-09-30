@@ -2,6 +2,7 @@ package com.yuzhi.dts.copilot.ai.service.copilot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,19 +25,19 @@ class OntologyActionExecutorTest {
     private SemanticPackService semanticPackService;
 
     @Mock
-    private AdminApiActionClient adminApiActionClient;
+    private ActionClient actionClient;
 
     @Test
     void shouldAssembleParamsAndCallOnlyDraftEndpoint() {
         when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizActionPack()));
-        when(adminApiActionClient.postDraft(eq("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt"), anyMap()))
-                .thenReturn(new AdminApiActionClient.AdminApiActionResponse(
+        when(actionClient.invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt")), anyMap(), any()))
+                .thenReturn(new ActionClient.ActionResponse(
                         true,
                         "ok",
                         Map.of("id", 9001, "status", 20)));
         OntologyActionExecutor executor = new OntologyActionExecutor(
                 new OntologyService(semanticPackService),
-                adminApiActionClient,
+                actionClient,
                 new ObjectMapper());
 
         OntologyActionExecutor.ActionDraftResult result = executor.createDraft(
@@ -48,12 +49,8 @@ class OntologyActionExecutorTest {
                         "业务类型", 1));
 
         ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(adminApiActionClient).postDraft(
-                eq("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt"),
-                payloadCaptor.capture());
-        verify(adminApiActionClient, never()).postCommit(
-                eq("/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt"),
-                anyMap());
+        verify(actionClient).invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt")), payloadCaptor.capture(), any());
+        verify(actionClient, never()).invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt")), anyMap(), any());
         assertThat(result.success()).isTrue();
         assertThat(result.draftEndpoint()).isEqualTo("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt");
         assertThat(result.commitEndpoint()).isEqualTo("/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt");
@@ -67,14 +64,14 @@ class OntologyActionExecutorTest {
     @Test
     void shouldAcceptApprovedFormParamNamesAsObjectAttributes() {
         when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizActionPack()));
-        when(adminApiActionClient.postDraft(eq("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt"), anyMap()))
-                .thenReturn(new AdminApiActionClient.AdminApiActionResponse(
+        when(actionClient.invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt")), anyMap(), any()))
+                .thenReturn(new ActionClient.ActionResponse(
                         true,
                         "ok",
                         Map.of("id", 9001)));
         OntologyActionExecutor executor = new OntologyActionExecutor(
                 new OntologyService(semanticPackService),
-                adminApiActionClient,
+                actionClient,
                 new ObjectMapper());
 
         OntologyActionExecutor.ActionDraftResult result = executor.createDraft(
@@ -86,9 +83,7 @@ class OntologyActionExecutorTest {
                         "badDebtType", 1));
 
         ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(adminApiActionClient).postDraft(
-                eq("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt"),
-                payloadCaptor.capture());
+        verify(actionClient).invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt")), payloadCaptor.capture(), any());
         assertThat(result.success()).isTrue();
         assertThat(payloadCaptor.getValue())
                 .containsEntry("projectId", 101)
@@ -101,7 +96,7 @@ class OntologyActionExecutorTest {
         when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizActionPack()));
         OntologyActionExecutor executor = new OntologyActionExecutor(
                 new OntologyService(semanticPackService),
-                adminApiActionClient,
+                actionClient,
                 new ObjectMapper());
 
         OntologyActionExecutor.ActionDraftResult result = executor.createDraft(
@@ -111,25 +106,21 @@ class OntologyActionExecutorTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.message()).contains("Missing required action param: draftItemJson");
-        verify(adminApiActionClient, never()).postDraft(
-                eq("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt"),
-                anyMap());
-        verify(adminApiActionClient, never()).postCommit(
-                eq("/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt"),
-                anyMap());
+        verify(actionClient, never()).invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt")), anyMap(), any());
+        verify(actionClient, never()).invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt")), anyMap(), any());
     }
 
     @Test
     void shouldPassThroughAdminapiErrors() {
         when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizActionPack()));
-        when(adminApiActionClient.postDraft(eq("/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt"), anyMap()))
-                .thenReturn(new AdminApiActionClient.AdminApiActionResponse(
+        when(actionClient.invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveDraftFlowerBadDebt")), anyMap(), any()))
+                .thenReturn(new ActionClient.ActionResponse(
                         false,
                         "参数错误",
                         Map.of()));
         OntologyActionExecutor executor = new OntologyActionExecutor(
                 new OntologyService(semanticPackService),
-                adminApiActionClient,
+                actionClient,
                 new ObjectMapper());
 
         OntologyActionExecutor.ActionDraftResult result = executor.createDraft(
@@ -142,9 +133,7 @@ class OntologyActionExecutorTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.message()).isEqualTo("参数错误");
-        verify(adminApiActionClient, never()).postCommit(
-                eq("/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt"),
-                anyMap());
+        verify(actionClient, never()).invoke(eq(new ActionClient.Target("adminapi", "POST", "/rs-flowers-base/flower/bizBadDebt/saveFlowerBadDebt")), anyMap(), any());
     }
 
     private static SemanticPackService.SemanticPack flowerbizActionPack() {

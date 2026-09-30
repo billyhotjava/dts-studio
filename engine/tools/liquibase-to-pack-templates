@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+engine_dir="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ $# -ne 1 ]]; then
+  echo 'Usage: liquibase-to-pack-templates /absolute/path/to/new-templates.json' >&2
+  exit 2
+fi
+exec "$engine_dir/scripts/with-test-postgres.sh" java \
+  -Dloader.main=com.yuzhi.dts.copilot.ai.service.pack.TemplateExportCli \
+  -cp "$engine_dir/engine-ai/target/dts-copilot-ai-1.0.0-SNAPSHOT.jar" \
+  org.springframework.boot.loader.launch.PropertiesLauncher "$1"

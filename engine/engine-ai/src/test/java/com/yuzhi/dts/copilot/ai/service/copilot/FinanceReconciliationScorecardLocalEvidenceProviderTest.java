@@ -14,6 +14,8 @@ class FinanceReconciliationScorecardLocalEvidenceProviderTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+                .withBean(com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader.class,
+                        com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader::legacyForStandaloneTests)
             .withBean(FinanceSummaryDualReconciliationRegistry.class,
                     () -> mock(FinanceSummaryDualReconciliationRegistry.class))
             .withBean(FinanceDifferentialGridRegistry.class,

@@ -16,6 +16,8 @@ class FinanceApplicationMysqlScorecardEvidenceProviderTest {
     private static final String SCORECARD_ID = "sprint33-finance-daily-scorecard";
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+                .withBean(com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader.class,
+                        com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader::legacyForStandaloneTests)
             .withBean(FinanceApplicationMysqlOracleProofRunner.class,
                     () -> mock(FinanceApplicationMysqlOracleProofRunner.class))
             .withBean(FinanceApplicationMysqlOracleScorecardCheckService.class,

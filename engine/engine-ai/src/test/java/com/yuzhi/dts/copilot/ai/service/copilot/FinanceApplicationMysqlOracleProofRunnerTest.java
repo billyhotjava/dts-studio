@@ -37,6 +37,8 @@ class FinanceApplicationMysqlOracleProofRunnerTest {
     @Test
     void shouldStartAsSpringBeanWithOptionalRuntimeExecutors() {
         new ApplicationContextRunner()
+                .withBean(com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader.class,
+                        com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader::legacyForStandaloneTests)
                 .withBean(FinanceApplicationMysqlAuthorityRegistry.class, this::registry)
                 .withBean(
                         FinanceApplicationMysqlAuthorityProofService.class,

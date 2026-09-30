@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceDetailReconciliationSampleRegistry {
+public class FinanceDetailReconciliationSampleRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceDetailReconciliationSampleRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-detail-reconciliation-samples.v1.json";
@@ -31,8 +33,13 @@ public class FinanceDetailReconciliationSampleRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance detail reconciliation sample resource not found: {}", REGISTRY_RESOURCE);
                 this.samples = Map.of();
@@ -48,15 +55,17 @@ public class FinanceDetailReconciliationSampleRegistry {
             log.info("Loaded {} finance detail reconciliation sample(s) from {}", samples.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load finance detail reconciliation samples from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.samples = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<DetailSample> samples() {
+    public synchronized List<DetailSample> samples() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(samples.values());
     }
 
-    public Optional<DetailSample> sample(String id) {
+    public synchronized Optional<DetailSample> sample(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(samples.get(id));
     }
 

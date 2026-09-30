@@ -153,7 +153,8 @@ class VoucherLedgerTieoutRegistryTest {
         logger.addAppender(appender);
         try {
             VoucherLedgerTieoutRegistry registry = new VoucherLedgerTieoutRegistry(objectMapper, oracleRegistry);
-            registry.init();
+            org.assertj.core.api.Assertions.assertThatThrownBy(registry::init)
+                    .isInstanceOf(IllegalStateException.class);
         } finally {
             logger.detachAppender(appender);
         }

@@ -158,7 +158,8 @@ public class AgentChatService {
                 executionResult.conversationPlan(),
                 executionResult.evidenceSql(),
                 executionResult.requestContext(),
-                executionResult.financeAuditTrail());
+                executionResult.financeAuditTrail(),
+                executionResult.packSources());
         attachRouteTelemetry(assistantMsg, message);
         session.addMessage(assistantMsg);
 
@@ -296,7 +297,8 @@ public class AgentChatService {
                 executionResult.conversationPlan(),
                 executionResult.evidenceSql(),
                 executionResult.requestContext(),
-                executionResult.financeAuditTrail());
+                executionResult.financeAuditTrail(),
+                executionResult.packSources());
         attachRouteTelemetry(assistantMsg, message);
         session.addMessage(assistantMsg);
 

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "version"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "tiers"
+      ]
+    },
+    {
+      "required": [
+        "policies"
+      ]
+    },
+    {
+      "required": [
+        "bindings"
+      ]
+    },
+    {
+      "required": [
+        "invariants"
+      ]
+    },
+    {
+      "required": [
+        "mappings"
+      ]
+    },
+    {
+      "required": [
+        "cases"
+      ]
+    }
+  ]
+}

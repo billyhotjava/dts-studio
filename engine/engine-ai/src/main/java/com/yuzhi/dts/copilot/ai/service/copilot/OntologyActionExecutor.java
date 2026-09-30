@@ -12,15 +12,15 @@ import org.springframework.stereotype.Service;
 public class OntologyActionExecutor {
 
     private final OntologyService ontologyService;
-    private final AdminApiActionClient adminApiActionClient;
+    private final ActionClient actionClient;
     private final ObjectMapper objectMapper;
 
     public OntologyActionExecutor(
             OntologyService ontologyService,
-            AdminApiActionClient adminApiActionClient,
+            ActionClient actionClient,
             ObjectMapper objectMapper) {
         this.ontologyService = ontologyService;
-        this.adminApiActionClient = adminApiActionClient;
+        this.actionClient = actionClient;
         this.objectMapper = objectMapper;
     }
 
@@ -28,18 +28,21 @@ public class OntologyActionExecutor {
             String domain,
             String actionName,
             Map<String, Object> objectAttributes) {
+        return createDraft(domain, actionName, objectAttributes, null);
+    }
+
+    public ActionDraftResult createDraft(String domain, String actionName,
+                                         Map<String, Object> objectAttributes, ActionClient.Caller caller) {
         Optional<SemanticPackService.OntologyAction> action = ontologyService.load(domain)
                 .flatMap(model -> model.getAction(actionName));
         if (action.isEmpty()) {
             return ActionDraftResult.failure(actionName, null, null, "Action not found: " + actionName);
         }
         SemanticPackService.OntologyAction selectedAction = action.get();
-        if (!"adminapi".equals(selectedAction.endpoint().service())) {
-            return ActionDraftResult.failure(
-                    selectedAction.name(),
-                    selectedAction.endpoint().draft(),
-                    selectedAction.endpoint().commit(),
-                    "Unsupported action endpoint service: " + selectedAction.endpoint().service());
+
+        if (!"POST".equals(selectedAction.endpoint().draftMethod())) {
+            return ActionDraftResult.failure(selectedAction.name(), selectedAction.endpoint().draft(),
+                    selectedAction.endpoint().commit(), "草稿动作仅支持 POST 请求");
         }
 
         PayloadResult payload = assemblePayload(selectedAction, objectAttributes == null ? Map.of() : objectAttributes);
@@ -51,9 +54,9 @@ public class OntologyActionExecutor {
                     payload.message());
         }
 
-        AdminApiActionClient.AdminApiActionResponse response = adminApiActionClient.postDraft(
-                selectedAction.endpoint().draft(),
-                payload.payload());
+        ActionClient.ActionResponse response = actionClient.invoke(
+                new ActionClient.Target(selectedAction.endpoint().service(), selectedAction.endpoint().draftMethod(), selectedAction.endpoint().draft()),
+                payload.payload(), caller);
         return new ActionDraftResult(
                 response.success(),
                 selectedAction.name(),

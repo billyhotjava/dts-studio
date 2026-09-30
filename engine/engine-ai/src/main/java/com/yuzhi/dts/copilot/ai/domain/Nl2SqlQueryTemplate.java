@@ -62,6 +62,17 @@ public class Nl2SqlQueryTemplate {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "source_pack_version_id")
+    private Long sourcePackVersionId;
+
+    public Long getSourcePackVersionId() {
+        return sourcePackVersionId;
+    }
+
+    public void setSourcePackVersionId(Long sourcePackVersionId) {
+        this.sourcePackVersionId = sourcePackVersionId;
+    }
+
     @Column(name = "created_at")
     private Instant createdAt;
 

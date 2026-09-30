@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "minProperties": 1,
+  "required": [
+    "templates"
+  ],
+  "properties": {
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "sql",
+          "question_patterns",
+          "question_samples",
+          "params",
+          "datasource_ref"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "sql": {
+            "type": "string",
+            "minLength": 1
+          },
+          "question_patterns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 4096
+            },
+            "minItems": 1
+          },
+          "question_samples": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 4096
+            }
+          },
+          "params": {
+            "type": "object"
+          },
+          "datasource_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "role_hint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 32
+          },
+          "target_view": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          }
+        }
+      }
+    }
+  }
+}

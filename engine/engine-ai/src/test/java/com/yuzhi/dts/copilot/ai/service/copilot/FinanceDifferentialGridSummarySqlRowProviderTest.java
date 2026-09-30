@@ -17,6 +17,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class FinanceDifferentialGridSummarySqlRowProviderTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+                .withBean(com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader.class,
+                        com.yuzhi.dts.copilot.ai.service.pack.PackResourceReader::legacyForStandaloneTests)
             .withBean(FinanceSummaryDualReconciliationRegistry.class,
                     () -> summaryRegistry())
             .withBean(

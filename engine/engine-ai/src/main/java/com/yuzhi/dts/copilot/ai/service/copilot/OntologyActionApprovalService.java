@@ -71,7 +71,9 @@ public class OntologyActionApprovalService {
         }
 
         OntologyActionExecutor.ActionDraftResult draftResult = actionExecutor.createDraft(
-                safeRequest.domain(), selectedAction.name(), objectAttributes);
+                safeRequest.domain(), selectedAction.name(), objectAttributes,
+                new ActionClient.Caller(safeRequest.userContext() == null ? null : safeRequest.userContext().userId(),
+                        java.util.UUID.randomUUID().toString()));
         if (selectedAction.audit()) {
             auditService.logActionExecution(buildAuditEvent(
                     safeRequest,
@@ -107,7 +109,7 @@ public class OntologyActionApprovalService {
                 .toList();
         MicroFormSchema microForm = new MicroFormSchema(
                 action.name(),
-                "确认后将通过 adminapi 创建草稿，正式提交仍需 adminweb 人工复核。",
+                "确认后将创建业务草稿，正式提交仍需在业务系统中人工复核。",
                 "HIGH",
                 "该动作会创建业务草稿，请确认参数与影响范围。",
                 fields);

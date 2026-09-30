@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.domain.Nl2SqlQueryTemplate;
 import com.yuzhi.dts.copilot.ai.repository.Nl2SqlQueryTemplateRepository;
+import com.yuzhi.dts.copilot.ai.service.pack.PackReadScope;
+import com.yuzhi.dts.copilot.ai.service.pack.PackSourceRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,14 @@ public class TemplateMatcherService {
     /** Simple field cache for active templates. */
     private volatile List<Nl2SqlQueryTemplate> cachedTemplates;
     private volatile long cacheTimestamp;
+    private long cacheGeneration = Long.MIN_VALUE;
+    private List<PackSourceRef> cachedPackSources = List.of();
+    private com.yuzhi.dts.copilot.ai.service.pack.PackAssetResolver packAssets;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setPackAssets(com.yuzhi.dts.copilot.ai.service.pack.PackAssetResolver packAssets) {
+        this.packAssets = packAssets;
+    }
     private static final long CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
     public TemplateMatcherService(Nl2SqlQueryTemplateRepository templateRepository,
@@ -833,17 +843,30 @@ public class TemplateMatcherService {
 
     // ========== Cache and JSON helpers ==========
 
-    private List<Nl2SqlQueryTemplate> loadActiveTemplates() {
+    private synchronized List<Nl2SqlQueryTemplate> loadActiveTemplates() {
         long now = System.currentTimeMillis();
-        if (cachedTemplates == null || (now - cacheTimestamp) > CACHE_TTL_MS) {
+        long generation = packAssets == null ? -1 : packAssets.generation();
+        if (cachedTemplates == null || generation != cacheGeneration || (now - cacheTimestamp) > CACHE_TTL_MS) {
             List<Nl2SqlQueryTemplate> loaded = new ArrayList<>(templateRepository.findByIsActiveTrueOrderByPriorityDesc());
             loaded.sort(Comparator.comparingInt(
                     (Nl2SqlQueryTemplate template) -> template.getPriority() == null ? 0 : template.getPriority()
             ).reversed());
+            var versionIds = loaded.stream().map(Nl2SqlQueryTemplate::getSourcePackVersionId)
+                    .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+            var sources = versionIds.isEmpty() ? List.<Nl2SqlQueryTemplateRepository.TemplatePackSource>of()
+                    : templateRepository.findPackSources(versionIds);
+            if (!sources.stream().map(Nl2SqlQueryTemplateRepository.TemplatePackSource::getVersionId)
+                    .collect(java.util.stream.Collectors.toSet()).equals(versionIds)) {
+                throw new IllegalStateException("Template Pack ownership is unavailable");
+            }
+            cachedPackSources = sources.stream()
+                    .map(source -> new PackSourceRef(source.getPackName(), source.getPackVersion())).distinct().toList();
             cachedTemplates = List.copyOf(loaded);
             cacheTimestamp = now;
+            cacheGeneration = generation;
             log.debug("Refreshed query template cache, loaded {} templates", cachedTemplates.size());
         }
+        PackReadScope.record(cachedPackSources);
         return cachedTemplates;
     }
 

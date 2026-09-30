@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -16,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceApplicationMysqlAuthorityRegistry {
+public class FinanceApplicationMysqlAuthorityRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceApplicationMysqlAuthorityRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-application-mysql-authority-sql.v1.json";
@@ -37,12 +39,17 @@ public class FinanceApplicationMysqlAuthorityRegistry {
     }
 
     @PostConstruct
-    public void init() {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
         String resource = REGISTRY_RESOURCE;
-        InputStream is = getClass().getClassLoader().getResourceAsStream(resource);
+        InputStream is = openPackResource(resource);
         if (is == null) {
             resource = LEGACY_REGISTRY_RESOURCE;
-            is = getClass().getClassLoader().getResourceAsStream(resource);
+            is = openPackResource(resource);
         }
         if (is == null) {
             log.warn("Finance application MySQL authority SQL resource not found: {}", REGISTRY_RESOURCE);
@@ -62,15 +69,17 @@ public class FinanceApplicationMysqlAuthorityRegistry {
             log.info("Loaded {} finance application MySQL authority SQL case(s) from {}", cases.size(), resource);
         } catch (Exception e) {
             log.warn("Failed to load finance application MySQL authority SQL cases from {}: {}", resource, e.getMessage());
-            this.cases = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<AuthoritySqlCase> cases() {
+    public synchronized List<AuthoritySqlCase> cases() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(cases.values());
     }
 
-    public Optional<AuthoritySqlCase> caseById(String id) {
+    public synchronized Optional<AuthoritySqlCase> caseById(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(cases.get(id));
     }
 

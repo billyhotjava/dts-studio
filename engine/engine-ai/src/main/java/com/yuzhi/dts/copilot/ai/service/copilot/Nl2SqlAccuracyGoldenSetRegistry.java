@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -14,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
-public class Nl2SqlAccuracyGoldenSetRegistry {
+public class Nl2SqlAccuracyGoldenSetRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(Nl2SqlAccuracyGoldenSetRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/nl2sql-accuracy-golden-set.v1.json";
@@ -27,8 +29,13 @@ public class Nl2SqlAccuracyGoldenSetRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("NL2SQL accuracy golden-set resource not found: {}", REGISTRY_RESOURCE);
                 this.cases = Map.of();
@@ -48,15 +55,17 @@ public class Nl2SqlAccuracyGoldenSetRegistry {
             log.info("Loaded {} NL2SQL accuracy golden case(s) from {}", cases.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load NL2SQL accuracy golden-set from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.cases = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<GoldenCase> cases() {
+    public synchronized List<GoldenCase> cases() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(cases.values());
     }
 
-    public Optional<GoldenCase> caseById(String id) {
+    public synchronized Optional<GoldenCase> caseById(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(cases.get(id));
     }
 

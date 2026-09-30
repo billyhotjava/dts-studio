@@ -56,7 +56,7 @@ class OntologyActionApprovalServiceTest {
         assertThat(result.card().microForm().fields())
                 .extracting(OntologyActionApprovalService.MicroFormField::key)
                 .containsExactly("projectId", "draftItemJson", "badDebtType");
-        verify(actionExecutor, never()).createDraft(eq("flowerbiz"), eq("创建坏账处理单"), anyMap());
+        verify(actionExecutor, never()).createDraft(eq("flowerbiz"), eq("创建坏账处理单"), anyMap(), any());
         verify(auditService, never()).logActionExecution(any());
     }
 
@@ -77,7 +77,7 @@ class OntologyActionApprovalServiceTest {
         assertThat(result.success()).isFalse();
         assertThat(result.requiresApproval()).isFalse();
         assertThat(result.message()).contains("缺少权限", "flowerbiz:baddebt:draft");
-        verify(actionExecutor, never()).createDraft(eq("flowerbiz"), eq("创建坏账处理单"), anyMap());
+        verify(actionExecutor, never()).createDraft(eq("flowerbiz"), eq("创建坏账处理单"), anyMap(), any());
         ArgumentCaptor<AiAuditService.ActionAuditEvent> auditCaptor =
                 ArgumentCaptor.forClass(AiAuditService.ActionAuditEvent.class);
         verify(auditService).logActionExecution(auditCaptor.capture());
@@ -89,7 +89,7 @@ class OntologyActionApprovalServiceTest {
     @Test
     void shouldExecuteDraftAndAuditAfterConfirmationAndGuardPass() {
         when(semanticPackService.getPack("flowerbiz")).thenReturn(Optional.of(flowerbizActionPack()));
-        when(actionExecutor.createDraft(eq("flowerbiz"), eq("创建坏账处理单"), anyMap()))
+        when(actionExecutor.createDraft(eq("flowerbiz"), eq("创建坏账处理单"), anyMap(), any()))
                 .thenReturn(new OntologyActionExecutor.ActionDraftResult(
                         true,
                         "创建坏账处理单",
@@ -114,7 +114,10 @@ class OntologyActionApprovalServiceTest {
         assertThat(result.message()).isEqualTo("ok");
         assertThat(result.draftResult()).isNotNull();
         assertThat(result.draftResult().responseBody()).containsEntry("id", 9001);
-        verify(actionExecutor).createDraft(eq("flowerbiz"), eq("创建坏账处理单"), eq(objectAttributes()));
+        ArgumentCaptor<ActionClient.Caller> callerCaptor = ArgumentCaptor.forClass(ActionClient.Caller.class);
+        verify(actionExecutor).createDraft(eq("flowerbiz"), eq("创建坏账处理单"), eq(objectAttributes()), callerCaptor.capture());
+        assertThat(callerCaptor.getValue().actorId()).isEqualTo("alice");
+        assertThat(callerCaptor.getValue().requestId()).isNotBlank();
         ArgumentCaptor<AiAuditService.ActionAuditEvent> auditCaptor =
                 ArgumentCaptor.forClass(AiAuditService.ActionAuditEvent.class);
         verify(auditService).logActionExecution(auditCaptor.capture());

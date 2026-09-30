@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceInvariantRegistry {
+public class FinanceInvariantRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceInvariantRegistry.class);
     private static final String INVARIANT_RESOURCE = "governance/finance-invariants.v1.json";
@@ -29,8 +31,13 @@ public class FinanceInvariantRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(INVARIANT_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(INVARIANT_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance invariant resource not found: {}", INVARIANT_RESOURCE);
                 this.invariants = List.of();
@@ -41,20 +48,23 @@ public class FinanceInvariantRegistry {
             log.info("Loaded {} finance invariant(s) from {}", invariants.size(), INVARIANT_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load finance invariants from {}: {}", INVARIANT_RESOURCE, e.getMessage());
-            this.invariants = List.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<FinanceInvariant> invariants() {
+    public synchronized List<FinanceInvariant> invariants() {
+        ensurePackResources(this::loadFromPack);
         return invariants;
     }
 
-    public InvariantValidation validateExample(FinanceInvariant invariant, boolean positive) {
+    public synchronized InvariantValidation validateExample(FinanceInvariant invariant, boolean positive) {
+        ensurePackResources(this::loadFromPack);
         JsonNode example = positive ? invariant.positiveExample() : invariant.negativeExample();
         return validate(invariant, example);
     }
 
-    public InvariantValidation validate(FinanceInvariant invariant, JsonNode example) {
+    public synchronized InvariantValidation validate(FinanceInvariant invariant, JsonNode example) {
+        ensurePackResources(this::loadFromPack);
         if (invariant == null) {
             return new InvariantValidation(false, List.of(new InvariantViolation("", "invariant is required")));
         }

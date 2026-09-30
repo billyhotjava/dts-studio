@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -13,7 +15,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CaliberCrossSourceRegressionService {
+public class CaliberCrossSourceRegressionService extends PackBackedJsonRegistry {
 
     private static final String DEFAULT_SPEC_RESOURCE = "governance/caliber-cross-source-regression.v1.json";
 
@@ -31,7 +33,7 @@ public class CaliberCrossSourceRegressionService {
     }
 
     public RegressionReport runDefault() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(DEFAULT_SPEC_RESOURCE)) {
+        try (InputStream is = openPackResource(DEFAULT_SPEC_RESOURCE)) {
             if (is == null) {
                 throw new IllegalStateException("Caliber cross-source regression resource not found: "
                         + DEFAULT_SPEC_RESOURCE);

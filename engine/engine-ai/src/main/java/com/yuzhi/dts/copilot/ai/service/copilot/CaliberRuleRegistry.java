@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -13,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CaliberRuleRegistry {
+public class CaliberRuleRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(CaliberRuleRegistry.class);
     private static final String RULE_RESOURCE = "governance/caliber-rules.v1.json";
@@ -51,8 +53,13 @@ public class CaliberRuleRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(RULE_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(RULE_RESOURCE)) {
             if (is == null) {
                 log.warn("Caliber rule resource not found: {}", RULE_RESOURCE);
                 this.rules = List.of();
@@ -63,15 +70,17 @@ public class CaliberRuleRegistry {
             log.info("Loaded {} caliber rule(s) from {}", rules.size(), RULE_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load caliber rules from {}: {}", RULE_RESOURCE, e.getMessage());
-            this.rules = List.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<CaliberRule> rules() {
+    public synchronized List<CaliberRule> rules() {
+        ensurePackResources(this::loadFromPack);
         return rules;
     }
 
-    public List<String> guardrailsForDomain(String domain) {
+    public synchronized List<String> guardrailsForDomain(String domain) {
+        ensurePackResources(this::loadFromPack);
         String normalizedDomain = normalizeDomain(domain);
         List<String> guardrails = new ArrayList<>();
         for (CaliberRule rule : rules) {
@@ -82,7 +91,8 @@ public class CaliberRuleRegistry {
         return List.copyOf(guardrails);
     }
 
-    public CaliberValidation validateSql(String domain, String sql) {
+    public synchronized CaliberValidation validateSql(String domain, String sql) {
+        ensurePackResources(this::loadFromPack);
         if (sql == null || sql.isBlank()) {
             return new CaliberValidation(true, List.of());
         }

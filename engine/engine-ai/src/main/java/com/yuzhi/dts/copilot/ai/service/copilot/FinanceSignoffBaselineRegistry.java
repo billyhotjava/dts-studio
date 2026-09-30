@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -13,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceSignoffBaselineRegistry {
+public class FinanceSignoffBaselineRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceSignoffBaselineRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-signoff-baseline.v1.json";
@@ -26,8 +28,13 @@ public class FinanceSignoffBaselineRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance signoff baseline resource not found: {}", REGISTRY_RESOURCE);
                 this.policies = Map.of();
@@ -42,15 +49,17 @@ public class FinanceSignoffBaselineRegistry {
             log.info("Loaded {} finance signoff baseline policy(s) from {}", policies.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load finance signoff baseline registry from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.policies = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public Optional<SignoffBaselinePolicy> policy(String id) {
+    public synchronized Optional<SignoffBaselinePolicy> policy(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(policies.get(id));
     }
 
-    public List<SignoffBaselinePolicy> policies() {
+    public synchronized List<SignoffBaselinePolicy> policies() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(policies.values());
     }
 

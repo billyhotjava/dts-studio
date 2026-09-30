@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceAuthorityRegistry {
+public class FinanceAuthorityRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceAuthorityRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-authority-registry.v1.json";
@@ -28,12 +30,17 @@ public class FinanceAuthorityRegistry {
     }
 
     @PostConstruct
-    public void init() {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
         String resource = REGISTRY_RESOURCE;
-        InputStream is = getClass().getClassLoader().getResourceAsStream(resource);
+        InputStream is = openPackResource(resource);
         if (is == null) {
             resource = LEGACY_REGISTRY_RESOURCE;
-            is = getClass().getClassLoader().getResourceAsStream(resource);
+            is = openPackResource(resource);
         }
         if (is == null) {
             log.warn("Finance authority registry resource not found: {}", REGISTRY_RESOURCE);
@@ -51,15 +58,17 @@ public class FinanceAuthorityRegistry {
             log.info("Loaded {} finance authority binding(s) from {}", bindings.size(), resource);
         } catch (Exception e) {
             log.warn("Failed to load finance authority registry from {}: {}", resource, e.getMessage());
-            this.bindings = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<AuthorityBinding> bindings() {
+    public synchronized List<AuthorityBinding> bindings() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(bindings.values());
     }
 
-    public Optional<AuthorityBinding> binding(String id) {
+    public synchronized Optional<AuthorityBinding> binding(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(bindings.get(id));
     }
 

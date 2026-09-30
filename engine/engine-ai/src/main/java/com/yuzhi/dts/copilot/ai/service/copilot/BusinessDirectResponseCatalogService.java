@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
-public class BusinessDirectResponseCatalogService {
+public class BusinessDirectResponseCatalogService extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(BusinessDirectResponseCatalogService.class);
     private static final String RESOURCE_PATH = "planner/business-direct-responses.json";
@@ -29,8 +31,13 @@ public class BusinessDirectResponseCatalogService {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(RESOURCE_PATH)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(RESOURCE_PATH)) {
             if (is == null) {
                 log.warn("Business direct response catalog not found: {}", RESOURCE_PATH);
                 entries = List.of();
@@ -63,11 +70,12 @@ public class BusinessDirectResponseCatalogService {
             entries = List.copyOf(loaded);
         } catch (Exception e) {
             log.warn("Failed to load business direct response catalog: {}", e.getMessage());
-            entries = List.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public Optional<CatalogEntry> findMatch(String userQuestion) {
+    public synchronized Optional<CatalogEntry> findMatch(String userQuestion) {
+        ensurePackResources(this::loadFromPack);
         if (!StringUtils.hasText(userQuestion)) {
             return Optional.empty();
         }
@@ -77,7 +85,8 @@ public class BusinessDirectResponseCatalogService {
                 .findFirst();
     }
 
-    public List<CatalogEntry> getEntries() {
+    public synchronized List<CatalogEntry> getEntries() {
+        ensurePackResources(this::loadFromPack);
         return Collections.unmodifiableList(entries);
     }
 

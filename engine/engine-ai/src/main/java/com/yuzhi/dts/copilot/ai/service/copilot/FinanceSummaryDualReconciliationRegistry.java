@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceSummaryDualReconciliationRegistry {
+public class FinanceSummaryDualReconciliationRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceSummaryDualReconciliationRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-summary-dual-reconciliation-cases.v1.json";
@@ -31,8 +33,13 @@ public class FinanceSummaryDualReconciliationRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance summary dual reconciliation resource not found: {}", REGISTRY_RESOURCE);
                 this.cases = Map.of();
@@ -48,15 +55,17 @@ public class FinanceSummaryDualReconciliationRegistry {
             log.info("Loaded {} finance summary dual reconciliation case(s) from {}", cases.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load finance summary dual reconciliation cases from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.cases = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<SummaryCase> cases() {
+    public synchronized List<SummaryCase> cases() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(cases.values());
     }
 
-    public Optional<SummaryCase> caseById(String id) {
+    public synchronized Optional<SummaryCase> caseById(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(cases.get(id));
     }
 

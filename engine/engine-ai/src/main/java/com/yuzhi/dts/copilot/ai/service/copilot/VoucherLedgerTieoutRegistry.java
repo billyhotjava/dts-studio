@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -14,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class VoucherLedgerTieoutRegistry {
+public class VoucherLedgerTieoutRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(VoucherLedgerTieoutRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/voucher-ledger-tieout-mapping.v1.json";
@@ -29,8 +31,13 @@ public class VoucherLedgerTieoutRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("Voucher ledger tie-out mapping resource not found: {}", REGISTRY_RESOURCE);
                 this.mappings = Map.of();
@@ -46,15 +53,17 @@ public class VoucherLedgerTieoutRegistry {
             log.info("Loaded {} voucher ledger tie-out mapping(s) from {}", mappings.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load voucher ledger tie-out mappings from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.mappings = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<TieoutMapping> mappings() {
+    public synchronized List<TieoutMapping> mappings() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(mappings.values());
     }
 
-    public Optional<TieoutMapping> mapping(String id) {
+    public synchronized Optional<TieoutMapping> mapping(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(mappings.get(id));
     }
 

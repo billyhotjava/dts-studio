@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
@@ -13,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
-public class FinanceAmountColumnAlignmentRegistry {
+public class FinanceAmountColumnAlignmentRegistry extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(FinanceAmountColumnAlignmentRegistry.class);
     private static final String REGISTRY_RESOURCE = "governance/finance-amount-column-alignment.v1.json";
@@ -26,8 +28,13 @@ public class FinanceAmountColumnAlignmentRegistry {
     }
 
     @PostConstruct
-    public void init() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(REGISTRY_RESOURCE)) {
+    public synchronized void init() {
+        // Managed readers load lazily, allowing an empty registry to serve the installation API.
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
+        try (InputStream is = openPackResource(REGISTRY_RESOURCE)) {
             if (is == null) {
                 log.warn("Finance amount column alignment resource not found: {}", REGISTRY_RESOURCE);
                 this.tiers = Map.of();
@@ -42,19 +49,22 @@ public class FinanceAmountColumnAlignmentRegistry {
             log.info("Loaded {} finance amount column tier(s) from {}", tiers.size(), REGISTRY_RESOURCE);
         } catch (Exception e) {
             log.warn("Failed to load finance amount column alignment from {}: {}", REGISTRY_RESOURCE, e.getMessage());
-            this.tiers = Map.of();
+            throw new IllegalStateException("Failed to load active pack assets", e);
         }
     }
 
-    public List<AmountTier> tiers() {
+    public synchronized List<AmountTier> tiers() {
+        ensurePackResources(this::loadFromPack);
         return new ArrayList<>(tiers.values());
     }
 
-    public Optional<AmountTier> tier(String id) {
+    public synchronized Optional<AmountTier> tier(String id) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(tiers.get(id));
     }
 
-    public List<AmountTier> tiersForTerm(String term) {
+    public synchronized List<AmountTier> tiersForTerm(String term) {
+        ensurePackResources(this::loadFromPack);
         String normalizedTerm = normalize(term);
         if (normalizedTerm.isEmpty()) {
             return List.of();

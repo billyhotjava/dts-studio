@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="v1.1.0-002-detach-domain-templates" author="dts-studio" dbms="postgresql">
+        <sql><![CDATA[
+            ALTER TABLE copilot_ai.nl2sql_query_template ADD COLUMN source VARCHAR(32);
+            ALTER TABLE copilot_ai.nl2sql_query_template ADD COLUMN source_pack_version_id BIGINT REFERENCES copilot_ai.studio_pack_version(id);
+            ALTER TABLE copilot_ai.nl2sql_query_template ADD COLUMN datasource_ref VARCHAR(64);
+            CREATE INDEX ix_template_pack_version ON copilot_ai.nl2sql_query_template(source_pack_version_id);
+            -- Only byte-equivalent historical seed content is transferred. Edited/manual rows retain ownership.
+            UPDATE copilot_ai.nl2sql_query_template t SET source='legacy-liquibase'
+            FROM (VALUES
+                ('TPL-01','f601405f878170d496f6e6dab69deb44'),
+                ('TPL-02','432a76f2ecef9ef72f02c24b08255148'),
+                ('TPL-03','b2241bfa4351ed3fb8b9dc225061c8f2'),
+                ('TPL-04','97a6122134f0eaf1f5710dd2bcf3f757'),
+                ('TPL-05','9e0eb403fd5b959b5af95240800a15fe'),
+                ('TPL-06','393bbc50394285d7b747e1705dc181ef'),
+                ('TPL-07','8973008d2ae47680397bc8dc8b17061e'),
+                ('TPL-08','d17aa74fc74eb8fe3f4b9d5c72c31d89'),
+                ('TPL-09','85a093c399b75f1296023ee582837584'),
+                ('TPL-10','0bbb8df255d5692becf4e199b9db4264'),
+                ('TPL-11','1db678f8fa1a67a30f11230b2a6fa7a1'),
+                ('TPL-12','594974a671fbae79ec557a303d45f67b'),
+                ('TPL-13','d4bb71dd77c9dcaed4e8296d63fe17bc'),
+                ('TPL-14','e6a954ee63346aeb52dc75a14853af59'),
+                ('TPL-15','3881b2a3a2b01162a8e53341336f84c9'),
+                ('TPL-16','f60aaf77e9c38d1f556efd8f85a2f4f1'),
+                ('TPL-17','5cbab53a6a8500dbaab35ced72e48b2c'),
+                ('TPL-18','e455b1e04e73a1656b357bd967979bc1'),
+                ('TPL-19','5e3547acf9fbcfc65cb739d62cba61e6'),
+                ('TPL-20','bd6d1f4f2b4910c9d4dd173cc13f07a9'),
+                ('TPL-21','37c6b0cfb8cb890385c86d80c2e29d2f'),
+                ('TPL-22','b7a15470da2d24b8aa1d8f75beeafd7d'),
+                ('TPL-23','b2bde5fdec1bfb178c78de5cd1b53814'),
+                ('TPL-24','1a3e77ea78f261982cb916d13df7e8a0'),
+                ('TPL-25','85de7271cca64f37415c564edf3e0293'),
+                ('TPL-26','cfaff6df5d22965d8747a777979a89a0'),
+                ('TPL-27','b2e284675f039ee8bbe1351c33ae7dcd'),
+                ('TPL-28','d8ca204fec3d8c42b509cf66237ef70d'),
+                ('TPL-29','6b28d0c7a1bf1b7dedba0ca68c32ed9d'),
+                ('TPL-30','6cb80e3a459134c04ababa70bce727b7'),
+                ('TPL-31','c0090251f9831c41cbbb83b58d0a794d'),
+                ('TPL-32','d048dc1294ce6feff79f26a5c9f49fdc'),
+                ('TPL-33','e7966a12c80ac83a030aebca4d2be60f'),
+                ('TPL-34','eeba247bff9bd30b0b34f38976ceae2e'),
+                ('TPL-35','356fe2e0e95e60cf52a23ea441c340bd'),
+                ('TPL-36','77a72bab41fc1f334c2d2f56b25cb284'),
+                ('TPL-37','73486bb88b3f641b314c81e33b72e6a2'),
+                ('TPL-38','b0fb2da3b4b0f6fae7abd6dd944010c8'),
+                ('TPL-39','02c1697151c2221d8ff1e35354492c89'),
+                ('TPL-40','11e2836b3c148c7c1cf443a9eb38e22e'),
+                ('TPL-41','a107f8933c0f717b23962c28bd29fcb5'),
+                ('TPL-42','82e171f790a5370bcfb3789124b17fc2'),
+                ('TPL-43','18b57c9941f024f26dad21ed0361e5db'),
+                ('TPL-44','d4d4d29ff42cb99bacb65f9e3a15939c'),
+                ('TPL-45','5da899f87b28dc585f87cc91dcf1177b'),
+                ('TPL-46','145f0d7448b76bf7fa0710c05ac033ab'),
+                ('TPL-47','9e8487daa592abf516ba7e522d64d440'),
+                ('TPL-48','efa48dcd14cc4f0048d9ba1105993203'),
+                ('TPL-49','27abb8c299708f4091c1deb09a83f032'),
+                ('TPL-50','423f2e9763a2143805c9a1c06a5a4a9a'),
+                ('TPL-51','c600997663738bc34cf3444c4ff047e2'),
+                ('TPL-52','8f962af0586b25796107c6cf88d93e69'),
+                ('TPL-53','0c5eb9bf5a86332076733325cd7a64a0'),
+                ('TPL-54','0e18db74a57b2963012061d66e98651a'),
+                ('TPL-55','9efb29d6aed9d3f9640b246aa0dc42c1'),
+                ('TPL-56','a32b17634d9af3a01ff57de021109bee'),
+                ('TPL-57','e110b10206bae00c5c7898357a949c94')
+            ) AS baseline(code, fingerprint)
+            WHERE t.template_code=baseline.code AND t.source IS NULL
+              AND md5((to_jsonb(t)-'id'-'created_at'-'updated_at'-'source'-'source_pack_version_id'-'datasource_ref')::text)=baseline.fingerprint;
+        ]]></sql>
+        <rollback><sql><![CDATA[
+            ALTER TABLE copilot_ai.nl2sql_query_template DROP COLUMN datasource_ref;
+            ALTER TABLE copilot_ai.nl2sql_query_template DROP COLUMN source_pack_version_id;
+            ALTER TABLE copilot_ai.nl2sql_query_template DROP COLUMN source;
+        ]]></sql></rollback>
+    </changeSet>
+</databaseChangeLog>

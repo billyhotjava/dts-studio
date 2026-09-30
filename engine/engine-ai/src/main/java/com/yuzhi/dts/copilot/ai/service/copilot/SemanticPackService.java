@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -18,12 +20,12 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Loads and caches business semantic packs from classpath resources.
+ * Loads and caches active business semantic packs from the Pack registry.
  * Semantic packs provide domain-specific context (object dictionaries, synonyms,
  * few-shot examples) for NL2SQL prompt injection.
  */
 @Service
-public class SemanticPackService {
+public class SemanticPackService extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(SemanticPackService.class);
 
@@ -45,34 +47,63 @@ public class SemanticPackService {
     }
 
     @PostConstruct
-    public void init() {
+    public synchronized void init() {
+        if (!hasManagedPackReader()) ensurePackResources(this::loadFromPack);
+    }
+
+    private void loadFromPack() {
         Map<String, JsonNode> loaded = new LinkedHashMap<>();
-        for (String file : PACK_FILES) {
-            try (InputStream is = getClass().getClassLoader().getResourceAsStream(file)) {
-                if (is == null) {
-                    log.warn("Semantic pack resource not found: {}", file);
-                    continue;
-                }
-                byte[] bytes = is.readAllBytes();
-                JsonNode node = objectMapper.readTree(new String(bytes, StandardCharsets.UTF_8));
-                String domain = node.path("domain").asText(null);
-                if (domain == null || domain.isBlank()) {
-                    log.warn("Semantic pack {} has no 'domain' field, skipping", file);
-                    continue;
-                }
-                loaded.put(domain, node);
-                log.info("Loaded semantic pack: domain={}, file={}", domain, file);
-            } catch (Exception e) {
-                log.warn("Failed to load semantic pack {}: {}", file, e.getMessage());
+        var snapshot = packSnapshot();
+        for (var asset : snapshot.assets()) {
+            if (asset.kind().equals("ontology")) {
+                usePackAsset(asset);
+                JsonNode node = asset.json();
+                if (loaded.putIfAbsent(node.path("domain").asText(), node.deepCopy()) != null)
+                    throw new IllegalStateException("Duplicate active ontology domain");
             }
         }
-        this.packs = Collections.unmodifiableMap(loaded);
-        Map<String, SemanticPack> typed = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonNode> entry : loaded.entrySet()) {
-            typed.put(entry.getKey(), parsePack(entry.getValue()));
+        if (loaded.isEmpty() && packResources().useLegacy(snapshot)) {
+            for (String file : PACK_FILES) {
+                try (InputStream stream = openPackResource(file)) {
+                    if (stream == null) throw new IllegalStateException("Missing legacy semantic pack: " + file);
+                    JsonNode node = objectMapper.readTree(stream);
+                    loaded.put(node.path("domain").asText(), node);
+                } catch (java.io.IOException e) {
+                    throw new IllegalStateException("Invalid legacy semantic pack", e);
+                }
+            }
         }
+        for (var asset : snapshot.assets()) {
+            if (!asset.kind().equals("actions")) continue;
+            usePackAsset(asset);
+            JsonNode action = asset.json();
+            List<JsonNode> owners = loaded.values().stream().filter(pack -> {
+                if (action.hasNonNull("domain") && !action.path("domain").asText().equals(pack.path("domain").asText())) return false;
+                for (JsonNode object : pack.path("objects")) {
+                    if (object.path("name").asText().equals(action.path("object").asText())) return true;
+                }
+                return false;
+            }).toList();
+            if (owners.size() != 1) throw new IllegalStateException("Action requires exactly one owning ontology");
+            var owner = (com.fasterxml.jackson.databind.node.ObjectNode) owners.getFirst();
+            var actions = owner.withArray("actions");
+            for (JsonNode existing : actions) {
+                if (existing.path("name").asText().equals(action.path("name").asText()))
+                    throw new IllegalStateException("Duplicate ontology action");
+            }
+            actions.add(action.deepCopy());
+        }
+        Map<String, SemanticPack> typed = new LinkedHashMap<>();
+        loaded.forEach((domain, node) -> typed.put(domain, parsePack(node)));
+        this.packs = Collections.unmodifiableMap(loaded);
         this.semanticPacks = Collections.unmodifiableMap(typed);
-        log.info("Semantic packs initialized: {} domain(s) loaded", packs.size());
+        log.info("Semantic packs refreshed: generation={}, domains={}", snapshot.generation(), loaded.size());
+    }
+
+    public synchronized JsonNode getDocument(String domain) {
+        ensurePackResources(this::loadFromPack);
+        JsonNode document = packs.get(domain);
+        return document == null ? objectMapper.createObjectNode() : document.deepCopy();
     }
 
     /**
@@ -81,8 +112,12 @@ public class SemanticPackService {
      * @param domain the domain key, e.g. "project" or "flowerbiz"
      * @return list of formatted few-shot strings, empty list if domain not found
      */
-    public List<String> getFewShots(String domain) {
-        JsonNode pack = packs.get(domain);
+    public synchronized List<String> getFewShots(String domain) {
+        ensurePackResources(this::loadFromPack);
+        return fewShots(packs.get(domain));
+    }
+
+    private List<String> fewShots(JsonNode pack) {
         if (pack == null) {
             return Collections.emptyList();
         }
@@ -106,8 +141,12 @@ public class SemanticPackService {
      * @param domain the domain key
      * @return map of term to field/condition description, empty map if domain not found
      */
-    public Map<String, String> getSynonyms(String domain) {
-        JsonNode pack = packs.get(domain);
+    public synchronized Map<String, String> getSynonyms(String domain) {
+        ensurePackResources(this::loadFromPack);
+        return synonyms(packs.get(domain));
+    }
+
+    private Map<String, String> synonyms(JsonNode pack) {
         if (pack == null) {
             return Collections.emptyMap();
         }
@@ -132,7 +171,8 @@ public class SemanticPackService {
      * @param domain the domain key
      * @return formatted context string, or empty string if domain not found
      */
-    public String getContextForDomain(String domain) {
+    public synchronized String getContextForDomain(String domain) {
+        ensurePackResources(this::loadFromPack);
         JsonNode pack = packs.get(domain);
         if (pack == null) {
             return "";
@@ -179,7 +219,7 @@ public class SemanticPackService {
         }
 
         // Synonyms
-        Map<String, String> synonyms = getSynonyms(domain);
+        Map<String, String> synonyms = synonyms(pack);
         if (!synonyms.isEmpty()) {
             sb.append("【同义词/术语映射】\n");
             for (Map.Entry<String, String> entry : synonyms.entrySet()) {
@@ -198,7 +238,7 @@ public class SemanticPackService {
         }
 
         // Few-shot examples
-        List<String> fewShots = getFewShots(domain);
+        List<String> fewShots = fewShots(pack);
         if (!fewShots.isEmpty()) {
             sb.append("【示例查询】\n");
             for (String shot : fewShots) {
@@ -214,11 +254,13 @@ public class SemanticPackService {
      *
      * @return set of domain names
      */
-    public Set<String> getDomains() {
+    public synchronized Set<String> getDomains() {
+        ensurePackResources(this::loadFromPack);
         return packs.keySet();
     }
 
-    public Optional<SemanticPack> getPack(String domain) {
+    public synchronized Optional<SemanticPack> getPack(String domain) {
+        ensurePackResources(this::loadFromPack);
         return Optional.ofNullable(semanticPacks.get(domain));
     }
 
@@ -360,26 +402,26 @@ public class SemanticPackService {
         }
         List<OntologyAction> parsed = new ArrayList<>();
         for (JsonNode action : actions) {
-            JsonNode endpoint = action.path("endpoint");
-            if (missingAny(action, "name", "object", "intent", "approval", "guard")
-                    || !action.has("audit")
-                    || missingAny(endpoint, "service", "draft", "commit")
-                    || !action.path("params").isArray()) {
+            boolean referenced = action.path("target").isObject();
+            JsonNode endpoint = action.path(referenced ? "target" : "endpoint");
+            String service = endpoint.path(referenced ? "serviceRef" : "service").asText();
+            String draft = referenced ? endpoint.path("draft").path("path").asText() : endpoint.path("draft").asText();
+            String commit = referenced ? endpoint.path("commit").path("path").asText() : endpoint.path("commit").asText();
+            if (missingAny(action, "name", "object", "intent") || service.isBlank() || draft.isBlank() || commit.isBlank()
+                    || !action.path("params").isArray()
+                    || (!referenced && (missingAny(action, "approval", "guard") || !action.has("audit")))) {
                 warnInvalidOntologyEntry("actions", action);
                 continue;
             }
             parsed.add(new OntologyAction(
-                    action.path("name").asText(),
-                    action.path("object").asText(),
-                    action.path("intent").asText(),
-                    new OntologyActionEndpoint(
-                            endpoint.path("service").asText(),
-                            endpoint.path("draft").asText(),
-                            endpoint.path("commit").asText()),
+                    action.path("name").asText(), action.path("object").asText(), action.path("intent").asText(),
+                    new OntologyActionEndpoint(service, draft, commit,
+                            referenced ? endpoint.path("draft").path("method").asText() : "POST",
+                            referenced ? endpoint.path("commit").path("method").asText() : "POST"),
                     parseActionParams(action.path("params")),
-                    action.path("approval").asText(),
-                    action.path("audit").asBoolean(false),
-                    action.path("guard").asText()));
+                    referenced ? "human" : action.path("approval").asText(),
+                    referenced || action.path("audit").asBoolean(false),
+                    referenced ? action.path("approval").path("requiredRole").asText() : action.path("guard").asText()));
         }
         return List.copyOf(parsed);
     }
@@ -543,7 +585,10 @@ public class SemanticPackService {
             String guard) {
     }
 
-    public record OntologyActionEndpoint(String service, String draft, String commit) {
+    public record OntologyActionEndpoint(String service, String draft, String commit, String draftMethod, String commitMethod) {
+        public OntologyActionEndpoint(String service, String draft, String commit) {
+            this(service, draft, commit, "POST", "POST");
+        }
     }
 
     public record OntologyActionParam(String name, String source, boolean required) {

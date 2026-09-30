@@ -113,7 +113,8 @@ class FinanceSummaryDualReconciliationServiceTest {
         try {
             FinanceSummaryDualReconciliationRegistry registry =
                     new FinanceSummaryDualReconciliationRegistry(objectMapper, oracleRegistry);
-            registry.init();
+            org.assertj.core.api.Assertions.assertThatThrownBy(registry::init)
+                    .isInstanceOf(IllegalStateException.class);
         } finally {
             logger.detachAppender(appender);
         }

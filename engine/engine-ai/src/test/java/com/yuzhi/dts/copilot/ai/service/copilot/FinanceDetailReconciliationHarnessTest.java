@@ -150,7 +150,8 @@ class FinanceDetailReconciliationHarnessTest {
         try {
             FinanceDetailReconciliationSampleRegistry sampleRegistry =
                     new FinanceDetailReconciliationSampleRegistry(objectMapper, oracleRegistry);
-            sampleRegistry.init();
+            org.assertj.core.api.Assertions.assertThatThrownBy(sampleRegistry::init)
+                    .isInstanceOf(IllegalStateException.class);
         } finally {
             logger.detachAppender(appender);
         }

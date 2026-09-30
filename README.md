@@ -8,13 +8,15 @@ assets belong to DTS App Stack. DTS Infra owns installation and operations.
 ## Current implementation
 
 The first refactoring slice imports the existing Java 21 / Spring Boot 3.4.5
-Copilot backend with its history. Java packages, Maven artifact IDs, API paths,
-and application behavior are preserved during this migration.
+Copilot backend with its history. Java packages, Maven artifact IDs,
+and API paths were preserved by the import. The subsequent Pack implementation now
+adds explicit runtime behavior and migrations; see [Pack runtime](docs/pack-runtime.md).
 
 - `engine/engine-ai/`: imported AI backend, including existing LLM, agent, query,
   and retrieval capabilities. Domain and data-access separation is still pending.
 - `engine/engine-analytics/`: transitional analytics backend for baseline regression;
   this is not a decision to retain a second BI platform inside Studio.
+- `protocol/`: offline Pack manifest and asset schemas, shared by CLI and HTTP validation.
 - `engine/worklog-history/`: historical Copilot planning and evidence.
 - `engine/deploy/legacy/`: legacy deployment references; not executable Studio instructions.
 - `.rules/`, `.skills/`, `.memory/`: inherited rules, capability definitions, and knowledge.
@@ -48,7 +50,8 @@ not delivered by this source import, and legacy Compose is not a release fallbac
 
 Studio proposes and orchestrates; Stack must enforce data access and own canonical
 metric definitions. The imported JDBC tools are transitional code awaiting the
-BL-S / BL-D refactoring, not the final data boundary. Pack externalization is BL-A.
+BL-S / BL-D refactoring, not the final data boundary. The BL-A core now implements Pack install/activate/rollback, generation-aware asset
+readers, template ownership projection, and persisted answer provenance (`packRefs`) shared by REST and SSE. Further domain/tool separation remains tracked in BL-A/BL-D.
 Backend build and test success does not establish authenticated business acceptance.
 The first joint acceptance scenario remains PRS in-operation project analysis.
 

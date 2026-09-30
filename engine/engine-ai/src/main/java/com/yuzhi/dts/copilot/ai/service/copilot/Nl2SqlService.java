@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.copilot;
 
+import com.yuzhi.dts.copilot.ai.service.pack.PackBackedJsonRegistry;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.yuzhi.dts.copilot.ai.service.llm.gateway.LlmGatewayService;
 import org.slf4j.Logger;
@@ -19,7 +21,7 @@ import java.util.Map;
  * Enforces SQL safety - only SELECT/WITH statements are allowed.
  */
 @Service
-public class Nl2SqlService {
+public class Nl2SqlService extends PackBackedJsonRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(Nl2SqlService.class);
 
@@ -199,7 +201,7 @@ public class Nl2SqlService {
      * Load settlement few-shot examples from classpath resource.
      */
     private String loadSettlementFewShots() {
-        try (InputStream is = getClass().getResourceAsStream("/prompts/settlement-few-shots.txt")) {
+        try (InputStream is = openPackResource("/prompts/settlement-few-shots.txt")) {
             if (is == null) {
                 log.warn("Settlement few-shots resource not found on classpath");
                 return null;
