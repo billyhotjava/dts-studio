@@ -10,7 +10,7 @@
     <!-- v1_0_0_008 已有 t_flower_biz_info.biz_type / status,          -->
     <!-- 但缺：bizType=10 辅料、回收/变更类型、回收/变更状态           -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-016-fb-biz-type-supplement" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-016-fb-biz-type-supplement" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
@@ -27,7 +27,7 @@ VALUES
         </sql>
     </changeSet>
 
-    <changeSet id="v1.0.0-016-fb-recovery-type" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-016-fb-recovery-type" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
@@ -45,7 +45,7 @@ VALUES
         </sql>
     </changeSet>
 
-    <changeSet id="v1.0.0-016-fb-recovery-status" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-016-fb-recovery-status" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
@@ -63,7 +63,7 @@ VALUES
         </sql>
     </changeSet>
 
-    <changeSet id="v1.0.0-016-fb-change-type" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-016-fb-change-type" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
@@ -82,7 +82,7 @@ VALUES
         </sql>
     </changeSet>
 
-    <changeSet id="v1.0.0-016-fb-change-status" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-016-fb-change-status" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary
@@ -105,7 +105,7 @@ VALUES
     <!-- v1_0_0_009 已有 flowerbiz domain，priority=0，关键词 12 个    -->
     <!-- 本 changeSet：扩充关键词 + 提升 priority 到 90 + 加 secondary -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-016-fb-routing-upgrade" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-016-fb-routing-upgrade" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM copilot_ai.nl2sql_routing_rule

@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-018-flowerbiz-dbt-query-templates" author="dts-copilot-prs">
+    <changeSet id="v1.0.0-018-flowerbiz-dbt-query-templates" author="dts-copilot-prs" context="legacy-domain-seed">
         <comment>Move flowerbiz NL2SQL templates from the legacy detail view and MySQL syntax to dbt PostgreSQL marts.</comment>
         <sql splitStatements="true" stripComments="false"><![CDATA[
 UPDATE copilot_ai.nl2sql_query_template

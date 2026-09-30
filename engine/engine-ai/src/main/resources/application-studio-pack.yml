@@ -1,0 +1,12 @@
+# Fresh Studio installations load industry content only through activated Packs.
+# Keep this profile enabled on subsequent starts; do not use it to convert a legacy database.
+spring:
+  liquibase:
+    contexts: studio-pack
+    parameters:
+      studioPackMode: "true"
+
+dts:
+  studio:
+    pack:
+      fallback-classpath: false

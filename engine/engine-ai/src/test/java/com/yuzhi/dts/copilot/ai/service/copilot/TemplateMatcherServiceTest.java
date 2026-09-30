@@ -46,6 +46,39 @@ class TemplateMatcherServiceTest {
     // ===================== Template matching =====================
 
     @Test
+    void equalPriorityTemplatesUsePackDeclaredOrderAcrossDatabaseLayouts() {
+        var first = orderingTemplate("TPL-Z", 10, "select 1");
+        var second = orderingTemplate("TPL-A", 10, "select 2");
+        first.setMatchOrder(0); second.setMatchOrder(1);
+        for (var rows : List.of(List.of(first, second), List.of(second, first))) {
+            when(templateRepository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(rows);
+            var matcher = new TemplateMatcherService(templateRepository, new ObjectMapper());
+            assertThat(matcher.match("ordering fixture").template().getTemplateCode()).isEqualTo("TPL-Z");
+            assertThat(matcher.match("ordering fixture").resolvedSql()).isEqualTo("select 1");
+        }
+        var higher = orderingTemplate("TPL-M", 20, "select 3");
+        when(templateRepository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(List.of(first, higher, second));
+        var matcher = new TemplateMatcherService(templateRepository, new ObjectMapper());
+        assertThat(matcher.match("ordering fixture").template().getTemplateCode()).isEqualTo("TPL-M");
+        first.setMatchOrder(null); second.setMatchOrder(null);
+        when(templateRepository.findByIsActiveTrueOrderByPriorityDesc()).thenReturn(List.of(first, second));
+        matcher = new TemplateMatcherService(templateRepository, new ObjectMapper());
+        assertThat(matcher.match("ordering fixture").template().getTemplateCode()).isEqualTo("TPL-Z");
+    }
+
+    private Nl2SqlQueryTemplate orderingTemplate(String code, int priority, String sql) {
+        var template = new Nl2SqlQueryTemplate();
+        template.setTemplateCode(code);
+        template.setPriority(priority);
+        template.setDomain("fixture");
+        template.setIntentPatterns("[\"ordering fixture\"]");
+        template.setQuestionSamples("[]");
+        template.setParameters("{}");
+        template.setSqlTemplate(sql);
+        return template;
+    }
+
+    @Test
     @DisplayName("T-01: 项目绿植数 (TPL-01) - 含项目名参数提取")
     void matchProjectGreenCount() {
         TemplateMatchResult result = matcherService.match("翠湖项目的绿植有多少");

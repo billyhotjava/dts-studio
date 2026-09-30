@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-032-finance-year-summary-query-template-dataset-fix" author="codex">
+    <changeSet id="v1.0.0-032-finance-year-summary-query-template-dataset-fix" author="codex" context="legacy-domain-seed">
         <comment>Make the yearly finance summary template dataset-compatible by avoiding heavy FULL OUTER joins and unqualified generated relations.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 UPDATE copilot_ai.nl2sql_query_template

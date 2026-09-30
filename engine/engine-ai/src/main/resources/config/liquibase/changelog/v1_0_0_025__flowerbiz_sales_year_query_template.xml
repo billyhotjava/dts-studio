@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-025-flowerbiz-sales-year-query-template" author="codex">
+    <changeSet id="v1.0.0-025-flowerbiz-sales-year-query-template" author="codex" context="legacy-domain-seed">
         <comment>Route broad yearly flowerbiz sales questions to the dbt sales summary template instead of generic LLM workflow.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 INSERT INTO copilot_ai.nl2sql_query_template

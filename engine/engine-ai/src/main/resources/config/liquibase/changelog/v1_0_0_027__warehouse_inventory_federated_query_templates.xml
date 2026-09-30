@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-027-warehouse-inventory-federated-query-templates" author="codex">
+    <changeSet id="v1.0.0-027-warehouse-inventory-federated-query-templates" author="codex" context="legacy-domain-seed">
         <comment>Route warehouse inventory questions to executable Trino mysql catalog templates instead of unpublished fixed-report placeholders.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 INSERT INTO copilot_ai.nl2sql_query_template

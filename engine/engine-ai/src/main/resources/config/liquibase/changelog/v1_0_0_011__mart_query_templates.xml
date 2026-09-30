@@ -8,7 +8,7 @@
     <!-- ============================================================ -->
     <!-- EL-06: Seed 10 mart-layer query templates (TPL-21 ~ TPL-30)  -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-011-mart-query-templates-seed" author="dts-copilot">
+    <changeSet id="v1.0.0-011-mart-query-templates-seed" author="dts-copilot" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.nl2sql_query_template WHERE template_code IN ('TPL-21','TPL-22','TPL-23','TPL-24','TPL-25','TPL-26','TPL-27','TPL-28','TPL-29','TPL-30')

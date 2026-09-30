@@ -47,7 +47,7 @@
     <!-- ============================================================ -->
     <!-- BG-04: Seed 20 pre-built query templates                     -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-010-nl2sql-query-template-seed" author="dts-copilot">
+    <changeSet id="v1.0.0-010-nl2sql-query-template-seed" author="dts-copilot" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.nl2sql_query_template

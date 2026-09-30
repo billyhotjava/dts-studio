@@ -11,7 +11,7 @@
     <!-- 本 changeSet 补 TPL-34~43，覆盖：金额汇总/超期/销售/坏账/    -->
     <!-- 养护人/内购/加急 等场景                                      -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-017-flowerbiz-query-templates" author="dts-copilot-sprint22">
+    <changeSet id="v1.0.0-017-flowerbiz-query-templates" author="dts-copilot-sprint22" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*)

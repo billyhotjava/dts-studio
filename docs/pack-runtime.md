@@ -167,3 +167,47 @@ persistence flow), cache hits, legacy fallback, template ownership, error cleanu
 and worker isolation. The full-runtime lane also checks real HTTP chat, SSE and session replay
 against the installed PRS Pack in disposable PostgreSQL. It does not call a live model or
 establish authenticated production business acceptance.
+
+## Fresh bootstrap through Packs
+
+Activate `SPRING_PROFILES_ACTIVE=studio-pack` on a new Studio database (the infrastructure
+bootstrap must already have created the `copilot_ai` schema). This profile disables classpath
+fallback and selects Liquibase's `studio-pack` context. Schema migrations run normally;
+24 historical seed changesets for templates, routing rules and business enumerations are
+excluded. The default profile remains the legacy-compatible migration lane. New databases
+start with zero domain rows and can accept an authenticated Pack install/activation.
+
+The seed changesets only gain context metadata; their SQL, IDs, authors and paths stay intact.
+`PackMigrationCompatibilityTest` compares all 61 prior checksums with the pre-profile baseline.
+This approach follows Liquibase's documented [context checksum behavior](https://www.liquibase.com/blog/what-affects-changeset-checksums)
+and is verified with this repository's Liquibase 4.29.2 dependency.
+
+The explicit Pack context creates `studio_pack_bootstrap` before historical migrations. It
+rejects a database with legacy seed history. On later starts, the root changelog refuses to
+run against that marker without the profile's `studioPackMode=true` parameter. Keep the
+profile, context and parameter together; overriding them independently is unsupported. A
+missing profile is an operator configuration error: restore the profile, do not clear
+checksums, drop the marker or replay legacy seeds. Converting a populated legacy installation
+requires a separate migration plan. Rolling back the bootstrap mode to seed replay is
+intentionally rejected. The nullable `match_order` column has an explicit schema rollback;
+rolling back to code without Pack-only mode protection is not a supported release rollback.
+
+PRS 0.1.2 supplies `match_order` for 57 templates, including inactive templates. It captures
+priority ties after replaying legacy template migrations and their ownership handover. The
+matcher sorts by priority descending and explicit order ascending; unranked legacy rows
+retain the previous tie behavior. Activating/rolling back a Pack projects its order in the
+same transaction as its templates and audit record. Manual rows are preserved. No domain
+preference is hardcoded in the matcher, and templates' SQL/parameters/priorities stay unchanged.
+Use this Pack revision with the implementation containing migration 004 for fresh bootstrap.
+The optional schema field remains compatible with older packs in the legacy migration lane.
+
+Run the paired verification from the build checkout with a locally available pgvector image:
+
+```sh
+./engine/scripts/verify-pack-bootstrap.sh /absolute/prs-flower-0.1.2.dtspack /data/bootstrap-evidence
+```
+
+The helper creates separate disposable databases for the legacy and fresh lanes, records the
+legacy question/template/SQL baseline, and checks fresh install, HTTP answers, SSE, replay,
+repeat migration, and rejection of mode switches. Logs, the baseline and JUnit XML are retained
+in a new artifact directory. It performs no deployment and does not call a live model.

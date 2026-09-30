@@ -101,7 +101,7 @@ class PackRegistryIntegrationTest {
             connection.setSchema("copilot_ai");
             try (var liquibase = new Liquibase("config/liquibase/pack-registry-test.xml",
                     new ClassLoaderResourceAccessor(), new JdbcConnection(connection))) {
-                liquibase.rollback(2, "");
+                liquibase.rollback(3, "");
                 assertThat(jdbc.queryForObject("SELECT to_regclass('copilot_ai.studio_pack')",String.class)).isNull();
                 liquibase.update("");
             }
@@ -118,6 +118,7 @@ class PackRegistryIntegrationTest {
                 """);
         ((com.fasterxml.jackson.databind.node.ObjectNode)manifest).put("version", version);
         var template = mapper.createObjectNode().put("id",code).put("domain","fixture").put("sql",sql).put("datasource_ref","prs-mart");
+        template.put("match_order", Integer.parseInt(version.substring(version.lastIndexOf('.') + 1)));
         template.putArray("question_patterns").add("fixture"); template.putArray("question_samples").add("fixture"); template.putObject("params");
         var content = mapper.createObjectNode(); content.putArray("templates").add(template);
         return new PackArchiveValidator().validate(new ByteArrayInputStream(PackArchiveValidatorTest.archive(
@@ -134,7 +135,9 @@ class PackRegistryIntegrationTest {
         assertThat(templateSql("TPL-02")).isEqualTo("select 1");
         jdbc.execute("ALTER TABLE copilot_ai.studio_audit_outbox DROP CONSTRAINT reject_activation");
         registry.activate("fixture","1.0.1","admin"); assertThat(templateSql("TPL-02")).isEqualTo("select 2");
+        assertThat(jdbc.queryForObject("SELECT match_order FROM copilot_ai.nl2sql_query_template WHERE template_code='TPL-02'", Integer.class)).isEqualTo(1);
         registry.rollback("fixture","admin"); assertThat(templateSql("TPL-02")).isEqualTo("select 1");
+        assertThat(jdbc.queryForObject("SELECT match_order FROM copilot_ai.nl2sql_query_template WHERE template_code='TPL-02'", Integer.class)).isZero();
         assertThat(templateSql("MANUAL")).isEqualTo("select 42");
         registry.install(templates("1.0.2","MANUAL","select 0"),"admin");
         assertThatThrownBy(() -> registry.activate("fixture","1.0.2","admin"))
@@ -147,7 +150,7 @@ class PackRegistryIntegrationTest {
         try(var connection = dataSource.getConnection()) {
             connection.setSchema("copilot_ai");
             try(var liquibase=new Liquibase("config/liquibase/pack-registry-test.xml",new ClassLoaderResourceAccessor(),new JdbcConnection(connection))) {
-                liquibase.rollback(1, "");
+                liquibase.rollback(2, "");
                 jdbc.update("UPDATE copilot_ai.nl2sql_query_template SET sql_template='select 42' WHERE template_code='TPL-02'");
                 liquibase.update("");
             }

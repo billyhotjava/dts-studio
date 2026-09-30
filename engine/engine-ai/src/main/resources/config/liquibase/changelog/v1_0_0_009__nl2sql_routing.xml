@@ -38,7 +38,7 @@
     <!-- ============================================================ -->
     <!-- BG-07: Seed routing rules                                    -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-009-nl2sql-routing-seed" author="dts-copilot">
+    <changeSet id="v1.0.0-009-nl2sql-routing-seed" author="dts-copilot" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.nl2sql_routing_rule

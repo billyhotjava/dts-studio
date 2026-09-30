@@ -52,6 +52,7 @@ Studio proposes and orchestrates; Stack must enforce data access and own canonic
 metric definitions. The imported JDBC tools are transitional code awaiting the
 BL-S / BL-D refactoring, not the final data boundary. The BL-A core now implements Pack install/activate/rollback, generation-aware asset
 readers, template ownership projection, and persisted answer provenance (`packRefs`) shared by REST and SSE. Further domain/tool separation remains tracked in BL-A/BL-D.
+Fresh installs use the `studio-pack` profile and PRS 0.1.2, with historical seeds disabled and explicit template match order. See [bootstrap verification](docs/pack-runtime.md#fresh-bootstrap-through-packs).
 Backend build and test success does not establish authenticated business acceptance.
 The first joint acceptance scenario remains PRS in-operation project analysis.
 

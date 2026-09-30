@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="v1.1.0-004-template-match-order" author="dts-studio">
+        <addColumn tableName="nl2sql_query_template" schemaName="copilot_ai">
+            <column name="match_order" type="INTEGER"/>
+        </addColumn>
+        <rollback><dropColumn tableName="nl2sql_query_template" schemaName="copilot_ai" columnName="match_order"/></rollback>
+    </changeSet>
+</databaseChangeLog>

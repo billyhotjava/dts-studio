@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <!-- This marker runs before historical migrations and only with an explicit context. -->
+    <changeSet id="v1.1.0-003-pack-bootstrap" author="dts-studio" context="@studio-pack" dbms="postgresql">
+        <preConditions onFail="HALT" onError="HALT"
+                       onFailMessage="studio-pack bootstrap requires a database without legacy seed history and studioPackMode=true.">
+            <changeLogPropertyDefined property="studioPackMode" value="true"/>
+            <sqlCheck expectedResult="0"><![CDATA[
+                SELECT count(*) FROM copilot_ai.databasechangelog WHERE id IN (
+                    'v1.0.0-008-biz-enum-seed-data',
+                    'v1.0.0-009-nl2sql-routing-seed',
+                    'v1.0.0-010-nl2sql-query-template-seed',
+                    'v1.0.0-011-mart-query-templates-seed',
+                    'v1.0.0-015-procurement-query-templates',
+                    'v1.0.0-016-fb-biz-type-supplement',
+                    'v1.0.0-016-fb-recovery-type',
+                    'v1.0.0-016-fb-recovery-status',
+                    'v1.0.0-016-fb-change-type',
+                    'v1.0.0-016-fb-change-status',
+                    'v1.0.0-016-fb-routing-upgrade',
+                    'v1.0.0-017-flowerbiz-query-templates',
+                    'v1.0.0-018-flowerbiz-dbt-query-templates',
+                    'v1.0.0-021-project-dbt-routing-and-query-templates',
+                    'v1.0.0-022-project-adminweb-reconcile-query-templates',
+                    'v1.0.0-024-procurement-federated-query-templates',
+                    'v1.0.0-025-flowerbiz-sales-year-query-template',
+                    'v1.0.0-026-trino-compatible-flowerbiz-sales-templates',
+                    'v1.0.0-027-warehouse-inventory-federated-query-templates',
+                    'v1.0.0-028-flowerbiz-business-object-query-templates',
+                    'v1.0.0-030-finance-year-summary-query-template',
+                    'v1.0.0-031-finance-year-summary-query-template-runtime-fix',
+                    'v1.0.0-032-finance-year-summary-query-template-dataset-fix',
+                    'v1.0.0-033-finance-ads-query-templates'
+                )
+            ]]></sqlCheck>
+        </preConditions>
+        <createTable tableName="studio_pack_bootstrap" schemaName="copilot_ai">
+            <column name="id" type="SMALLINT"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <insert tableName="studio_pack_bootstrap" schemaName="copilot_ai"><column name="id" valueNumeric="1"/></insert>
+        <rollback>
+            <sql splitStatements="false"><![CDATA[
+                DO $$ BEGIN RAISE EXCEPTION 'Pack bootstrap mode cannot be rolled back to legacy seed replay'; END $$;
+            ]]></sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

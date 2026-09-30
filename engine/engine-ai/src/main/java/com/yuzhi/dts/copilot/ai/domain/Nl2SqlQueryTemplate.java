@@ -65,6 +65,13 @@ public class Nl2SqlQueryTemplate {
     @Column(name = "source_pack_version_id")
     private Long sourcePackVersionId;
 
+    @Column(name = "match_order")
+    private Integer matchOrder;
+
+    public Integer getMatchOrder() { return matchOrder; }
+
+    public void setMatchOrder(Integer matchOrder) { this.matchOrder = matchOrder; }
+
     public Long getSourcePackVersionId() {
         return sourcePackVersionId;
     }

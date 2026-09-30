@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-031-finance-year-summary-query-template-runtime-fix" author="codex">
+    <changeSet id="v1.0.0-031-finance-year-summary-query-template-runtime-fix" author="codex" context="legacy-domain-seed">
         <comment>Update the yearly finance summary template to runtime-queryable MySQL finance source tables.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 UPDATE copilot_ai.nl2sql_query_template

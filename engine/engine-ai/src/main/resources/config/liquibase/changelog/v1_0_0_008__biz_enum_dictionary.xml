@@ -47,7 +47,7 @@
     <!-- ============================================================ -->
     <!-- Seed data for rs_cloud_flower enums                          -->
     <!-- ============================================================ -->
-    <changeSet id="v1.0.0-008-biz-enum-seed-data" author="dts-copilot">
+    <changeSet id="v1.0.0-008-biz-enum-seed-data" author="dts-copilot" context="legacy-domain-seed">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT COUNT(*) FROM copilot_ai.biz_enum_dictionary WHERE source_db = 'rs_cloud_flower'

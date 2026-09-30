@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-021-project-dbt-routing-and-query-templates" author="dts-copilot-prs">
+    <changeSet id="v1.0.0-021-project-dbt-routing-and-query-templates" author="dts-copilot-prs" context="legacy-domain-seed">
         <comment>Move project-domain NL2SQL routing and templates to Sprint-25 dbt PostgreSQL marts.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 UPDATE copilot_ai.nl2sql_routing_rule

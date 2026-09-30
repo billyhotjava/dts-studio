@@ -4,6 +4,15 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <!-- A Pack-only database must never replay pending legacy seeds on profile loss. -->
+    <preConditions onFail="HALT" onError="HALT"
+                   onFailMessage="This database requires the studio-pack profile; legacy seeds are forbidden.">
+        <or>
+            <not><tableExists schemaName="copilot_ai" tableName="studio_pack_bootstrap"/></not>
+            <changeLogPropertyDefined property="studioPackMode" value="true"/>
+        </or>
+    </preConditions>
+    <include file="config/liquibase/changelog/v1_1_0_003__pack_bootstrap.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_001__baseline.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_002__rag_pgvector.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_0_0_003__ai_audit.xml" relativeToChangelogFile="false"/>
@@ -40,4 +49,5 @@
     <include file="config/liquibase/changelog/v1_0_0_034__finance_weak_path_reconciliation_candidate_snapshot.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_1_0_001__pack_registry.xml" relativeToChangelogFile="false"/>
     <include file="config/liquibase/changelog/v1_1_0_002__detach_domain_templates.xml" relativeToChangelogFile="false"/>
+    <include file="config/liquibase/changelog/v1_1_0_004__template_match_order.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

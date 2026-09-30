@@ -850,7 +850,8 @@ public class TemplateMatcherService {
             List<Nl2SqlQueryTemplate> loaded = new ArrayList<>(templateRepository.findByIsActiveTrueOrderByPriorityDesc());
             loaded.sort(Comparator.comparingInt(
                     (Nl2SqlQueryTemplate template) -> template.getPriority() == null ? 0 : template.getPriority()
-            ).reversed());
+            ).reversed().thenComparing(Nl2SqlQueryTemplate::getMatchOrder,
+                    Comparator.nullsLast(Comparator.naturalOrder())));
             var versionIds = loaded.stream().map(Nl2SqlQueryTemplate::getSourcePackVersionId)
                     .filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
             var sources = versionIds.isEmpty() ? List.<Nl2SqlQueryTemplateRepository.TemplatePackSource>of()

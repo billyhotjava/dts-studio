@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-022-project-adminweb-reconcile-query-templates" author="dts-copilot-prs">
+    <changeSet id="v1.0.0-022-project-adminweb-reconcile-query-templates" author="dts-copilot-prs" context="legacy-domain-seed">
         <comment>Align project-domain query templates with adminweb ProjectSummary reconciliation fields.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 UPDATE copilot_ai.nl2sql_query_template

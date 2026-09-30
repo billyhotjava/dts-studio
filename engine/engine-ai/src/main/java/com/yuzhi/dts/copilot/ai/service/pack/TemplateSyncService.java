@@ -38,16 +38,17 @@ public final class TemplateSyncService {
             JsonNode t=entry.getValue();
             int written = jdbc.update("""
                     INSERT INTO copilot_ai.nl2sql_query_template AS existing
-                    (template_code,domain,role_hint,intent_patterns,question_samples,sql_template,parameters,target_view,description,priority,is_active,source,source_pack_version_id,datasource_ref)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,'pack',?,?)
+                    (template_code,domain,role_hint,intent_patterns,question_samples,sql_template,parameters,target_view,description,priority,is_active,source,source_pack_version_id,datasource_ref,match_order)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,'pack',?,?,?)
                     ON CONFLICT(template_code) DO UPDATE SET domain=excluded.domain,role_hint=excluded.role_hint,
                     intent_patterns=excluded.intent_patterns,question_samples=excluded.question_samples,sql_template=excluded.sql_template,
                     parameters=excluded.parameters,target_view=excluded.target_view,description=excluded.description,priority=excluded.priority,
-                    is_active=excluded.is_active,datasource_ref=excluded.datasource_ref,source=excluded.source,source_pack_version_id=excluded.source_pack_version_id,updated_at=now()
+                    is_active=excluded.is_active,datasource_ref=excluded.datasource_ref,source=excluded.source,source_pack_version_id=excluded.source_pack_version_id,match_order=excluded.match_order,updated_at=now()
                     WHERE existing.source='legacy-liquibase'
                     """, entry.getKey(),t.path("domain").asText(),nullable(t,"role_hint"), t.path("question_patterns").toString(),
                     t.path("question_samples").toString(),t.path("sql").asText(),t.path("params").toString(),nullable(t,"target_view"),
-                    nullable(t,"description"),t.path("priority").asInt(),t.path("is_active").asBoolean(true),versionId,t.path("datasource_ref").asText());
+                    nullable(t,"description"),t.path("priority").asInt(),t.path("is_active").asBoolean(true),versionId,t.path("datasource_ref").asText(),
+                    t.hasNonNull("match_order") ? t.path("match_order").intValue() : null);
             if (written != 1) throw new PackException(409,"PACK_TEMPLATE_CONFLICT","Template ownership changed during activation");
         }
     }

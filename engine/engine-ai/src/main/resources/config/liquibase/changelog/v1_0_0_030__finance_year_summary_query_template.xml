@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-030-finance-year-summary-query-template" author="codex">
+    <changeSet id="v1.0.0-030-finance-year-summary-query-template" author="codex" context="legacy-domain-seed">
         <comment>Route broad yearly finance summary questions to executable ADS finance templates instead of generic datasource-free agent workflow.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 INSERT INTO copilot_ai.nl2sql_query_template

@@ -5,7 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="v1.0.0-024-procurement-federated-query-templates" author="codex">
+    <changeSet id="v1.0.0-024-procurement-federated-query-templates" author="codex" context="legacy-domain-seed">
         <comment>Route broad procurement green purchase questions to authorized Trino mysql catalog SQL instead of LLM-invented physical catalogs.</comment>
         <sql splitStatements="false" stripComments="false"><![CDATA[
 INSERT INTO copilot_ai.nl2sql_query_template
