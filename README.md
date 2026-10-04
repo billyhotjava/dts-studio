@@ -14,11 +14,10 @@ adds explicit runtime behavior and migrations; see [Pack runtime](docs/pack-runt
 
 - `engine/engine-ai/`: imported AI backend, including existing LLM, agent, query,
   and retrieval capabilities. Domain and data-access separation is still pending.
-- `engine/engine-analytics/`: transitional analytics backend for baseline regression;
-  this is not a decision to retain a second BI platform inside Studio.
-- `protocol/`: offline Pack manifest and asset schemas, shared by CLI and HTTP validation.
+- Analytics/BI moved to the independent `dts-stack/analytics/` project.
+- Pack schemas and the offline validator/CLI are consumed from the pinned
+  `com.yuzhi.dts:dts-common-pack:1.0.0` artifact, retaining `/protocol/` resource names.
 - `engine/worklog-history/`: historical Copilot planning and evidence.
-- `engine/deploy/legacy/`: legacy deployment references; not executable Studio instructions.
 - `.rules/`, `.skills/`, `.memory/`: inherited rules, capability definitions, and knowledge.
 
 The old Copilot webapp is not imported. The new Console and BFF are separate planned
@@ -27,7 +26,13 @@ work under RDC F6 / BL-C. Stack and App Stack are sibling repositories, not nest
 ## Build and test
 
 Requires Java 21, Maven, Python 3, Docker, and a local `postgres:18.4` test image.
-`STUDIO_TEST_POSTGRES_IMAGE` can select another preloaded PostgreSQL 18 image. From this repository or any working directory:
+`STUDIO_TEST_POSTGRES_IMAGE` can explicitly select another preloaded PostgreSQL image.
+Install Common 1.0.0 once (`dts-common/build.sh clean install`), or configure
+`DTS_MAVEN_REPOSITORY_URL` to the registry containing that release. The build resolves
+a release artifact; it does not compile sibling sources. Common has currently only
+been installed locally; the registry/CI release setup remains a delivery step.
+
+From this repository or any working directory:
 
 ```bash
 ./build.sh verify
@@ -39,8 +44,11 @@ Builds do not load `.env` or invoke the old webapp. The test harness creates an
 isolated PostgreSQL container on a random loopback port, overrides inherited
 `PG_*` settings, and removes only that container on exit. Its data uses tmpfs; no
 business database or existing service is modified. Test images are never pulled implicitly.
-Build/test in the designated build checkout; current source and build SHAs must match.
-The build checkout for this migration is `/data/dts-studio`.
+Build/test the current checkout. The original import used `/data/dts-studio`;
+that historical path is not required by the standalone build.
+The new database default is `dts_studio`, retaining the internal `copilot_ai` schema.
+Provision that schema and supply credentials externally. Existing installations
+must retain explicit `PG_DB` settings until a separate data migration is verified.
 
 Runtime credentials must be supplied externally. No source `.env` is imported.
 K8s charts and offline delivery remain owned by RDC F7/T25 under ADR-014; they are

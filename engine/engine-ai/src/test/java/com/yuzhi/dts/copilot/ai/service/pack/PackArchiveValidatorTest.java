@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.pack;
 
+import com.yuzhi.dts.common.pack.PackException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -40,61 +42,6 @@ class PackArchiveValidatorTest {
             }
         }
         return out.toByteArray();
-    }
-
-    @Test void acceptsValidPackAndPreservesProvenance() throws Exception {
-        var result = validator.validate(new ByteArrayInputStream(pack("fixture", "1.0.0", "{\"domain\":\"fixture\",\"objects\":[]}")));
-        assertThat(result.name()).isEqualTo("fixture");
-        assertThat(result.assets()).hasSize(1);
-        assertThat(result.assets().getFirst().json().path("domain").asText()).isEqualTo("fixture");
-    }
-
-    @ParameterizedTest @ValueSource(strings={"../escape", "/absolute", "a/../b", "a\\b", "C:/file", "a//b", "a/./b"})
-    void rejectsUnsafePaths(String path) throws Exception {
-        byte[] zip = archive(Map.of(path, new byte[]{1}), false);
-        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(zip))).isInstanceOf(PackException.class);
-    }
-
-    @Test void rejectsCompressedBombBeforeParsing() throws Exception {
-        byte[] zip = archive(Map.of("bomb", new byte[PackArchiveValidator.MAX_ENTRY + 1]), false);
-        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(zip)))
-                .isInstanceOfSatisfying(PackException.class, e -> assertThat(e.status()).isEqualTo(413));
-    }
-
-    @Test void rejectsMissingManifestNameAndUnknownLink() throws Exception {
-        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(pack("", "1.0.0", "{\"domain\":\"d\",\"objects\":[]}"))))
-                .isInstanceOf(PackException.class);
-        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(pack("fixture", "1.0.0",
-                "{\"domain\":\"d\",\"objects\":[{\"name\":\"a\"}],\"links\":[{\"from\":\"missing\",\"to\":\"a\"}]}"))))
-                .isInstanceOf(PackException.class);
-    }
-
-    @Test void detectsTampering() throws Exception {
-        var valid = pack("fixture", "1.0.0", "{\"domain\":\"d\",\"objects\":[]}");
-        Map<String,byte[]> files = new LinkedHashMap<>();
-        try (var input = new java.util.zip.ZipInputStream(new ByteArrayInputStream(valid))) {
-            java.util.zip.ZipEntry entry;
-            while ((entry = input.getNextEntry()) != null) files.put(entry.getName(), input.readAllBytes());
-        }
-        files.put("ontology/domain.json", "{\"domain\":\"tampered\",\"objects\":[]}".getBytes(StandardCharsets.UTF_8));
-        byte[] zip = archive(files, false);
-        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(zip)))
-                .isInstanceOfSatisfying(PackException.class, error -> assertThat(error.errors()).anyMatch(message -> message.contains("Checksum mismatch")));
-
-    }
-
-    @Test void actionContractRequiresBoundServiceReferenceAndHumanApprovalForHighRisk() throws Exception {
-        var action = new ObjectMapper().readTree("""
-                {"name":"draft","object":"fixture","riskLevel":"high","intent":"test","params":[],
-                 "target":{"serviceRef":"prs-api","draft":{"method":"POST","path":"/draft"},"commit":{"method":"POST","path":"/commit"}},
-                 "approval":{"mode":"HITL","requiredRole":"PRS_FINANCE"}}
-                """);
-        validator.validateSchema("assets/action.v1.schema.json",action);
-        ((com.fasterxml.jackson.databind.node.ObjectNode)action.path("approval")).put("mode","AUTO");
-        assertThatThrownBy(() -> validator.validateSchema("assets/action.v1.schema.json",action)).isInstanceOf(PackException.class);
-        ((com.fasterxml.jackson.databind.node.ObjectNode)action.path("approval")).put("mode","HITL");
-        ((com.fasterxml.jackson.databind.node.ObjectNode)action.path("target").path("draft")).put("path","//external-host/draft");
-        assertThatThrownBy(() -> validator.validateSchema("assets/action.v1.schema.json",action)).isInstanceOf(PackException.class);
     }
 
     @ParameterizedTest @ValueSource(strings={"project-fulfillment", "field-operations", "procurement", "warehouse", "finance", "flowerbiz"})

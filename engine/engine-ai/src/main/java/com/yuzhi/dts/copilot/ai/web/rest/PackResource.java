@@ -2,7 +2,7 @@ package com.yuzhi.dts.copilot.ai.web.rest;
 
 import com.yuzhi.dts.copilot.ai.security.ApiKeyAuthentication;
 import com.yuzhi.dts.copilot.ai.service.pack.PackArchiveValidator;
-import com.yuzhi.dts.copilot.ai.service.pack.PackException;
+import com.yuzhi.dts.common.pack.PackException;
 import com.yuzhi.dts.copilot.ai.service.pack.PackRegistryService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;

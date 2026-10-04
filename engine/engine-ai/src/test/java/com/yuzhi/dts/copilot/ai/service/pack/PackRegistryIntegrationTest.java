@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.pack;
 
+import com.yuzhi.dts.common.pack.PackException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.Liquibase;
 import liquibase.database.jvm.JdbcConnection;

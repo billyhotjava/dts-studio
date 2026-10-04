@@ -17,7 +17,6 @@
 
     <modules>
         <module>engine-ai</module>
-        <module>engine-analytics</module>
     </modules>
 
     <properties>

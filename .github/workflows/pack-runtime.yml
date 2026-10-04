@@ -1,7 +1,7 @@
 name: Studio backend and Pack contracts
 on:
   pull_request:
-    paths: ['engine/**', 'protocol/**', '.github/workflows/pack-runtime.yml']
+    paths: ['engine/**', 'build.sh', '.github/workflows/pack-runtime.yml']
   push:
     branches: ['main', 'feature/studio/**']
 permissions:
@@ -17,6 +17,15 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+          server-id: dts-releases
+          server-username: DTS_MAVEN_USERNAME
+          server-password: DTS_MAVEN_PASSWORD
+      - name: Resolve released Pack contract
+        env:
+          DTS_MAVEN_REPOSITORY_URL: ${{ vars.DTS_MAVEN_REPOSITORY_URL }}
+          DTS_MAVEN_USERNAME: ${{ secrets.DTS_MAVEN_USERNAME }}
+          DTS_MAVEN_PASSWORD: ${{ secrets.DTS_MAVEN_PASSWORD }}
+        run: ./engine/scripts/resolve-common.sh
       - run: docker pull postgres:18.4
       - run: ./build.sh verify
       - uses: actions/upload-artifact@v4

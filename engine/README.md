@@ -1,4 +1,4 @@
-> Historical Copilot documentation. For Studio build commands, current boundaries, and status, see [the repository README](../README.md). Legacy deployment instructions below are not Studio release instructions.
+> Historical Copilot documentation. Analytics now resides in `dts-stack/analytics`; the old combined deployment and shared-database commands below are archival only. For Studio build commands, current boundaries, and status, see [the repository README](../README.md). Legacy deployment instructions below are not Studio release instructions.
 
 # DTS Copilot — 独立 AI 助手 + BI 分析服务
 

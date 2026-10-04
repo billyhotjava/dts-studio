@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
+# Compatibility launcher; consumes the installed Common CLI artifact, not a Studio service jar.
 set -euo pipefail
-engine_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-pack_jar="$engine_dir/engine-ai/target/dts-copilot-ai-1.0.0-SNAPSHOT.jar"
-if [[ ! -f "$pack_jar" ]]; then
-  echo 'Build the Studio backend first with ./build.sh package in the build checkout.' >&2
-  exit 1
-fi
-exec java -Dloader.main=com.yuzhi.dts.copilot.ai.service.pack.PackCli -cp "$pack_jar" \
-  org.springframework.boot.loader.launch.PropertiesLauncher "$@"
+jar="${DTS_PACK_CLI_JAR:-${DTS_MAVEN_REPOSITORY:-$HOME/.m2/repository}/com/yuzhi/dts/dts-common-pack/1.0.0/dts-common-pack-1.0.0-cli.jar}"
+if [[ ! -f "$jar" ]]; then echo 'Install dts-common 1.0.0, or set DTS_PACK_CLI_JAR.' >&2; exit 1; fi
+exec "${JAVA:-java}" -jar "$jar" "$@"

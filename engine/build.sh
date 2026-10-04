@@ -7,8 +7,9 @@ if [[ $# -gt 0 ]]; then shift; fi
 
 case "$action" in
   verify|package)
+    "$engine_dir/scripts/resolve-common.sh"
     exec "$engine_dir/scripts/with-test-postgres.sh" \
-      "${MVN:-mvn}" -B -ntp -f "$engine_dir/pom.xml" clean "$action" "$@"
+      "${MVN:-mvn}" -B -ntp "-Dmaven.repo.local=${DTS_MAVEN_REPOSITORY:-$HOME/.m2/repository}" -f "$engine_dir/pom.xml" clean "$action" "$@"
     ;;
   --help|-h|help)
     echo 'Usage: ./build.sh [verify|package] [Maven arguments...]'

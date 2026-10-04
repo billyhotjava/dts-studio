@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.pack;
 
+import com.yuzhi.dts.common.pack.PackException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yuzhi.dts.copilot.ai.service.copilot.SemanticPackService;
 import com.yuzhi.dts.copilot.ai.service.copilot.CaliberRuleRegistry;

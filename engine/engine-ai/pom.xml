@@ -14,9 +14,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.networknt</groupId>
-            <artifactId>json-schema-validator</artifactId>
-            <version>1.5.6</version>
+            <groupId>com.yuzhi.dts</groupId>
+            <artifactId>dts-common-pack</artifactId>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -107,13 +107,6 @@
     </dependencies>
 
     <build>
-        <resources>
-            <resource><directory>src/main/resources</directory></resource>
-            <resource>
-                <directory>${project.basedir}/../../protocol</directory>
-                <targetPath>protocol</targetPath>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

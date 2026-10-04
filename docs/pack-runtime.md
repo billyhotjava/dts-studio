@@ -6,8 +6,10 @@ version does not activate tenant-specific assets.
 
 ## Build and validate
 
-Use the designated build checkout, Java 21, Maven and the existing isolated PostgreSQL
-harness. The schema is owned by `protocol/` and included in the engine JAR at build time.
+Use the current checkout, Java 21, Maven and the existing isolated PostgreSQL
+harness. Install or resolve Common 1.0.0 first. Schemas are owned by
+`dts-common/src/main/resources/protocol/` and loaded from that release artifact;
+the engine does not copy a sibling schema directory.
 The CLI never starts Spring, queries business data, or invokes a model.
 
 ```bash
@@ -89,7 +91,10 @@ Keep backups and follow the release workflow before a production migration.
 
 ## Validation lanes and dependencies
 
-- `./build.sh verify`: both backend modules, disposable PostgreSQL 18.4, no business `.env`.
+- `./build.sh verify`: AI backend and Pack integration tests, disposable PostgreSQL
+  (default 18.4, or an explicitly selected preloaded image), no business `.env`.
+- Common runs its own framework-free validator and deterministic CLI tests.
+- Analytics regression now uses the independent Stack build.
 - `PackRuntimeSmokeIT`: explicit real HTTP/JPA/Liquibase test, requiring a prebuilt PRS
   archive and local `pgvector/pgvector:pg17`. It verifies authentication, upload idempotency,
   activation, no-classpath semantic equality, template question/SQL equivalence and audit.

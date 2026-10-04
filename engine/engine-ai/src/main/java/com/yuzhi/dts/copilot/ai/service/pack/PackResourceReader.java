@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.pack;
 
+import com.yuzhi.dts.common.pack.PackException;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import java.io.ByteArrayInputStream;

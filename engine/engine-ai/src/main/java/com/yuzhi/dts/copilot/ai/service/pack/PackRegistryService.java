@@ -1,5 +1,7 @@
 package com.yuzhi.dts.copilot.ai.service.pack;
 
+import com.yuzhi.dts.common.pack.PackException;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;

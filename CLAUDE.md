@@ -15,12 +15,13 @@
 
 - **Authority**: `dts-rdc/worklog/v1.0.0/sprint-5-202610/`, F1 and its linked ADR/task status.
 - **Studio**: Java AI brain imported under `engine/engine-ai`; preserve existing packages and APIs during F1.
-- **Analytics**: `engine/engine-analytics` is a transitional baseline, pending BI consolidation into Stack.
+- **Analytics**: moved to the independent `dts-stack/analytics` project; not built by Studio.
+- **Common**: pinned Pack contract library/CLI; no shared business entities or service framework.
 - **Stack**: sibling lakehouse/data platform, canonical metrics and governed data execution.
 - **App Stack**: sibling business applications and industry assets, consumed through AppPack contracts.
 - **Console**: new UI/BFF under F6/BL-C; the legacy Copilot webapp is not imported.
-- **Deployment**: K8s/offline delivery belongs to Infra F7; `engine/deploy/legacy` is reference material only.
-- **Verification**: root `build.sh verify` runs backend verification in `/data/dts-studio`; no runtime acceptance is implied.
+- **Deployment**: K8s/offline delivery belongs to Infra F7; unusable imported legacy deployment was removed after backup.
+- **Verification**: root `build.sh verify` resolves Common and tests the current AI checkout with disposable PostgreSQL; no runtime acceptance is implied.
 
 The inherited March rules describe a historical target. Their Python/25-service
 decomposition does not override the current Java migration or current Feature boundaries.
