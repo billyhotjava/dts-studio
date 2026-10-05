@@ -13,7 +13,7 @@
 
 ## Architecture
 
-- **Authority**: `dts-rdc/worklog/v1.0.0/sprint-5-202610/`, F1 and its linked ADR/task status.
+- **Authority**: `dts-rdc/dts-worklog/spaces/rdc/worklog/v1.0.0/sprint-5-202610/` (active) and its archive `dts-rdc/dts-worklog/spaces/rdc/archive/dts-rdc-worklog/v1.0.0/sprint-5-202610/`, F1 and its linked ADR/task status.
 - **Studio**: Java AI brain imported under `engine/engine-ai`; preserve existing packages and APIs during F1.
 - **Analytics**: moved to the independent `dts-stack/analytics` project; not built by Studio.
 - **Common**: pinned Pack contract library/CLI; no shared business entities or service framework.
@@ -63,8 +63,8 @@ existing imported code's boundary debt. No new libraries are required for F1.
 ## Key References
 
 - Parent repo: `/opt/prod/dts/dts-rdc/` (RDC — Research Development Center)
-- Architecture design: `/opt/prod/dts/dts-rdc/worklog/v1.0.0/docs/plans/2026-03-11-ai-decision-os-design.md`
-- Infra design: `/opt/prod/dts/dts-rdc/worklog/v1.0.0/docs/plans/2026-03-26-dts-infra-design.md`
+- Architecture design: `/opt/prod/dts/dts-rdc/dts-worklog/spaces/rdc/archive/dts-rdc-worklog/v1.0.0/docs/plans/2026-03-11-ai-decision-os-design.md`
+- Infra design: `/opt/prod/dts/dts-rdc/dts-worklog/spaces/rdc/archive/dts-rdc-worklog/v1.0.0/docs/plans/2026-03-26-dts-infra-design.md`
 - Product docs: `~/Documents/dts/` (商业计划书, 产品介绍, Palantir 分析)
 - Memory: `~/.claude/projects/-opt-prod-dts-dts-rdc/memory/`
 
